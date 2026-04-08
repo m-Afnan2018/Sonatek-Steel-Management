@@ -1,0 +1,50 @@
+services:
+  mongo:
+    image: mongo:7
+    container_name: ganesyx_mongo
+    restart: unless-stopped
+    volumes:
+      - mongo_data:/data/db
+    networks:
+      - ganesyx_net
+
+  backend:
+    build: ./backend
+    container_name: ganesyx_backend
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      - NODE_ENV=production
+      - PORT=5000
+      - MONGO_URI=mongodb://mongo:27017/ganesyx_pm
+    depends_on:
+      - mongo
+    ports:
+      - "5000:5000"
+    networks:
+      - ganesyx_net
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        # NEXT_PUBLIC_* vars must be set at build time — they are baked into the JS bundle
+        - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-http://localhost:5000/api}
+    container_name: ganesyx_frontend
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - HOSTNAME=0.0.0.0
+    depends_on:
+      - backend
+    ports:
+      - "3000:3000"
+    networks:
+      - ganesyx_net
+
+volumes:
+  mongo_data:
+
+networks:
+  ganesyx_net:

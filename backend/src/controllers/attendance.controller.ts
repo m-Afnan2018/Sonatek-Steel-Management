@@ -1,0 +1,253 @@
+import { Request, Response } from 'express';
+import Attendance from '../models/Attendance';
+import User from '../models/User';
+
+const getToday = (): Date => {
+  const now = new Date();
+  return new Date(now.getFullYear(), now.getMonth(), now.getDate());
+};
+
+const checkIsLate = (checkInTime: Date, threshold: string): boolean => {
+  const [h, m] = threshold.split(':').map(Number);
+  const limit = new Date(checkInTime);
+  limit.setHours(h, m, 0, 0);
+  return checkInTime > limit;
+};
+
+export const checkIn = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const userId = req.user?.id;
+    const today = getToday();
+    const { workMode, notes } = req.body;
+
+    const existing = await Attendance.findOne({ user: userId, date: today });
+    if (existing && existing.checkIn) {
+      res.status(400).json({ message: 'Already checked in today.' });
+      return;
+    }
+
+    const user = await User.findById(userId);
+    const checkInTime = new Date();
+    const isLate = user?.lateThreshold ? checkIsLate(checkInTime, user.lateThreshold) : false;
+
+    const attendance = existing || new Attendance({ user: userId, date: today });
+    attendance.checkIn = checkInTime;
+    attendance.workMode = workMode || 'office';
+    attendance.isLate = isLate;
+    attendance.status = isLate ? 'late' : (workMode === 'remote' ? 'remote' : 'present');
+    if (notes) attendance.notes = [{ content: notes, documents: [], links: [], createdAt: new Date() }];
+
+    await attendance.save();
+    res.json(attendance);
+  } catch (error) {
+    console.error('CheckIn error:', error);
+    res.status(500).json({ message: 'Server error.' });
+  }
+};
+
+export const checkOut = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const userId = req.user?.id;
+    const today = getToday();
+
+    const attendance = await Attendance.findOne({ user: userId, date: today });
+    if (!attendance || !attendance.checkIn) {
+      res.status(400).json({ message: 'Not checked in today.' });
+      return;
+    }
+    if (attendance.checkOut) {
+      res.status(400).json({ message: 'Already checked out today.' });
+      return;
+    }
+
+    if (attendance.lunchStart && !attendance.lunchStop) {
+      attendance.lunchStop = new Date();
+      const lunchMs = attendance.lunchStop.getTime() - attendance.lunchStart.getTime();
+      attendance.lunchDuration = Math.round(lunchMs / (1000 * 60));
+    }
+
+    attendance.checkOut = new Date();
+    const totalMs = attendance.checkOut.getTime() - attendance.checkIn.getTime();
+    const lunchMs = (attendance.lunchDuration || 0) * 60 * 1000;
+    attendance.hoursWorked = Math.round(((totalMs - lunchMs) / (1000 * 60 * 60)) * 100) / 100;
+    if (attendance.hoursWorked < 4) attendance.status = 'half_day';
+
+    await attendance.save();
+    res.json(attendance);
+  } catch (error) {
+    console.error('CheckOut error:', error);
+    res.status(500).json({ message: 'Server error.' });
+  }
+};
+
+export const lunchStart = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const userId = req.user?.id;
+    const today = getToday();
+
+    const attendance = await Attendance.findOne({ user: userId, date: today });
+    if (!attendance || !attendance.checkIn) {
+      res.status(400).json({ message: 'Not checked in today.' });
+      return;
+    }
+    if (attendance.lunchStart) {
+      res.status(400).json({ message: 'Lunch already started.' });
+      return;
+    }
+
+    attendance.lunchStart = new Date();
+    await attendance.save();
+    res.json(attendance);
+  } catch (error) {
+    res.status(500).json({ message: 'Server error.' });
+  }
+};
+
+export const lunchStop = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const userId = req.user?.id;
+    const today = getToday();
+
+    const attendance = await Attendance.findOne({ user: userId, date: today });
+    if (!attendance || !attendance.lunchStart) {
+      res.status(400).json({ message: 'Lunch not started.' });
+      return;
+    }
+    if (attendance.lunchStop) {
+      res.status(400).json({ message: 'Lunch already stopped.' });
+      return;
+    }
+
+    attendance.lunchStop = new Date();
+    const lunchMs = attendance.lunchStop.getTime() - attendance.lunchStart.getTime();
+    attendance.lunchDuration = Math.round(lunchMs / (1000 * 60));
+    await attendance.save();
+    res.json(attendance);
+  } catch (error) {
+    res.status(500).json({ message: 'Server error.' });
+  }
+};
+
+export const getMyAttendance = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const userId = req.user?.id;
+    const { month, year } = req.query;
+    const m = month ? parseInt(month as string) - 1 : new Date().getMonth();
+    const y = year ? parseInt(year as string) : new Date().getFullYear();
+    const startDate = new Date(y, m, 1);
+    const endDate = new Date(y, m + 1, 0, 23, 59, 59);
+
+    const records = await Attendance.find({ user: userId, date: { $gte: startDate, $lte: endDate } }).sort({ date: 1 });
+    res.json(records);
+  } catch (error) {
+    res.status(500).json({ message: 'Server error.' });
+  }
+};
+
+export const getTeamAttendance = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { date, userId, status } = req.query;
+    const queryDate = date ? new Date(date as string) : getToday();
+    const filter: Record<string, unknown> = { date: queryDate };
+    if (userId) filter.user = userId;
+    if (status) filter.status = status;
+
+    const records = await Attendance.find(filter)
+      .populate('user', 'name email avatar department role lateThreshold')
+      .populate('approvedBy', 'name')
+      .sort({ createdAt: 1 });
+    res.json(records);
+  } catch (error) {
+    res.status(500).json({ message: 'Server error.' });
+  }
+};
+
+export const getAttendanceStats = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const userId = req.user?.id;
+    const { month, year } = req.query;
+    const m = month ? parseInt(month as string) - 1 : new Date().getMonth();
+    const y = year ? parseInt(year as string) : new Date().getFullYear();
+    const startDate = new Date(y, m, 1);
+    const endDate = new Date(y, m + 1, 0, 23, 59, 59);
+
+    const records = await Attendance.find({ user: userId, date: { $gte: startDate, $lte: endDate } });
+    const stats = {
+      totalDays: records.length,
+      present: records.filter((r) => r.status === 'present').length,
+      absent: records.filter((r) => r.status === 'absent').length,
+      halfDay: records.filter((r) => r.status === 'half_day').length,
+      remote: records.filter((r) => r.status === 'remote').length,
+      leave: records.filter((r) => r.status === 'leave').length,
+      late: records.filter((r) => r.isLate).length,
+      totalHours: Math.round(records.reduce((sum, r) => sum + r.hoursWorked, 0) * 100) / 100,
+      avgHours: records.length > 0 ? Math.round((records.reduce((sum, r) => sum + r.hoursWorked, 0) / records.length) * 100) / 100 : 0,
+    };
+    res.json(stats);
+  } catch (error) {
+    res.status(500).json({ message: 'Server error.' });
+  }
+};
+
+export const updateAttendance = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const attendance = await Attendance.findByIdAndUpdate(
+      req.params.id,
+      { $set: { ...req.body, approvedBy: req.user?.id } },
+      { new: true, runValidators: true }
+    ).populate('user', 'name email avatar');
+
+    if (!attendance) {
+      res.status(404).json({ message: 'Attendance record not found.' });
+      return;
+    }
+    res.json(attendance);
+  } catch (error) {
+    res.status(500).json({ message: 'Server error.' });
+  }
+};
+
+export const addNoteToDate = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { content, documents, links, date } = req.body;
+    const userId = req.user?.id;
+    const targetDate = date ? new Date(date) : getToday();
+
+    const attendance = await Attendance.findOne({ user: userId, date: targetDate });
+    if (!attendance) {
+      res.status(404).json({ message: 'No attendance record for this day. Check in first to add notes.' });
+      return;
+    }
+
+    attendance.notes.push({ content, documents: documents || [], links: links || [], createdAt: new Date() });
+    await attendance.save();
+    res.json(attendance);
+  } catch (error) {
+    res.status(500).json({ message: 'Server error.' });
+  }
+};
+
+export const deleteNote = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { id, noteIndex } = req.params;
+    const userId = req.user?.id;
+
+    const attendance = await Attendance.findOne({ _id: id, user: userId });
+    if (!attendance) {
+      res.status(404).json({ message: 'Attendance record not found.' });
+      return;
+    }
+
+    const idx = parseInt(noteIndex);
+    if (isNaN(idx) || idx < 0 || idx >= attendance.notes.length) {
+      res.status(400).json({ message: 'Invalid note index.' });
+      return;
+    }
+
+    attendance.notes.splice(idx, 1);
+    await attendance.save();
+    res.json(attendance);
+  } catch (error) {
+    res.status(500).json({ message: 'Server error.' });
+  }
+};

@@ -1,0 +1,87 @@
+.wrapper {
+  overflow-x: auto;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.table th {
+  text-align: left;
+  padding: 0.75rem 1rem;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+
+.table td {
+  padding: 0.75rem 1rem;
+  font-size: 0.8125rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.table tr:hover {
+  background: var(--card);
+}
+
+.member {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+}
+
+.name {
+  font-weight: 600;
+  font-size: 0.8125rem;
+  display: block;
+}
+
+.dept {
+  font-size: 0.6875rem;
+  color: var(--text-muted);
+}
+
+.time {
+  font-family: monospace;
+  color: var(--text-secondary);
+}
+
+.hours {
+  font-family: monospace;
+  font-weight: 600;
+}
+
+.mode {
+  text-transform: capitalize;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}
+
+.empty {
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 0.875rem;
+  padding: 3rem 0;
+}
+
+.exportPlaceholder {
+  padding: 1rem 0;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.exportBtn {
+  background: var(--card);
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  padding: 0.5rem 1rem;
+  border-radius: var(--radius-md);
+  font-size: 0.8125rem;
+  cursor: not-allowed;
+  opacity: 0.6;
+}

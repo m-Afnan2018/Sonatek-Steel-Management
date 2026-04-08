@@ -1,0 +1,34 @@
+.container {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.track {
+  flex: 1;
+  background: var(--card);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.sm { height: 4px; }
+.md { height: 8px; }
+
+.fill {
+  height: 100%;
+  border-radius: 999px;
+  transition: width 0.4s ease;
+}
+
+.primary { background: var(--primary); }
+.success { background: var(--success); }
+.warning { background: var(--warning); }
+.danger { background: var(--danger); }
+
+.label {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  font-weight: 600;
+  min-width: 2.5rem;
+  text-align: right;
+}

@@ -1,0 +1,176 @@
+'use client';
+
+import { useState, useEffect, useRef } from 'react';
+import Link from 'next/link';
+import { useAuth } from '@/hooks/useAuth';
+import { useThemeStore } from '@/store/themeStore';
+import api from '@/lib/api';
+import { timeAgo } from '@/lib/utils';
+import type { Notification } from '@/types';
+import styles from './Topbar.module.css';
+
+interface TopbarProps {
+  onMenuToggle: () => void;
+  title?: string;
+}
+
+export default function Topbar({ onMenuToggle, title }: TopbarProps) {
+  const { logout, user } = useAuth();
+  const { theme, toggle } = useThemeStore();
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [showUserMenu, setShowUserMenu] = useState(false);
+  const notifRef = useRef<HTMLDivElement>(null);
+  const userRef = useRef<HTMLDivElement>(null);
+
+  const unreadCount = notifications.filter((n) => !n.isRead).length;
+  const isAdmin = user?.role === 'admin';
+
+  useEffect(() => {
+    const fetchNotifications = async () => {
+      try {
+        const { data } = await api.get('/notifications');
+        setNotifications(data);
+      } catch {
+        // ignore
+      }
+    };
+    fetchNotifications();
+  }, []);
+
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme);
+  }, [theme]);
+
+  useEffect(() => {
+    const handleClick = (e: MouseEvent) => {
+      if (notifRef.current && !notifRef.current.contains(e.target as Node)) {
+        setShowNotifications(false);
+      }
+      if (userRef.current && !userRef.current.contains(e.target as Node)) {
+        setShowUserMenu(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, []);
+
+  const markAllRead = async () => {
+    try {
+      await api.put('/notifications/read-all');
+      setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
+    } catch {
+      // ignore
+    }
+  };
+
+  return (
+    <header className={styles.topbar}>
+      <div className={styles.left}>
+        <button className={styles.menuBtn} onClick={onMenuToggle} aria-label="Toggle menu">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <line x1="3" y1="6" x2="21" y2="6" /><line x1="3" y1="12" x2="21" y2="12" /><line x1="3" y1="18" x2="21" y2="18" />
+          </svg>
+        </button>
+        {title && <h2 className={styles.title}>{title}</h2>}
+      </div>
+
+      <div className={styles.right}>
+        {/* Theme toggle */}
+        <button className={styles.iconBtn} onClick={toggle} aria-label="Toggle theme" title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}>
+          {theme === 'dark' ? (
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <circle cx="12" cy="12" r="5" /><line x1="12" y1="1" x2="12" y2="3" /><line x1="12" y1="21" x2="12" y2="23" /><line x1="4.22" y1="4.22" x2="5.64" y2="5.64" /><line x1="18.36" y1="18.36" x2="19.78" y2="19.78" /><line x1="1" y1="12" x2="3" y2="12" /><line x1="21" y1="12" x2="23" y2="12" /><line x1="4.22" y1="19.78" x2="5.64" y2="18.36" /><line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
+            </svg>
+          ) : (
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z" />
+            </svg>
+          )}
+        </button>
+
+        {/* Notifications */}
+        <div className={styles.notifWrapper} ref={notifRef}>
+          <button
+            className={styles.iconBtn}
+            onClick={() => setShowNotifications(!showNotifications)}
+            aria-label="Notifications"
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9" /><path d="M13.73 21a2 2 0 01-3.46 0" />
+            </svg>
+            {unreadCount > 0 && <span className={styles.badge}>{unreadCount}</span>}
+          </button>
+
+          {showNotifications && (
+            <div className={styles.dropdown}>
+              <div className={styles.dropdownHeader}>
+                <span>Notifications</span>
+                {unreadCount > 0 && (
+                  <button className={styles.markRead} onClick={markAllRead}>
+                    Mark all read
+                  </button>
+                )}
+              </div>
+              <div className={styles.dropdownList}>
+                {notifications.length === 0 ? (
+                  <p className={styles.empty}>No notifications</p>
+                ) : (
+                  notifications.map((n) => (
+                    <div
+                      key={n._id}
+                      className={`${styles.notifItem} ${!n.isRead ? styles.unread : ''}`}
+                    >
+                      <div className={styles.notifContent}>
+                        <p className={styles.notifTitle}>{n.title}</p>
+                        <p className={styles.notifMsg}>{n.message}</p>
+                        <span className={styles.notifTime}>{timeAgo(n.createdAt)}</span>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* User menu */}
+        <div className={styles.userWrapper} ref={userRef}>
+          <button
+            className={styles.userBtn}
+            onClick={() => setShowUserMenu(!showUserMenu)}
+          >
+            <div className={styles.avatar}>{user?.name?.charAt(0) || 'U'}</div>
+          </button>
+
+          {showUserMenu && (
+            <div className={styles.dropdown}>
+              <div className={styles.dropdownHeader}>
+                <div>
+                  <p style={{ fontWeight: 600 }}>{user?.name}</p>
+                  <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{user?.email}</p>
+                </div>
+              </div>
+              <div className={styles.dropdownList}>
+                {isAdmin && (
+                  <Link href="/admin/users" className={styles.menuItem}>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" /><circle cx="9" cy="7" r="4" /><line x1="19" y1="8" x2="19" y2="14" /><line x1="16" y1="11" x2="22" y2="11" />
+                    </svg>
+                    Manage Users
+                  </Link>
+                )}
+                <button className={styles.menuItem} onClick={logout}>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4" /><polyline points="16 17 21 12 16 7" /><line x1="21" y1="12" x2="9" y2="12" />
+                  </svg>
+                  Sign Out
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </header>
+  );
+}
