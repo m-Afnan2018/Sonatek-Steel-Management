@@ -1,12 +1,13 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import AppShell from '@/components/layout/AppShell/AppShell';
 import Button from '@/components/ui/Button/Button';
 import Badge from '@/components/ui/Badge/Badge';
 import Modal from '@/components/ui/Modal/Modal';
 import Avatar from '@/components/ui/Avatar/Avatar';
 import Spinner from '@/components/ui/Spinner/Spinner';
+import TaskTimer from '@/components/tasks/TaskTimer';
 import { useTasks } from '@/hooks/useTasks';
 import { useProjects } from '@/hooks/useProjects';
 import { useTeam } from '@/hooks/useTeam';
@@ -31,7 +32,7 @@ const statusVariant = {
 };
 
 export default function TasksPage() {
-  const { tasks, loading, error, fetchTasks, fetchPersonalTasks, createTask, updateTaskStatus, startTimer, pauseTimer, doneTimer } = useTasks();
+  const { tasks, loading, error, fetchTasks, fetchPersonalTasks, createTask, updateTaskStatus, deleteTask, patchTimer } = useTasks();
   const { projects } = useProjects();
   const { members } = useTeam();
   const user = useAuthStore((s) => s.user);
@@ -39,6 +40,16 @@ export default function TasksPage() {
 
   const [tab, setTab] = useState<'personal' | 'assigned'>('assigned');
   const [showCreate, setShowCreate] = useState(false);
+  const [localTasks, setLocalTasks] = useState<Task[]>([]);
+  const [completedOpen, setCompletedOpen] = useState(false);
+  const [deleteConfirm, setDeleteConfirm] = useState<Task | null>(null);
+  const [deleting, setDeleting] = useState(false);
+
+  // Filters
+  const [filterStatus, setFilterStatus] = useState('');
+  const [filterPriority, setFilterPriority] = useState('');
+  const [filterAssignee, setFilterAssignee] = useState('');
+
   const [form, setForm] = useState({
     title: '',
     description: '',
@@ -60,13 +71,12 @@ export default function TasksPage() {
     else fetchTasks();
   }, [tab, fetchTasks, fetchPersonalTasks]);
 
-  useEffect(() => {
-    if (tab === 'personal') {
-      setForm((f) => ({ ...f, isPersonal: true, project: '' }));
-    } else {
-      setForm((f) => ({ ...f, isPersonal: false }));
-    }
-  }, [tab]);
+  useEffect(() => { setLocalTasks(tasks); }, [tasks]);
+
+  const openCreate = () => {
+    setForm((f) => ({ ...f, isPersonal: tab === 'personal', project: '', assignees: [] }));
+    setShowCreate(true);
+  };
 
   const handleCreate = async () => {
     if (!form.title.trim()) return;
@@ -91,14 +101,22 @@ export default function TasksPage() {
     setForm({ title: '', description: '', remark: '', priority: 'medium', status: 'todo', dueDate: '', estimatedHours: '', project: '', isPersonal: tab === 'personal', assignees: [], links: [] });
   };
 
-  const handleTimerAction = async (task: Task, action: 'start' | 'pause' | 'done') => {
-    if (action === 'start') await startTimer(task._id);
-    else if (action === 'pause') await pauseTimer(task._id);
-    else await doneTimer(task._id);
+  const handleStatusChange = async (task: Task, status: string) => {
+    const updated = await updateTaskStatus(task._id, status);
+    if (updated) setLocalTasks((prev) => prev.map((t) => (t._id === updated._id ? updated : t)));
   };
 
-  const handleStatusChange = async (task: Task, status: string) => {
-    await updateTaskStatus(task._id, status);
+  const handleTimerUpdate = (updated: Task) => {
+    setLocalTasks((prev) => prev.map((t) => (t._id === updated._id ? updated : t)));
+  };
+
+  const handleDelete = async () => {
+    if (!deleteConfirm) return;
+    setDeleting(true);
+    await deleteTask(deleteConfirm._id);
+    setLocalTasks((prev) => prev.filter((t) => t._id !== deleteConfirm._id));
+    setDeleting(false);
+    setDeleteConfirm(null);
   };
 
   const addLink = () => {
@@ -107,6 +125,21 @@ export default function TasksPage() {
       setLinkInput('');
     }
   };
+
+  // Apply filters then split active / completed
+  const filtered = useMemo(() => {
+    return localTasks.filter((t) => {
+      if (filterStatus && t.status !== filterStatus) return false;
+      if (filterPriority && t.priority !== filterPriority) return false;
+      if (filterAssignee && !t.assignees.some((a) => a.id === filterAssignee)) return false;
+      return true;
+    });
+  }, [localTasks, filterStatus, filterPriority, filterAssignee]);
+
+  const activeTasks = filtered.filter((t) => t.status !== 'done');
+  const completedTasks = filtered.filter((t) => t.status === 'done');
+
+  const hasFilters = filterStatus || filterPriority || filterAssignee;
 
   return (
     <AppShell title="Tasks">
@@ -120,7 +153,39 @@ export default function TasksPage() {
               Personal Tasks
             </button>
           </div>
-          <Button onClick={() => setShowCreate(true)}>+ New Task</Button>
+          <Button onClick={openCreate}>+ New Task</Button>
+        </div>
+
+        {/* Filters */}
+        <div className={styles.filters}>
+          <select className={styles.filterSelect} value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)}>
+            <option value="">All Statuses</option>
+            <option value="backlog">Backlog</option>
+            <option value="todo">To Do</option>
+            <option value="in_progress">In Progress</option>
+            <option value="in_review">In Review</option>
+            <option value="done">Done</option>
+          </select>
+          <select className={styles.filterSelect} value={filterPriority} onChange={(e) => setFilterPriority(e.target.value)}>
+            <option value="">All Priorities</option>
+            <option value="low">Low</option>
+            <option value="medium">Medium</option>
+            <option value="high">High</option>
+            <option value="critical">Critical</option>
+          </select>
+          {tab === 'assigned' && members.length > 0 && (
+            <select className={styles.filterSelect} value={filterAssignee} onChange={(e) => setFilterAssignee(e.target.value)}>
+              <option value="">All Assignees</option>
+              {members.map((m) => (
+                <option key={m.id} value={m.id}>{m.name}</option>
+              ))}
+            </select>
+          )}
+          {hasFilters && (
+            <button className={styles.clearFilters} onClick={() => { setFilterStatus(''); setFilterPriority(''); setFilterAssignee(''); }}>
+              Clear filters
+            </button>
+          )}
         </div>
 
         {loading ? (
@@ -129,10 +194,12 @@ export default function TasksPage() {
           <div className={styles.empty} style={{ color: 'var(--danger)' }}>
             <p>{error}</p>
           </div>
-        ) : tasks.length === 0 ? (
+        ) : filtered.length === 0 ? (
           <div className={styles.empty}>
             <p>
-              {tab === 'personal'
+              {hasFilters
+                ? 'No tasks match the current filters.'
+                : tab === 'personal'
                 ? 'No personal tasks. Create one to get started.'
                 : tab === 'assigned' && !isAdminOrManager
                 ? 'No tasks assigned to you.'
@@ -140,25 +207,74 @@ export default function TasksPage() {
             </p>
           </div>
         ) : (
-          <div className={styles.taskList}>
-            {tasks.map((task) => (
-              <TaskRow
-                key={task._id}
-                task={task}
-                currentUserId={user?.id || ''}
-                onTimer={handleTimerAction}
-                onStatusChange={handleStatusChange}
-              />
-            ))}
-          </div>
+          <>
+            {/* Active tasks */}
+            {activeTasks.length > 0 && (
+              <div className={styles.taskList}>
+                {activeTasks.map((task) => (
+                  <TaskRow
+                    key={task._id}
+                    task={task}
+                    onStatusChange={handleStatusChange}
+                    onTimerUpdate={handleTimerUpdate}
+                    onDelete={(t) => setDeleteConfirm(t)}
+                    patchTimer={patchTimer}
+                  />
+                ))}
+              </div>
+            )}
+
+            {/* Completed section */}
+            {completedTasks.length > 0 && (
+              <div className={styles.completedSection}>
+                <button
+                  className={styles.completedToggle}
+                  onClick={() => setCompletedOpen((v) => !v)}
+                >
+                  <span className={styles.completedChevron}>{completedOpen ? '▾' : '▸'}</span>
+                  Completed
+                  <span className={styles.completedCount}>{completedTasks.length}</span>
+                </button>
+                {completedOpen && (
+                  <div className={styles.taskList}>
+                    {completedTasks.map((task) => (
+                      <TaskRow
+                        key={task._id}
+                        task={task}
+                        onStatusChange={handleStatusChange}
+                        onTimerUpdate={handleTimerUpdate}
+                        onDelete={(t) => setDeleteConfirm(t)}
+                        patchTimer={patchTimer}
+                      />
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </>
         )}
       </div>
 
+      {/* Create modal */}
       <Modal isOpen={showCreate} onClose={() => setShowCreate(false)} title="Create Task" size="lg">
         <div className={styles.form}>
           <div className={styles.field}>
             <label>Title *</label>
             <input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} placeholder="Task title" />
+          </div>
+          <div className={styles.toggleRow}>
+            <span className={styles.toggleLabel}>
+              {form.isPersonal ? 'Personal Task' : 'Team Task'}
+              <span className={styles.toggleSub}>{form.isPersonal ? 'Only visible to you' : 'Can be assigned to members'}</span>
+            </span>
+            <label className={styles.toggle}>
+              <input
+                type="checkbox"
+                checked={form.isPersonal}
+                onChange={(e) => setForm((f) => ({ ...f, isPersonal: e.target.checked, project: '', assignees: [] }))}
+              />
+              <span className={styles.toggleSlider} />
+            </label>
           </div>
           <div className={styles.field}>
             <label>Description</label>
@@ -249,23 +365,65 @@ export default function TasksPage() {
           </div>
         </div>
       </Modal>
+
+      {/* Delete confirm modal */}
+      <Modal isOpen={!!deleteConfirm} onClose={() => setDeleteConfirm(null)} title="Delete Task" size="sm">
+        <div className={styles.deleteConfirm}>
+          <p>Are you sure you want to delete <strong>{deleteConfirm?.title}</strong>? This cannot be undone.</p>
+          <div className={styles.actions}>
+            <Button variant="secondary" onClick={() => setDeleteConfirm(null)}>Cancel</Button>
+            <Button variant="danger" onClick={handleDelete} loading={deleting}>Delete</Button>
+          </div>
+        </div>
+      </Modal>
     </AppShell>
   );
 }
 
-function TaskRow({ task, currentUserId, onTimer, onStatusChange }: {
+function TaskRow({
+  task,
+  onStatusChange,
+  onTimerUpdate,
+  onDelete,
+  patchTimer,
+}: {
   task: Task;
-  currentUserId: string;
-  onTimer: (t: Task, a: 'start' | 'pause' | 'done') => void;
   onStatusChange: (t: Task, status: string) => void;
+  onTimerUpdate: (updated: Task) => void;
+  onDelete: (t: Task) => void;
+  patchTimer: (id: string, action: 'start' | 'pause' | 'resume' | 'hold' | 'finish') => Promise<Task | null>;
 }) {
-  const isMyTimer = task.activeTimerUser === currentUserId;
-  const isRunning = task.timerStatus === 'running';
-  const isPaused = task.timerStatus === 'paused';
-  const isDone = task.status === 'done';
+  const renderWorkflowBtn = () => {
+    switch (task.status) {
+      case 'backlog':
+        return (
+          <button className={`${styles.statusBtn} ${styles.statusStart}`}
+            onClick={() => onStatusChange(task, 'todo')}>
+            → Todo
+          </button>
+        );
+      case 'done':
+        return (
+          <button className={`${styles.statusBtn} ${styles.statusReopen}`}
+            onClick={() => onStatusChange(task, 'todo')}>
+            ↩ Reopen
+          </button>
+        );
+      default:
+        return null;
+    }
+  };
+
+  const act = async (action: 'start' | 'pause' | 'resume' | 'hold' | 'finish') => {
+    const updated = await patchTimer(task._id, action);
+    if (updated) onTimerUpdate(updated);
+  };
 
   return (
-    <div className={styles.taskRow}>
+    <div className={`${styles.taskRow} ${task.status === 'done' ? styles.taskDone : ''}`}>
+      <div className={styles.stepIndicator}>
+        <div className={`${styles.stepDot} ${styles[`step_${task.status}`]}`} title={task.status.replace(/_/g, ' ')} />
+      </div>
       <div className={styles.taskMain}>
         <div className={styles.taskTitle}>
           {task.title}
@@ -284,72 +442,27 @@ function TaskRow({ task, currentUserId, onTimer, onStatusChange }: {
       <div className={styles.taskRight}>
         <div className={styles.assignees}>
           {task.assignees.slice(0, 3).map((a) => (
-            <Avatar key={a.id || a.email} name={a.name} size="sm" />
+            <span key={a.id || a.email} className={styles.assignee}>
+              <Avatar name={a.name} size="sm" />
+              <span className={styles.assigneeName}>{a.name}</span>
+            </span>
           ))}
+          {task.assignees.length > 3 ? (
+            <span className={styles.assigneeMore}>+{task.assignees.length - 3}</span>
+          ) : null}
         </div>
-
-        <div className={styles.timerActions}>
-          {/* Timer controls */}
-          {!isDone && (
-            isRunning && isMyTimer ? (
-              <>
-                <span className={styles.timerRunning}>⏱ Running</span>
-                <button className={styles.timerBtn} onClick={() => onTimer(task, 'pause')}>Pause Timer</button>
-              </>
-            ) : isPaused && isMyTimer ? (
-              <>
-                <span className={styles.timerPaused}>⏸ Paused</span>
-                <button className={styles.timerBtn} onClick={() => onTimer(task, 'start')}>Resume</button>
-              </>
-            ) : isRunning ? (
-              <span className={styles.timerOther}>⏱ In progress</span>
-            ) : (
-              <button className={styles.timerBtn} onClick={() => onTimer(task, 'start')}>▶ Start</button>
-            )
-          )}
-        </div>
-
-        {/* Status action buttons */}
         <div className={styles.statusActions}>
-          {!isDone && task.status !== 'in_review' && (
-            <button
-              className={`${styles.statusBtn} ${styles.statusPause}`}
-              onClick={() => onStatusChange(task, 'in_review')}
-              title="Put on hold (In Review)"
-            >
-              ⏸ Pause
-            </button>
-          )}
-          {task.status === 'in_review' && (
-            <button
-              className={`${styles.statusBtn} ${styles.statusResume}`}
-              onClick={() => onStatusChange(task, 'in_progress')}
-              title="Resume task"
-            >
-              ▶ Resume
-            </button>
-          )}
-          {!isDone && (
-            <button
-              className={`${styles.statusBtn} ${styles.statusDone}`}
-              onClick={() => onStatusChange(task, 'done')}
-              title="Mark as done"
-            >
-              ✓ Done
-            </button>
-          )}
-          {isDone && (
-            <button
-              className={`${styles.statusBtn} ${styles.statusReopen}`}
-              onClick={() => onStatusChange(task, 'todo')}
-              title="Reopen task"
-            >
-              ↩ Reopen
-            </button>
+          {renderWorkflowBtn()}
+          {task.status !== 'backlog' && (
+            <TaskTimer task={task} onUpdate={onTimerUpdate} overrideAct={act} />
           )}
         </div>
-
-        <span className={styles.hours}>{task.loggedHours}h</span>
+        <span className={styles.hours}>
+          {Math.floor(task.totalElapsedSeconds / 60)}m
+        </span>
+        <button className={styles.deleteBtn} onClick={() => onDelete(task)} title="Delete task">
+          ✕
+        </button>
       </div>
     </div>
   );

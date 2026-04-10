@@ -111,14 +111,14 @@ export default function TaskTimelinePage() {
                     <div key={task._id} className={`${styles.taskItem} ${task.status === 'done' ? styles.taskDone : ''}`}>
                       <div className={styles.taskTop}>
                         <span className={styles.taskTitle}>{task.title}</span>
-                        {task.timerStatus === 'running' && task.activeTimerUser === (user.id || (user as unknown as { _id: string })._id) && (
+                        {task.timerStatus === 'running' && (
                           <span className={styles.timerBadge}>⏱ Live</span>
                         )}
                       </div>
                       <div className={styles.taskBottom}>
                         <Badge variant={priorityVariant[task.priority]} size="sm">{task.priority}</Badge>
                         <span className={styles.taskStatus}>{task.status.replace('_', ' ')}</span>
-                        {task.loggedHours > 0 && <span className={styles.loggedHours}>{task.loggedHours}h logged</span>}
+                        {task.totalElapsedSeconds > 0 && <span className={styles.loggedHours}>{Math.floor(task.totalElapsedSeconds / 60)}m logged</span>}
                       </div>
                     </div>
                   ))}

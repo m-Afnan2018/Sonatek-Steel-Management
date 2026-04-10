@@ -18,7 +18,7 @@ export default function TaskDetailPage() {
   const params = useParams();
   const router = useRouter();
   const taskId = params.taskId as string;
-  const { fetchTask, updateTask, addComment, logHours: logTaskHours, startTimer, pauseTimer, doneTimer } = useTasks();
+  const { fetchTask, updateTask, addComment, logHours: logTaskHours, patchTimer } = useTasks();
   const { members } = useTeam();
   const currentUser = useAuthStore((s) => s.user);
 
@@ -65,17 +65,14 @@ export default function TaskDetailPage() {
     if (!task) return;
     const h = parseFloat(hoursInput);
     if (isNaN(h) || h <= 0) return;
-    await logTaskHours(task._id, h);
-    setTask({ ...task, loggedHours: task.loggedHours + h });
+    const updated = await logTaskHours(task._id, h);
+    if (updated) setTask(updated);
     setHoursInput('');
   };
 
-  const handleTimer = async (action: 'start' | 'pause' | 'done') => {
+  const handleTimer = async (action: 'start' | 'pause' | 'resume' | 'hold' | 'finish') => {
     if (!task) return;
-    let result: Task | null = null;
-    if (action === 'start') result = await startTimer(task._id);
-    else if (action === 'pause') result = await pauseTimer(task._id);
-    else result = await doneTimer(task._id);
+    const result = await patchTimer(task._id, action);
     if (result) setTask(result);
   };
 
@@ -138,7 +135,7 @@ export default function TaskDetailPage() {
 
             <div className={styles.section}>
               <h3>Time Tracking</h3>
-              <p>{task.loggedHours}h logged{task.estimatedHours ? ` / ${task.estimatedHours}h estimated` : ''}</p>
+              <p>{Math.floor(task.totalElapsedSeconds / 60)}m logged{task.estimatedHours ? ` / ${task.estimatedHours}h estimated` : ''}</p>
               <div className={styles.logRow}>
                 <input
                   type="number"
@@ -180,35 +177,33 @@ export default function TaskDetailPage() {
           </div>
 
           <div className={styles.sidebar}>
-            {task.status !== 'done' && (() => {
-              const isMyTimer = task.activeTimerUser === currentUser?.id;
-              const isRunning = task.timerStatus === 'running';
-              const isPaused = task.timerStatus === 'paused';
-              return (
-                <div className={styles.sideSection}>
-                  <h4>Timer</h4>
-                  <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-                    {isRunning && isMyTimer ? (
-                      <>
-                        <span style={{ color: 'var(--success)', fontSize: '0.8125rem', alignSelf: 'center' }}>⏱ Running</span>
-                        <Button size="sm" variant="secondary" onClick={() => handleTimer('pause')}>Pause</Button>
-                        <Button size="sm" variant="danger" onClick={() => handleTimer('done')}>Done</Button>
-                      </>
-                    ) : isPaused && isMyTimer ? (
-                      <>
-                        <span style={{ color: 'var(--warning)', fontSize: '0.8125rem', alignSelf: 'center' }}>⏸ Paused</span>
-                        <Button size="sm" variant="secondary" onClick={() => handleTimer('start')}>Resume</Button>
-                        <Button size="sm" variant="danger" onClick={() => handleTimer('done')}>Done</Button>
-                      </>
-                    ) : isRunning ? (
-                      <span style={{ color: 'var(--text-muted)', fontSize: '0.8125rem' }}>⏱ Running by another user</span>
-                    ) : (
-                      <Button size="sm" onClick={() => handleTimer('start')}>▶ Start Timer</Button>
-                    )}
-                  </div>
+            {task.timerStatus !== 'finished' && (
+              <div className={styles.sideSection}>
+                <h4>Timer</h4>
+                <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                  {task.timerStatus === 'idle' && (
+                    <Button size="sm" onClick={() => handleTimer('start')}>▶ Start Timer</Button>
+                  )}
+                  {task.timerStatus === 'running' && (
+                    <>
+                      <span style={{ color: 'var(--success)', fontSize: '0.8125rem', alignSelf: 'center' }}>⏱ Running</span>
+                      <Button size="sm" variant="secondary" onClick={() => handleTimer('pause')}>Pause</Button>
+                      <Button size="sm" variant="secondary" onClick={() => handleTimer('hold')}>On Hold</Button>
+                      <Button size="sm" variant="danger" onClick={() => handleTimer('finish')}>Finish</Button>
+                    </>
+                  )}
+                  {(task.timerStatus === 'paused' || task.timerStatus === 'on_hold') && (
+                    <>
+                      <span style={{ color: 'var(--warning)', fontSize: '0.8125rem', alignSelf: 'center' }}>
+                        {task.timerStatus === 'on_hold' ? '⏸ On Hold' : '⏸ Paused'}
+                      </span>
+                      <Button size="sm" variant="secondary" onClick={() => handleTimer('resume')}>Resume</Button>
+                      <Button size="sm" variant="danger" onClick={() => handleTimer('finish')}>Finish</Button>
+                    </>
+                  )}
                 </div>
-              );
-            })()}
+              </div>
+            )}
             <div className={styles.sideSection}>
               <h4>Assignees</h4>
               {task.assignees.map((a) => (

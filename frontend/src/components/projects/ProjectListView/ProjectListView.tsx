@@ -53,7 +53,7 @@ export default function ProjectListView({ tasks, onTaskClick }: ProjectListViewP
                 {task.dueDate ? formatDate(task.dueDate) : '-'}
               </td>
               <td className={styles.hours}>
-                {task.loggedHours}{task.estimatedHours ? `/${task.estimatedHours}` : ''}h
+                {Math.floor(task.totalElapsedSeconds / 60)}m{task.estimatedHours ? `/${task.estimatedHours}h est` : ''}
               </td>
             </tr>
           ))}

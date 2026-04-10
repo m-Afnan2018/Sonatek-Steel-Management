@@ -10,9 +10,7 @@ import {
   addComment,
   logHours,
   getAllUserTasks,
-  startTimer,
-  pauseTimer,
-  doneTimer,
+  patchTimer,
 } from '../controllers/task.controller';
 import { authenticate } from '../middleware/auth.middleware';
 import { authorize } from '../middleware/role.middleware';
@@ -42,8 +40,6 @@ router.post(
 );
 
 router.post('/:id/log-hours', logHours);
-router.post('/:id/timer/start', startTimer);
-router.post('/:id/timer/pause', pauseTimer);
-router.post('/:id/timer/done', doneTimer);
+router.patch('/:id/timer', patchTimer);
 
 export default router;

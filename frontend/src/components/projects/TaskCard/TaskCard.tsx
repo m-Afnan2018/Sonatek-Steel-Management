@@ -23,19 +23,13 @@ const priorityVariant = {
 };
 
 export default function TaskCard({ task, onClick, onDragStart, onUpdate }: TaskCardProps) {
-  const { startTimer, pauseTimer, doneTimer } = useTasks();
+  const { patchTimer } = useTasks();
   const user = useAuthStore((s) => s.user);
+  void user;
 
-  const isMyTimer = task.activeTimerUser === user?.id;
-  const isRunning = task.timerStatus === 'running';
-  const isPaused = task.timerStatus === 'paused';
-
-  const handleTimer = async (e: React.MouseEvent, action: 'start' | 'pause' | 'done') => {
+  const handleTimer = async (e: React.MouseEvent, action: 'start' | 'pause' | 'resume' | 'hold' | 'finish') => {
     e.stopPropagation();
-    let result: Task | null = null;
-    if (action === 'start') result = await startTimer(task._id);
-    else if (action === 'pause') result = await pauseTimer(task._id);
-    else result = await doneTimer(task._id);
+    const result = await patchTimer(task._id, action);
     if (result && onUpdate) onUpdate(result);
   };
 
@@ -66,24 +60,24 @@ export default function TaskCard({ task, onClick, onDragStart, onUpdate }: TaskC
       )}
 
       {/* Timer controls */}
-      {task.status !== 'done' && (
+      {task.timerStatus !== 'finished' && (
         <div className={styles.timer} onClick={(e) => e.stopPropagation()}>
-          {isRunning && isMyTimer ? (
+          {task.timerStatus === 'idle' && (
+            <button className={styles.timerBtn} onClick={(e) => handleTimer(e, 'start')}>▶ Start</button>
+          )}
+          {task.timerStatus === 'running' && (
             <>
               <span className={styles.timerRunning}>⏱ Running</span>
               <button className={styles.timerBtn} onClick={(e) => handleTimer(e, 'pause')}>Pause</button>
-              <button className={`${styles.timerBtn} ${styles.timerDone}`} onClick={(e) => handleTimer(e, 'done')}>Done</button>
+              <button className={`${styles.timerBtn} ${styles.timerDone}`} onClick={(e) => handleTimer(e, 'finish')}>Done</button>
             </>
-          ) : isPaused && isMyTimer ? (
+          )}
+          {(task.timerStatus === 'paused' || task.timerStatus === 'on_hold') && (
             <>
               <span className={styles.timerPaused}>⏸ Paused</span>
-              <button className={styles.timerBtn} onClick={(e) => handleTimer(e, 'start')}>Resume</button>
-              <button className={`${styles.timerBtn} ${styles.timerDone}`} onClick={(e) => handleTimer(e, 'done')}>Done</button>
+              <button className={styles.timerBtn} onClick={(e) => handleTimer(e, 'resume')}>Resume</button>
+              <button className={`${styles.timerBtn} ${styles.timerDone}`} onClick={(e) => handleTimer(e, 'finish')}>Done</button>
             </>
-          ) : isRunning && !isMyTimer ? (
-            <span className={styles.timerOther}>⏱ In progress</span>
-          ) : (
-            <button className={styles.timerBtn} onClick={(e) => handleTimer(e, 'start')}>▶ Start</button>
           )}
         </div>
       )}
@@ -96,7 +90,7 @@ export default function TaskCard({ task, onClick, onDragStart, onUpdate }: TaskC
         </div>
         {task.estimatedHours && (
           <span className={styles.hours}>
-            {task.loggedHours}/{task.estimatedHours}h
+            {Math.floor(task.totalElapsedSeconds / 60)}m/{task.estimatedHours}h
           </span>
         )}
       </div>

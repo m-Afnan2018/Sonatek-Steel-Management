@@ -115,7 +115,7 @@ export function useTasks() {
   const logHours = useCallback(async (taskId: string, hours: number) => {
     try {
       const { data } = await api.post(`/tasks/${taskId}/log-hours`, { hours });
-      setTasks((prev) => prev.map((t) => (t._id === taskId ? { ...t, loggedHours: data.loggedHours } : t)));
+      setTasks((prev) => prev.map((t) => (t._id === taskId ? data : t)));
       return data;
     } catch {
       setError('Failed to log hours.');
@@ -123,36 +123,19 @@ export function useTasks() {
     }
   }, []);
 
-  const startTimer = useCallback(async (taskId: string): Promise<Task | null> => {
+  const patchTimer = useCallback(async (
+    taskId: string,
+    action: 'start' | 'pause' | 'resume' | 'hold' | 'finish',
+  ): Promise<Task | null> => {
     try {
-      const { data } = await api.post(`/tasks/${taskId}/timer/start`);
+      const { data } = await api.patch(`/tasks/${taskId}/timer`, { action });
       setTasks((prev) => prev.map((t) => (t._id === taskId ? data : t)));
       return data;
     } catch (err: unknown) {
-      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message || 'Failed to start timer.';
+      const msg =
+        (err as { response?: { data?: { message?: string } } })?.response?.data?.message ||
+        'Timer action failed.';
       setError(msg);
-      return null;
-    }
-  }, []);
-
-  const pauseTimer = useCallback(async (taskId: string): Promise<Task | null> => {
-    try {
-      const { data } = await api.post(`/tasks/${taskId}/timer/pause`);
-      setTasks((prev) => prev.map((t) => (t._id === taskId ? data : t)));
-      return data;
-    } catch {
-      setError('Failed to pause timer.');
-      return null;
-    }
-  }, []);
-
-  const doneTimer = useCallback(async (taskId: string): Promise<Task | null> => {
-    try {
-      const { data } = await api.post(`/tasks/${taskId}/timer/done`);
-      setTasks((prev) => prev.map((t) => (t._id === taskId ? data : t)));
-      return data;
-    } catch {
-      setError('Failed to complete timer.');
       return null;
     }
   }, []);
@@ -161,7 +144,6 @@ export function useTasks() {
     tasks, allUserTasks, loading, error,
     fetchTasks, fetchPersonalTasks, fetchAllUserTasks, fetchTask,
     createTask, updateTask, updateTaskStatus, deleteTask,
-    addComment, logHours,
-    startTimer, pauseTimer, doneTimer,
+    addComment, logHours, patchTimer,
   };
 }

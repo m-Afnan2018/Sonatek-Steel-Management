@@ -19,6 +19,7 @@ export interface IAttendance extends Document {
   workMode: 'office' | 'remote' | 'hybrid';
   notes: IAttendanceNote[];
   hoursWorked: number;
+  isLateTime: number;
   isLate: boolean;
   approvedBy?: Types.ObjectId;
   createdAt: Date;

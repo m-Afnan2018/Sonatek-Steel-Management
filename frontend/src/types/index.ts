@@ -41,12 +41,9 @@ export interface Attachment {
   uploadedAt: string;
 }
 
-export interface ITimeEntry {
-  user: string | User;
-  startTime: string;
-  endTime?: string;
-  duration: number;
-  action: 'start' | 'pause' | 'done';
+export interface ITimerEvent {
+  action: 'start' | 'pause' | 'resume' | 'hold' | 'finish';
+  timestamp: string;
 }
 
 export interface Task {
@@ -62,7 +59,6 @@ export interface Task {
   reporter: User;
   dueDate?: string;
   estimatedHours?: number;
-  loggedHours: number;
   tags: string[];
   dependencies: Task[];
   attachments: Attachment[];
@@ -70,10 +66,9 @@ export interface Task {
   thumbnail?: string;
   order: number;
   comments?: Comment[];
-  timeEntries?: ITimeEntry[];
-  timerStatus: 'idle' | 'running' | 'paused';
-  activeTimerStart?: string;
-  activeTimerUser?: string;
+  timerStatus: 'idle' | 'running' | 'paused' | 'on_hold' | 'finished';
+  timerEvents: ITimerEvent[];
+  totalElapsedSeconds: number;
   createdAt: string;
   updatedAt: string;
 }

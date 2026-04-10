@@ -229,7 +229,7 @@ export default function TaskModal({ task, isOpen, onClose, onUpdate, members }: 
             <div className={styles.section}>
               <h4>Time Tracking</h4>
               <p className={styles.timeInfo}>
-                {task.loggedHours}h logged{task.estimatedHours ? ` / ${task.estimatedHours}h estimated` : ''}
+                {Math.floor(task.totalElapsedSeconds / 60)}m logged{task.estimatedHours ? ` / ${task.estimatedHours}h estimated` : ''}
               </p>
               <div className={styles.logHours}>
                 <input
