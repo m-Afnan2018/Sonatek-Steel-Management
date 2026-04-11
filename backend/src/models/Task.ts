@@ -28,6 +28,7 @@ export interface ITask extends Document {
     dependencies: Types.ObjectId[];
     attachments: IAttachment[];
     thumbnail?: string;
+    notes?: string;
     links: string[];
     order: number;
     timerStatus: "idle" | "running" | "paused" | "on_hold" | "finished";
@@ -111,6 +112,7 @@ const taskSchema = new Schema<ITask>(
             },
         ],
         thumbnail: { type: String, default: "" },
+        notes: { type: String, default: "" },
         links: [{ type: String }],
         order: { type: Number, default: 0 },
         timerStatus: {

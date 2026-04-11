@@ -1,0 +1,378 @@
+/* ─── Create Task Modal Form ─────────────────────────────────────── */
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+/* ─── Tab bar ────────────────────────────────────────────────────── */
+.tabBar {
+  display: flex;
+  gap: 0;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 1.25rem;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.tabBar::-webkit-scrollbar { display: none; }
+
+.tabBtn {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.5rem 1rem;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  color: var(--text-secondary);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all var(--transition);
+}
+
+.tabBtn:hover { color: var(--text-primary); }
+
+.tabBtnActive {
+  color: var(--primary);
+  border-bottom-color: var(--primary);
+  font-weight: 600;
+}
+
+.tabCount {
+  font-size: 0.625rem;
+  font-weight: 700;
+  background: var(--primary-light);
+  color: var(--primary);
+  border-radius: 999px;
+  padding: 0.0625rem 0.375rem;
+  min-width: 1.25rem;
+  text-align: center;
+}
+
+/* ─── Tab content ────────────────────────────────────────────────── */
+.tabContent {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  min-height: 260px;
+  margin-bottom: 1.25rem;
+}
+
+/* ─── Field ──────────────────────────────────────────────────────── */
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+}
+
+.label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.req {
+  color: var(--danger);
+  margin-left: 0.125rem;
+}
+
+.input,
+.select,
+.textarea {
+  width: 100%;
+  font-size: 0.9rem;
+  padding: 0.5rem 0.75rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  transition: border-color var(--transition);
+  font-family: var(--font-body);
+}
+
+.input:focus,
+.select:focus,
+.textarea:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px var(--primary-light);
+}
+
+.textarea {
+  resize: vertical;
+  min-height: 80px;
+  line-height: 1.6;
+}
+
+.notesTextarea {
+  min-height: 220px;
+}
+
+/* ─── Two-column row ─────────────────────────────────────────────── */
+.row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+}
+
+/* ─── Assignee chips ─────────────────────────────────────────────── */
+.assigneeGrid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.assigneeChip {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.375rem 0.75rem 0.375rem 0.375rem;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  cursor: pointer;
+  font-size: 0.8125rem;
+  color: var(--text-secondary);
+  transition: all var(--transition);
+}
+
+.assigneeChip:hover {
+  border-color: var(--primary);
+  color: var(--text-primary);
+}
+
+.assigneeChipActive {
+  background: var(--primary-light);
+  border-color: var(--primary);
+  color: var(--primary);
+  font-weight: 600;
+}
+
+.assigneeInitial {
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 50%;
+  background: var(--primary);
+  color: #fff;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.assigneeName { line-height: 1; }
+
+.noMembers {
+  font-size: 0.8125rem;
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+/* ─── Links ──────────────────────────────────────────────────────── */
+.addRow {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.addRow .input { flex: 1; }
+
+.linkList {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+}
+
+.linkItem {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  transition: border-color var(--transition);
+}
+
+.linkItem:hover { border-color: var(--primary); }
+
+.linkIcon { font-size: 0.875rem; flex-shrink: 0; }
+
+.linkUrl {
+  flex: 1;
+  min-width: 0;
+  font-size: 0.8125rem;
+  color: var(--primary);
+  text-decoration: none;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.linkUrl:hover { text-decoration: underline; }
+
+/* ─── Files / Attachments ────────────────────────────────────────── */
+.fileInputHidden { display: none; }
+
+.dropZone {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.375rem;
+  padding: 2rem 1rem;
+  border: 2px dashed var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  cursor: pointer;
+  transition: all var(--transition);
+  text-align: center;
+}
+
+.dropZone:hover {
+  border-color: var(--primary);
+  background: var(--primary-light);
+}
+
+.dropZoneActive {
+  border-color: var(--primary);
+  background: var(--primary-light);
+  transform: scale(1.01);
+}
+
+.dropZoneUploading {
+  opacity: 0.6;
+  cursor: wait;
+  pointer-events: none;
+}
+
+.dropZoneIcon { font-size: 2rem; line-height: 1; }
+
+.dropZoneText {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.dropZoneText u {
+  color: var(--primary);
+  text-decoration: underline;
+}
+
+.dropZoneSub {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.uploadError {
+  font-size: 0.8125rem;
+  color: var(--danger);
+  background: var(--danger-light);
+  border: 1px solid rgba(255,71,87,0.2);
+  border-radius: var(--radius-sm);
+  padding: 0.375rem 0.75rem;
+}
+
+.attachList {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.attachItem {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  padding: 0.625rem 0.75rem;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  transition: border-color var(--transition);
+}
+
+.attachItem:hover { border-color: var(--primary); }
+
+.attachIcon { font-size: 1.25rem; flex-shrink: 0; }
+
+.attachInfo {
+  flex: 1;
+  min-width: 0;
+}
+
+.attachName {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  text-decoration: none;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  display: block;
+}
+
+.attachName:hover { color: var(--primary); text-decoration: underline; }
+
+.previewThumb {
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  border: 1px solid var(--border);
+}
+
+.previewThumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+/* ─── Shared ─────────────────────────────────────────────────────── */
+.removeBtn {
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 0.75rem;
+  padding: 0.1875rem 0.375rem;
+  border-radius: var(--radius-sm);
+  transition: all var(--transition);
+  line-height: 1;
+}
+
+.removeBtn:hover {
+  background: var(--danger-light);
+  color: var(--danger);
+}
+
+.emptyHint {
+  font-size: 0.8125rem;
+  color: var(--text-muted);
+  font-style: italic;
+  text-align: center;
+  padding: 0.5rem 0;
+}
+
+/* ─── Actions row ────────────────────────────────────────────────── */
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--border);
+}
+
+/* ─── Responsive ─────────────────────────────────────────────────── */
+@media (max-width: 480px) {
+  .row { grid-template-columns: 1fr; }
+  .tabBtn { padding: 0.5rem 0.625rem; font-size: 0.75rem; }
+}

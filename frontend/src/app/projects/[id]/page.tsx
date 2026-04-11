@@ -1,11 +1,12 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams } from 'next/navigation';
 import AppShell from '@/components/layout/AppShell/AppShell';
 import KanbanBoard from '@/components/projects/KanbanBoard/KanbanBoard';
 import ProjectListView from '@/components/projects/ProjectListView/ProjectListView';
 import TaskModal from '@/components/projects/TaskModal/TaskModal';
+import Modal from '@/components/ui/Modal/Modal';
 import Button from '@/components/ui/Button/Button';
 import Badge from '@/components/ui/Badge/Badge';
 import Avatar from '@/components/ui/Avatar/Avatar';
@@ -16,8 +17,14 @@ import { useTasks } from '@/hooks/useTasks';
 import { useTeam } from '@/hooks/useTeam';
 import { useAuthStore } from '@/store/authStore';
 import { formatDate, formatStatus } from '@/lib/utils';
-import type { Project, Task } from '@/types';
+import api from '@/lib/api';
+import type { Project, Task, User, Attachment } from '@/types';
 import styles from './projectDetail.module.css';
+import createStyles from './createTask.module.css';
+
+const API_BASE = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api').replace(/\/api$/, '');
+
+type CreateTab = 'details' | 'notes' | 'links' | 'files';
 
 type TabType = 'board' | 'list' | 'members';
 
@@ -25,21 +32,36 @@ export default function ProjectDetailPage() {
   const params = useParams();
   const projectId = params.id as string;
   const { fetchProject } = useProjects(false);
-  const { tasks, loading: tasksLoading, fetchTasks, createTask, updateTaskStatus } = useTasks();
+  const { tasks, loading: tasksLoading, fetchTasks, createTask, updateTaskStatus, patchTimer } = useTasks();
   const { members } = useTeam();
   const user = useAuthStore((s) => s.user);
 
   const [project, setProject] = useState<Project | null>(null);
+  const [localTasks, setLocalTasks] = useState<Task[]>([]);
   const [activeTab, setActiveTab] = useState<TabType>('board');
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [showTaskModal, setShowTaskModal] = useState(false);
   const [showCreateTask, setShowCreateTask] = useState(false);
   const [loading, setLoading] = useState(true);
 
-  // New task form
+  // Create task modal form state
   const [newTaskTitle, setNewTaskTitle] = useState('');
+  const [newTaskDescription, setNewTaskDescription] = useState('');
   const [newTaskPriority, setNewTaskPriority] = useState('medium');
-  const [newTaskAssignee, setNewTaskAssignee] = useState('');
+  const [newTaskStatus, setNewTaskStatus] = useState('todo');
+  const [newTaskDueDate, setNewTaskDueDate] = useState('');
+  const [newTaskEstHours, setNewTaskEstHours] = useState('');
+  const [newTaskAssignees, setNewTaskAssignees] = useState<string[]>([]);
+  const [newTaskNotes, setNewTaskNotes] = useState('');
+  const [newTaskLinks, setNewTaskLinks] = useState<string[]>([]);
+  const [newTaskLinkInput, setNewTaskLinkInput] = useState('');
+  const [newTaskAttachments, setNewTaskAttachments] = useState<Attachment[]>([]);
+  const [createTab, setCreateTab] = useState<CreateTab>('details');
+  const [createSubmitting, setCreateSubmitting] = useState(false);
+  const [fileUploading, setFileUploading] = useState(false);
+  const [fileUploadError, setFileUploadError] = useState('');
+  const [isDragging, setIsDragging] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -52,6 +74,14 @@ export default function ProjectDetailPage() {
   useEffect(() => {
     loadData();
   }, [loadData]);
+
+  // Keep local copy in sync; updated by timer actions without full reload
+  useEffect(() => { setLocalTasks(tasks); }, [tasks]);
+
+  const handleTaskTimerUpdate = (updated: Task) => {
+    setLocalTasks((prev) => prev.map((t) => (t._id === updated._id ? updated : t)));
+    if (selectedTask?._id === updated._id) setSelectedTask(updated);
+  };
 
   const handleTaskClick = async (task: Task) => {
     const { default: api } = await import('@/lib/api');
@@ -69,21 +99,96 @@ export default function ProjectDetailPage() {
     await updateTaskStatus(taskId, status, order);
   };
 
-  const handleCreateTask = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newTaskTitle.trim()) return;
-
-    await createTask({
-      title: newTaskTitle,
-      project: projectId,
-      priority: newTaskPriority as Task['priority'],
-      assignees: newTaskAssignee ? [newTaskAssignee as unknown as import('@/types').User] : [],
-    });
-
+  const resetCreateForm = () => {
     setNewTaskTitle('');
+    setNewTaskDescription('');
     setNewTaskPriority('medium');
-    setNewTaskAssignee('');
-    setShowCreateTask(false);
+    setNewTaskStatus('todo');
+    setNewTaskDueDate('');
+    setNewTaskEstHours('');
+    setNewTaskAssignees([]);
+    setNewTaskNotes('');
+    setNewTaskLinks([]);
+    setNewTaskLinkInput('');
+    setNewTaskAttachments([]);
+    setCreateTab('details');
+    setFileUploadError('');
+  };
+
+  const handleCreateTask = async () => {
+    if (!newTaskTitle.trim()) return;
+    setCreateSubmitting(true);
+    try {
+      await createTask({
+        title: newTaskTitle.trim(),
+        description: newTaskDescription.trim() || undefined,
+        project: projectId,
+        priority: newTaskPriority as Task['priority'],
+        status: newTaskStatus as Task['status'],
+        dueDate: newTaskDueDate || undefined,
+        estimatedHours: newTaskEstHours ? Number(newTaskEstHours) : undefined,
+        assignees: newTaskAssignees as unknown as User[],
+        notes: newTaskNotes.trim() || undefined,
+        links: newTaskLinks.length ? newTaskLinks : undefined,
+        attachments: newTaskAttachments.length ? newTaskAttachments : undefined,
+      });
+      resetCreateForm();
+      setShowCreateTask(false);
+    } finally {
+      setCreateSubmitting(false);
+    }
+  };
+
+  const toggleAssignee = (userId: string) => {
+    setNewTaskAssignees((prev) =>
+      prev.includes(userId) ? prev.filter((id) => id !== userId) : [...prev, userId]
+    );
+  };
+
+  const addLink = () => {
+    const url = newTaskLinkInput.trim();
+    if (!url || newTaskLinks.includes(url)) return;
+    setNewTaskLinks((prev) => [...prev, url]);
+    setNewTaskLinkInput('');
+  };
+
+  const removeLink = (url: string) => {
+    setNewTaskLinks((prev) => prev.filter((l) => l !== url));
+  };
+
+  const uploadFiles = async (files: FileList | File[]) => {
+    setFileUploadError('');
+    setFileUploading(true);
+    try {
+      const arr = Array.from(files);
+      for (const file of arr) {
+        const formData = new FormData();
+        formData.append('file', file);
+        const { data } = await api.post('/upload', formData, {
+          headers: { 'Content-Type': 'multipart/form-data' },
+        });
+        const attachment: Attachment = {
+          name: data.name,
+          url: data.url,
+          type: data.type,
+          uploadedAt: new Date().toISOString(),
+        };
+        setNewTaskAttachments((prev) => [...prev, attachment]);
+      }
+    } catch {
+      setFileUploadError('Upload failed. Check file type/size (max 10 MB).');
+    } finally {
+      setFileUploading(false);
+    }
+  };
+
+  const removeAttachment = (url: string) => {
+    setNewTaskAttachments((prev) => prev.filter((a) => a.url !== url));
+  };
+
+  const getFileIcon = (type: string) => {
+    if (type === 'image') return '🖼️';
+    return '📄';
   };
 
   const handleTaskUpdate = (updated: Task) => {
@@ -160,54 +265,33 @@ export default function ProjectDetailPage() {
           </button>
 
           <div className={styles.tabActions}>
-            <Button size="sm" onClick={() => setShowCreateTask(!showCreateTask)}>
+            <Button size="sm" onClick={() => setShowCreateTask(true)}>
               + Add Task
             </Button>
           </div>
         </div>
-
-        {showCreateTask && (
-          <form onSubmit={handleCreateTask} className={styles.createForm}>
-            <input
-              placeholder="Task title"
-              value={newTaskTitle}
-              onChange={(e) => setNewTaskTitle(e.target.value)}
-              required
-              autoFocus
-            />
-            <select value={newTaskPriority} onChange={(e) => setNewTaskPriority(e.target.value)}>
-              <option value="low">Low</option>
-              <option value="medium">Medium</option>
-              <option value="high">High</option>
-              <option value="critical">Critical</option>
-            </select>
-            <select value={newTaskAssignee} onChange={(e) => setNewTaskAssignee(e.target.value)}>
-              <option value="">Unassigned</option>
-              {members.map((m) => (
-                <option key={m.id} value={m.id}>{m.name}</option>
-              ))}
-            </select>
-            <Button type="submit" size="sm">Create</Button>
-            <Button type="button" variant="ghost" size="sm" onClick={() => setShowCreateTask(false)}>
-              Cancel
-            </Button>
-          </form>
-        )}
 
         {activeTab === 'board' && (
           tasksLoading ? (
             <div className={styles.loading}><Spinner /></div>
           ) : (
             <KanbanBoard
-              tasks={tasks}
+              tasks={localTasks}
               onTaskClick={handleTaskClick}
               onStatusChange={handleStatusChange}
+              onTaskUpdate={handleTaskTimerUpdate}
+              patchTimer={patchTimer}
             />
           )
         )}
 
         {activeTab === 'list' && (
-          <ProjectListView tasks={tasks} onTaskClick={handleTaskClick} />
+          <ProjectListView
+            tasks={localTasks}
+            onTaskClick={handleTaskClick}
+            onTaskUpdate={handleTaskTimerUpdate}
+            patchTimer={patchTimer}
+          />
         )}
 
         {activeTab === 'members' && (
@@ -243,7 +327,238 @@ export default function ProjectDetailPage() {
         onClose={() => { setShowTaskModal(false); setSelectedTask(null); }}
         onUpdate={handleTaskUpdate}
         members={members}
+        patchTimer={patchTimer}
       />
+
+      {/* ── Create Task Modal ── */}
+      <Modal
+        isOpen={showCreateTask}
+        onClose={() => { setShowCreateTask(false); resetCreateForm(); }}
+        title="Create New Task"
+        size="lg"
+      >
+        <div className={createStyles.form}>
+          {/* Tab bar */}
+          <div className={createStyles.tabBar}>
+            {(['details', 'notes', 'links', 'files'] as CreateTab[]).map((tab) => (
+              <button
+                key={tab}
+                type="button"
+                className={`${createStyles.tabBtn} ${createTab === tab ? createStyles.tabBtnActive : ''}`}
+                onClick={() => setCreateTab(tab)}
+              >
+                {tab === 'details' && 'Details'}
+                {tab === 'notes' && 'Notes'}
+                {tab === 'links' && (
+                  <>Links{newTaskLinks.length > 0 && <span className={createStyles.tabCount}>{newTaskLinks.length}</span>}</>
+                )}
+                {tab === 'files' && (
+                  <>Files{newTaskAttachments.length > 0 && <span className={createStyles.tabCount}>{newTaskAttachments.length}</span>}</>
+                )}
+              </button>
+            ))}
+          </div>
+
+          {/* Tab: Details */}
+          {createTab === 'details' && (
+            <div className={createStyles.tabContent}>
+              <div className={createStyles.field}>
+                <label className={createStyles.label}>Title <span className={createStyles.req}>*</span></label>
+                <input
+                  className={createStyles.input}
+                  placeholder="What needs to be done?"
+                  value={newTaskTitle}
+                  onChange={(e) => setNewTaskTitle(e.target.value)}
+                  autoFocus
+                />
+              </div>
+
+              <div className={createStyles.field}>
+                <label className={createStyles.label}>Description</label>
+                <textarea
+                  className={createStyles.textarea}
+                  placeholder="Add more details..."
+                  value={newTaskDescription}
+                  onChange={(e) => setNewTaskDescription(e.target.value)}
+                  rows={3}
+                />
+              </div>
+
+              <div className={createStyles.row}>
+                <div className={createStyles.field}>
+                  <label className={createStyles.label}>Status</label>
+                  <select className={createStyles.select} value={newTaskStatus} onChange={(e) => setNewTaskStatus(e.target.value)}>
+                    <option value="todo">To Do</option>
+                    <option value="in_progress">In Progress</option>
+                    <option value="in_review">In Review</option>
+                    <option value="on_hold">On Hold</option>
+                    <option value="done">Done</option>
+                  </select>
+                </div>
+                <div className={createStyles.field}>
+                  <label className={createStyles.label}>Priority</label>
+                  <select className={createStyles.select} value={newTaskPriority} onChange={(e) => setNewTaskPriority(e.target.value)}>
+                    <option value="low">Low</option>
+                    <option value="medium">Medium</option>
+                    <option value="high">High</option>
+                    <option value="critical">Critical</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className={createStyles.row}>
+                <div className={createStyles.field}>
+                  <label className={createStyles.label}>Due Date</label>
+                  <input type="date" className={createStyles.input} value={newTaskDueDate} onChange={(e) => setNewTaskDueDate(e.target.value)} />
+                </div>
+                <div className={createStyles.field}>
+                  <label className={createStyles.label}>Estimated Hours</label>
+                  <input type="number" min="0" step="0.5" className={createStyles.input} placeholder="e.g. 4" value={newTaskEstHours} onChange={(e) => setNewTaskEstHours(e.target.value)} />
+                </div>
+              </div>
+
+              <div className={createStyles.field}>
+                <label className={createStyles.label}>Assignees</label>
+                <div className={createStyles.assigneeGrid}>
+                  {members.map((m) => {
+                    const checked = newTaskAssignees.includes(m.id);
+                    return (
+                      <button
+                        key={m.id}
+                        type="button"
+                        className={`${createStyles.assigneeChip} ${checked ? createStyles.assigneeChipActive : ''}`}
+                        onClick={() => toggleAssignee(m.id)}
+                      >
+                        <span className={createStyles.assigneeInitial}>{m.name.charAt(0).toUpperCase()}</span>
+                        <span className={createStyles.assigneeName}>{m.name}</span>
+                        {checked && (
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                            <polyline points="20 6 9 17 4 12" />
+                          </svg>
+                        )}
+                      </button>
+                    );
+                  })}
+                  {members.length === 0 && <span className={createStyles.noMembers}>No members in this project yet.</span>}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Tab: Notes */}
+          {createTab === 'notes' && (
+            <div className={createStyles.tabContent}>
+              <div className={createStyles.field}>
+                <label className={createStyles.label}>Notes</label>
+                <textarea
+                  className={`${createStyles.textarea} ${createStyles.notesTextarea}`}
+                  placeholder="Add internal notes, context, or anything relevant to this task…"
+                  value={newTaskNotes}
+                  onChange={(e) => setNewTaskNotes(e.target.value)}
+                  autoFocus
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Tab: Links */}
+          {createTab === 'links' && (
+            <div className={createStyles.tabContent}>
+              <div className={createStyles.field}>
+                <label className={createStyles.label}>Add Link</label>
+                <div className={createStyles.addRow}>
+                  <input
+                    className={createStyles.input}
+                    placeholder="https://example.com"
+                    value={newTaskLinkInput}
+                    onChange={(e) => setNewTaskLinkInput(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addLink(); } }}
+                    autoFocus
+                  />
+                  <Button size="sm" onClick={addLink} disabled={!newTaskLinkInput.trim()}>Add</Button>
+                </div>
+              </div>
+              {newTaskLinks.length > 0 && (
+                <div className={createStyles.linkList}>
+                  {newTaskLinks.map((url) => (
+                    <div key={url} className={createStyles.linkItem}>
+                      <span className={createStyles.linkIcon}>🔗</span>
+                      <a href={url} target="_blank" rel="noopener noreferrer" className={createStyles.linkUrl}>{url}</a>
+                      <button type="button" className={createStyles.removeBtn} onClick={() => removeLink(url)} title="Remove">✕</button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {newTaskLinks.length === 0 && (
+                <p className={createStyles.emptyHint}>No links added yet. Paste a URL above and click Add.</p>
+              )}
+            </div>
+          )}
+
+          {/* Tab: Files */}
+          {createTab === 'files' && (
+            <div className={createStyles.tabContent}>
+              <input
+                ref={fileInputRef}
+                type="file"
+                multiple
+                className={createStyles.fileInputHidden}
+                onChange={(e) => { if (e.target.files) uploadFiles(e.target.files); e.target.value = ''; }}
+              />
+              <div
+                className={`${createStyles.dropZone} ${isDragging ? createStyles.dropZoneActive : ''} ${fileUploading ? createStyles.dropZoneUploading : ''}`}
+                onClick={() => !fileUploading && fileInputRef.current?.click()}
+                onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
+                onDragLeave={() => setIsDragging(false)}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  setIsDragging(false);
+                  if (e.dataTransfer.files.length) uploadFiles(e.dataTransfer.files);
+                }}
+              >
+                <span className={createStyles.dropZoneIcon}>{fileUploading ? '⏳' : '📁'}</span>
+                <span className={createStyles.dropZoneText}>
+                  {fileUploading ? 'Uploading…' : <><u>Click to browse</u> or drag &amp; drop files here</>}
+                </span>
+                <span className={createStyles.dropZoneSub}>Images, PDFs, docs — max 10 MB each</span>
+              </div>
+              {fileUploadError && <p className={createStyles.uploadError}>{fileUploadError}</p>}
+              {newTaskAttachments.length > 0 && (
+                <div className={createStyles.attachList}>
+                  {newTaskAttachments.map((a) => (
+                    <div key={a.url} className={createStyles.attachItem}>
+                      {a.type === 'image' ? (
+                        <div className={createStyles.previewThumb}>
+                          <img src={`${API_BASE}${a.url}`} alt={a.name} />
+                        </div>
+                      ) : (
+                        <span className={createStyles.attachIcon}>{getFileIcon(a.type)}</span>
+                      )}
+                      <div className={createStyles.attachInfo}>
+                        <a href={`${API_BASE}${a.url}`} target="_blank" rel="noopener noreferrer" className={createStyles.attachName}>{a.name}</a>
+                      </div>
+                      <button type="button" className={createStyles.removeBtn} onClick={() => removeAttachment(a.url)} title="Remove">✕</button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {newTaskAttachments.length === 0 && !fileUploading && (
+                <p className={createStyles.emptyHint}>No files attached yet.</p>
+              )}
+            </div>
+          )}
+
+          {/* Always-visible actions */}
+          <div className={createStyles.actions}>
+            <Button variant="ghost" onClick={() => { setShowCreateTask(false); resetCreateForm(); }} disabled={createSubmitting}>
+              Cancel
+            </Button>
+            <Button onClick={handleCreateTask} disabled={!newTaskTitle.trim() || createSubmitting || fileUploading}>
+              {createSubmitting ? 'Creating…' : 'Create Task'}
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </AppShell>
   );
 }

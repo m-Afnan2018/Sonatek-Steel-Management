@@ -23,12 +23,12 @@ const priorityVariant = {
   low: 'success' as const,
 };
 
-const statusVariant = {
-  backlog: 'default' as const,
-  todo: 'default' as const,
-  in_progress: 'primary' as const,
-  in_review: 'warning' as const,
-  done: 'success' as const,
+const statusAccent: Record<string, string> = {
+  backlog: styles.accentBacklog,
+  todo: styles.accentTodo,
+  in_progress: styles.accentInProgress,
+  in_review: styles.accentInReview,
+  done: styles.accentDone,
 };
 
 export default function TasksPage() {
@@ -45,7 +45,6 @@ export default function TasksPage() {
   const [deleteConfirm, setDeleteConfirm] = useState<Task | null>(null);
   const [deleting, setDeleting] = useState(false);
 
-  // Filters
   const [filterStatus, setFilterStatus] = useState('');
   const [filterPriority, setFilterPriority] = useState('');
   const [filterAssignee, setFilterAssignee] = useState('');
@@ -126,7 +125,6 @@ export default function TasksPage() {
     }
   };
 
-  // Apply filters then split active / completed
   const filtered = useMemo(() => {
     return localTasks.filter((t) => {
       if (filterStatus && t.status !== filterStatus) return false;
@@ -138,19 +136,28 @@ export default function TasksPage() {
 
   const activeTasks = filtered.filter((t) => t.status !== 'done');
   const completedTasks = filtered.filter((t) => t.status === 'done');
-
   const hasFilters = filterStatus || filterPriority || filterAssignee;
+
+  const emptyMessage = hasFilters
+    ? { icon: '🔍', title: 'No matches', text: 'No tasks match the current filters.' }
+    : tab === 'personal'
+    ? { icon: '📋', title: 'No personal tasks', text: 'Create one to track work only you can see.' }
+    : tab === 'assigned' && !isAdminOrManager
+    ? { icon: '📭', title: 'Nothing assigned', text: "You don't have any tasks assigned yet." }
+    : { icon: '📋', title: 'No tasks yet', text: 'Create your first task to get started.' };
 
   return (
     <AppShell title="Tasks">
       <div className={styles.page}>
+
+        {/* Header */}
         <div className={styles.header}>
           <div className={styles.tabs}>
             <button className={`${styles.tab} ${tab === 'assigned' ? styles.active : ''}`} onClick={() => setTab('assigned')}>
-              {isAdminOrManager ? 'All Tasks' : 'Assigned to Me'}
+              {isAdminOrManager ? 'All Tasks' : 'My Tasks'}
             </button>
             <button className={`${styles.tab} ${tab === 'personal' ? styles.active : ''}`} onClick={() => setTab('personal')}>
-              Personal Tasks
+              Personal
             </button>
           </div>
           <Button onClick={openCreate}>+ New Task</Button>
@@ -158,6 +165,7 @@ export default function TasksPage() {
 
         {/* Filters */}
         <div className={styles.filters}>
+          <span className={styles.filtersLabel}>Filter</span>
           <select className={styles.filterSelect} value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)}>
             <option value="">All Statuses</option>
             <option value="backlog">Backlog</option>
@@ -183,38 +191,36 @@ export default function TasksPage() {
           )}
           {hasFilters && (
             <button className={styles.clearFilters} onClick={() => { setFilterStatus(''); setFilterPriority(''); setFilterAssignee(''); }}>
-              Clear filters
+              ✕ Clear
             </button>
           )}
         </div>
 
+        {/* Body */}
         {loading ? (
           <div className={styles.loading}><Spinner size="lg" /></div>
         ) : error ? (
-          <div className={styles.empty} style={{ color: 'var(--danger)' }}>
-            <p>{error}</p>
+          <div className={styles.empty}>
+            <span className={styles.emptyIcon}>⚠️</span>
+            <p className={styles.emptyTitle}>Something went wrong</p>
+            <p className={styles.emptyText}>{error}</p>
           </div>
         ) : filtered.length === 0 ? (
           <div className={styles.empty}>
-            <p>
-              {hasFilters
-                ? 'No tasks match the current filters.'
-                : tab === 'personal'
-                ? 'No personal tasks. Create one to get started.'
-                : tab === 'assigned' && !isAdminOrManager
-                ? 'No tasks assigned to you.'
-                : 'No tasks found.'}
-            </p>
+            <span className={styles.emptyIcon}>{emptyMessage.icon}</span>
+            <p className={styles.emptyTitle}>{emptyMessage.title}</p>
+            <p className={styles.emptyText}>{emptyMessage.text}</p>
           </div>
         ) : (
           <>
-            {/* Active tasks */}
             {activeTasks.length > 0 && (
               <div className={styles.taskList}>
                 {activeTasks.map((task) => (
                   <TaskRow
                     key={task._id}
                     task={task}
+                    currentUserId={user?.id ?? ''}
+                    isAdminOrManager={isAdminOrManager}
                     onStatusChange={handleStatusChange}
                     onTimerUpdate={handleTimerUpdate}
                     onDelete={(t) => setDeleteConfirm(t)}
@@ -224,13 +230,9 @@ export default function TasksPage() {
               </div>
             )}
 
-            {/* Completed section */}
             {completedTasks.length > 0 && (
               <div className={styles.completedSection}>
-                <button
-                  className={styles.completedToggle}
-                  onClick={() => setCompletedOpen((v) => !v)}
-                >
+                <button className={styles.completedToggle} onClick={() => setCompletedOpen((v) => !v)}>
                   <span className={styles.completedChevron}>{completedOpen ? '▾' : '▸'}</span>
                   Completed
                   <span className={styles.completedCount}>{completedTasks.length}</span>
@@ -241,6 +243,8 @@ export default function TasksPage() {
                       <TaskRow
                         key={task._id}
                         task={task}
+                        currentUserId={user?.id ?? ''}
+                        isAdminOrManager={isAdminOrManager}
                         onStatusChange={handleStatusChange}
                         onTimerUpdate={handleTimerUpdate}
                         onDelete={(t) => setDeleteConfirm(t)}
@@ -268,11 +272,7 @@ export default function TasksPage() {
               <span className={styles.toggleSub}>{form.isPersonal ? 'Only visible to you' : 'Can be assigned to members'}</span>
             </span>
             <label className={styles.toggle}>
-              <input
-                type="checkbox"
-                checked={form.isPersonal}
-                onChange={(e) => setForm((f) => ({ ...f, isPersonal: e.target.checked, project: '', assignees: [] }))}
-              />
+              <input type="checkbox" checked={form.isPersonal} onChange={(e) => setForm((f) => ({ ...f, isPersonal: e.target.checked, project: '', assignees: [] }))} />
               <span className={styles.toggleSlider} />
             </label>
           </div>
@@ -329,12 +329,7 @@ export default function TasksPage() {
           {isAdminOrManager && !form.isPersonal && (
             <div className={styles.field}>
               <label>Assign To</label>
-              <select
-                multiple
-                value={form.assignees}
-                onChange={(e) => setForm({ ...form, assignees: Array.from(e.target.selectedOptions, (o) => o.value) })}
-                size={4}
-              >
+              <select multiple value={form.assignees} onChange={(e) => setForm({ ...form, assignees: Array.from(e.target.selectedOptions, (o) => o.value) })} size={4}>
                 {members.map((m) => (
                   <option key={m.id} value={m.id}>{m.name}</option>
                 ))}
@@ -366,7 +361,7 @@ export default function TasksPage() {
         </div>
       </Modal>
 
-      {/* Delete confirm modal */}
+      {/* Delete confirm */}
       <Modal isOpen={!!deleteConfirm} onClose={() => setDeleteConfirm(null)} title="Delete Task" size="sm">
         <div className={styles.deleteConfirm}>
           <p>Are you sure you want to delete <strong>{deleteConfirm?.title}</strong>? This cannot be undone.</p>
@@ -382,36 +377,39 @@ export default function TasksPage() {
 
 function TaskRow({
   task,
+  currentUserId,
+  isAdminOrManager,
   onStatusChange,
   onTimerUpdate,
   onDelete,
   patchTimer,
 }: {
   task: Task;
+  currentUserId: string;
+  isAdminOrManager: boolean;
   onStatusChange: (t: Task, status: string) => void;
   onTimerUpdate: (updated: Task) => void;
   onDelete: (t: Task) => void;
   patchTimer: (id: string, action: 'start' | 'pause' | 'resume' | 'hold' | 'finish') => Promise<Task | null>;
 }) {
+  const isOverdue = task.dueDate && task.status !== 'done' && new Date(task.dueDate) < new Date();
+
   const renderWorkflowBtn = () => {
-    switch (task.status) {
-      case 'backlog':
-        return (
-          <button className={`${styles.statusBtn} ${styles.statusStart}`}
-            onClick={() => onStatusChange(task, 'todo')}>
-            → Todo
-          </button>
-        );
-      case 'done':
-        return (
-          <button className={`${styles.statusBtn} ${styles.statusReopen}`}
-            onClick={() => onStatusChange(task, 'todo')}>
-            ↩ Reopen
-          </button>
-        );
-      default:
-        return null;
+    if (task.status === 'backlog') {
+      return (
+        <button className={`${styles.statusBtn} ${styles.statusStart}`} onClick={() => onStatusChange(task, 'todo')}>
+          → Todo
+        </button>
+      );
     }
+    if (task.status === 'done') {
+      return (
+        <button className={`${styles.statusBtn} ${styles.statusReopen}`} onClick={() => onStatusChange(task, 'todo')}>
+          ↩ Reopen
+        </button>
+      );
+    }
+    return null;
   };
 
   const act = async (action: 'start' | 'pause' | 'resume' | 'hold' | 'finish') => {
@@ -419,14 +417,18 @@ function TaskRow({
     if (updated) onTimerUpdate(updated);
   };
 
+  const canDelete = isAdminOrManager || task.reporter?.id === currentUserId;
+  const accentClass = statusAccent[task.status] ?? '';
+
   return (
-    <div className={`${styles.taskRow} ${task.status === 'done' ? styles.taskDone : ''}`}>
+    <div className={`${styles.taskRow} ${accentClass} ${task.status === 'done' ? styles.taskDone : ''}`}>
       <div className={styles.stepIndicator}>
         <div className={`${styles.stepDot} ${styles[`step_${task.status}`]}`} title={task.status.replace(/_/g, ' ')} />
       </div>
+
       <div className={styles.taskMain}>
         <div className={styles.taskTitle}>
-          {task.title}
+          <span className={styles.taskTitleText}>{task.title}</span>
           {task.isPersonal && <span className={styles.personalBadge}>Personal</span>}
           {task.remark && <span className={styles.remarkBadge}>{task.remark}</span>}
         </div>
@@ -434,35 +436,45 @@ function TaskRow({
           {task.project && typeof task.project === 'object' && (
             <span className={styles.projectName}>{task.project.title}</span>
           )}
-          {task.dueDate && <span className={styles.dueDate}>{formatDate(task.dueDate)}</span>}
+          {task.dueDate && (
+            <span className={`${styles.dueDate} ${isOverdue ? styles.dueDateOverdue : ''}`}>
+              {isOverdue ? '⚠ ' : ''}{formatDate(task.dueDate)}
+            </span>
+          )}
           <Badge variant={priorityVariant[task.priority]} size="sm">{task.priority}</Badge>
-          <Badge variant={statusVariant[task.status]} size="sm">{task.status.replace(/_/g, ' ')}</Badge>
         </div>
       </div>
+
       <div className={styles.taskRight}>
-        <div className={styles.assignees}>
-          {task.assignees.slice(0, 3).map((a) => (
-            <span key={a.id || a.email} className={styles.assignee}>
-              <Avatar name={a.name} size="sm" />
-              <span className={styles.assigneeName}>{a.name}</span>
-            </span>
-          ))}
-          {task.assignees.length > 3 ? (
-            <span className={styles.assigneeMore}>+{task.assignees.length - 3}</span>
-          ) : null}
-        </div>
+        {task.assignees.length > 0 && (
+          <div className={styles.assignees}>
+            {task.assignees.slice(0, 4).map((a) => (
+              <span key={a.id || a.email} className={styles.assigneeAvatar} title={a.name}>
+                <Avatar name={a.name} size="sm" />
+              </span>
+            ))}
+            {task.assignees.length > 4 && (
+              <span className={styles.assigneeMore}>+{task.assignees.length - 4}</span>
+            )}
+          </div>
+        )}
+
         <div className={styles.statusActions}>
           {renderWorkflowBtn()}
           {task.status !== 'backlog' && (
             <TaskTimer task={task} onUpdate={onTimerUpdate} overrideAct={act} />
           )}
         </div>
+
         <span className={styles.hours}>
           {Math.floor(task.totalElapsedSeconds / 60)}m
         </span>
-        <button className={styles.deleteBtn} onClick={() => onDelete(task)} title="Delete task">
-          ✕
-        </button>
+
+        {canDelete && (
+          <button className={styles.deleteBtn} onClick={() => onDelete(task)} title="Delete task">
+            ✕
+          </button>
+        )}
       </div>
     </div>
   );

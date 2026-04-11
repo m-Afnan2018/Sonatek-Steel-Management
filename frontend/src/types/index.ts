@@ -1,3 +1,14 @@
+export interface Department {
+  _id: string;
+  name: string;
+  description?: string;
+  color: string;
+  head?: User;
+  members: User[];
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface User {
   id: string;
   name: string;
@@ -64,6 +75,7 @@ export interface Task {
   attachments: Attachment[];
   links: string[];
   thumbnail?: string;
+  notes?: string;
   order: number;
   comments?: Comment[];
   timerStatus: 'idle' | 'running' | 'paused' | 'on_hold' | 'finished';

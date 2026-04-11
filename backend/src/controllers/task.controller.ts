@@ -278,11 +278,24 @@ export const deleteTask = async (
     res: Response,
 ): Promise<void> => {
     try {
-        const task = await Task.findByIdAndDelete(req.params.id);
+        const task = await Task.findById(req.params.id);
         if (!task) {
             res.status(404).json({ message: "Task not found." });
             return;
         }
+
+        const isAdminOrManager =
+            req.user?.role === "admin" || req.user?.role === "manager";
+        const isReporter = String(task.reporter) === String(req.user?.id);
+
+        if (!isAdminOrManager && !isReporter) {
+            res.status(403).json({
+                message: "You can only delete tasks you created.",
+            });
+            return;
+        }
+
+        await task.deleteOne();
         await Comment.deleteMany({ task: task._id });
         res.json({ message: "Task deleted successfully." });
     } catch (error) {

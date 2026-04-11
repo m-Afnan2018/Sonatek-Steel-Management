@@ -11,9 +11,17 @@ interface KanbanBoardProps {
   tasks: Task[];
   onTaskClick: (task: Task) => void;
   onStatusChange: (taskId: string, status: string, order?: number) => void;
+  onTaskUpdate?: (task: Task) => void;
+  patchTimer?: (id: string, action: 'start' | 'pause' | 'resume' | 'hold' | 'finish') => Promise<Task | null>;
 }
 
-export default function KanbanBoard({ tasks, onTaskClick, onStatusChange }: KanbanBoardProps) {
+export default function KanbanBoard({
+  tasks,
+  onTaskClick,
+  onStatusChange,
+  onTaskUpdate,
+  patchTimer,
+}: KanbanBoardProps) {
   const [draggedTask, setDraggedTask] = useState<Task | null>(null);
 
   const handleDragStart = (e: React.DragEvent, task: Task) => {
@@ -55,6 +63,8 @@ export default function KanbanBoard({ tasks, onTaskClick, onStatusChange }: Kanb
           onDragStart={handleDragStart}
           onDragOver={handleDragOver}
           onDrop={handleDrop(status)}
+          onTaskUpdate={onTaskUpdate}
+          patchTimer={patchTimer}
         />
       ))}
     </div>

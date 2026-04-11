@@ -12,6 +12,8 @@ interface KanbanColumnProps {
   onDragStart: (e: React.DragEvent, task: Task) => void;
   onDragOver: (e: React.DragEvent) => void;
   onDrop: (e: React.DragEvent) => void;
+  onTaskUpdate?: (task: Task) => void;
+  patchTimer?: (id: string, action: 'start' | 'pause' | 'resume' | 'hold' | 'finish') => Promise<Task | null>;
 }
 
 const statusColors: Record<string, string> = {
@@ -29,13 +31,11 @@ export default function KanbanColumn({
   onDragStart,
   onDragOver,
   onDrop,
+  onTaskUpdate,
+  patchTimer,
 }: KanbanColumnProps) {
   return (
-    <div
-      className={styles.column}
-      onDragOver={onDragOver}
-      onDrop={onDrop}
-    >
+    <div className={styles.column} onDragOver={onDragOver} onDrop={onDrop}>
       <div className={styles.header}>
         <div className={styles.dot} style={{ background: statusColors[status] }} />
         <span className={styles.title}>{formatStatus(status)}</span>
@@ -48,6 +48,8 @@ export default function KanbanColumn({
             task={task}
             onClick={() => onTaskClick(task)}
             onDragStart={(e) => onDragStart(e, task)}
+            onUpdate={onTaskUpdate}
+            patchTimer={patchTimer}
           />
         ))}
       </div>

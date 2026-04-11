@@ -2,9 +2,8 @@
 
 import Badge from '@/components/ui/Badge/Badge';
 import Avatar from '@/components/ui/Avatar/Avatar';
+import TaskTimer from '@/components/tasks/TaskTimer';
 import { formatDate } from '@/lib/utils';
-import { useTasks } from '@/hooks/useTasks';
-import { useAuthStore } from '@/store/authStore';
 import type { Task } from '@/types';
 import styles from './TaskCard.module.css';
 
@@ -13,6 +12,7 @@ interface TaskCardProps {
   onClick: () => void;
   onDragStart?: (e: React.DragEvent) => void;
   onUpdate?: (task: Task) => void;
+  patchTimer?: (id: string, action: 'start' | 'pause' | 'resume' | 'hold' | 'finish') => Promise<Task | null>;
 }
 
 const priorityVariant = {
@@ -22,16 +22,13 @@ const priorityVariant = {
   low: 'success' as const,
 };
 
-export default function TaskCard({ task, onClick, onDragStart, onUpdate }: TaskCardProps) {
-  const { patchTimer } = useTasks();
-  const user = useAuthStore((s) => s.user);
-  void user;
-
-  const handleTimer = async (e: React.MouseEvent, action: 'start' | 'pause' | 'resume' | 'hold' | 'finish') => {
-    e.stopPropagation();
-    const result = await patchTimer(task._id, action);
-    if (result && onUpdate) onUpdate(result);
-  };
+export default function TaskCard({ task, onClick, onDragStart, onUpdate, patchTimer }: TaskCardProps) {
+  const handleTimerAct = patchTimer
+    ? async (action: 'start' | 'pause' | 'resume' | 'hold' | 'finish') => {
+        const updated = await patchTimer(task._id, action);
+        if (updated && onUpdate) onUpdate(updated);
+      }
+    : undefined;
 
   return (
     <div
@@ -59,38 +56,24 @@ export default function TaskCard({ task, onClick, onDragStart, onUpdate }: TaskC
         </div>
       )}
 
-      {/* Timer controls */}
-      {task.timerStatus !== 'finished' && (
-        <div className={styles.timer} onClick={(e) => e.stopPropagation()}>
-          {task.timerStatus === 'idle' && (
-            <button className={styles.timerBtn} onClick={(e) => handleTimer(e, 'start')}>▶ Start</button>
-          )}
-          {task.timerStatus === 'running' && (
-            <>
-              <span className={styles.timerRunning}>⏱ Running</span>
-              <button className={styles.timerBtn} onClick={(e) => handleTimer(e, 'pause')}>Pause</button>
-              <button className={`${styles.timerBtn} ${styles.timerDone}`} onClick={(e) => handleTimer(e, 'finish')}>Done</button>
-            </>
-          )}
-          {(task.timerStatus === 'paused' || task.timerStatus === 'on_hold') && (
-            <>
-              <span className={styles.timerPaused}>⏸ Paused</span>
-              <button className={styles.timerBtn} onClick={(e) => handleTimer(e, 'resume')}>Resume</button>
-              <button className={`${styles.timerBtn} ${styles.timerDone}`} onClick={(e) => handleTimer(e, 'finish')}>Done</button>
-            </>
-          )}
-        </div>
-      )}
+      {/* Timer — stop propagation so card click doesn't open modal */}
+      <div className={styles.timerWrap} onClick={(e) => e.stopPropagation()}>
+        <TaskTimer
+          task={task}
+          onUpdate={onUpdate ?? (() => {})}
+          overrideAct={handleTimerAct}
+        />
+      </div>
 
       <div className={styles.footer}>
         <div className={styles.avatars}>
-          {task.assignees.slice(0, 2).map((a) => (
+          {task.assignees.slice(0, 3).map((a) => (
             <Avatar key={a.id || a.email} name={a.name} size="sm" />
           ))}
         </div>
         {task.estimatedHours && (
           <span className={styles.hours}>
-            {Math.floor(task.totalElapsedSeconds / 60)}m/{task.estimatedHours}h
+            {Math.floor(task.totalElapsedSeconds / 60)}m / {task.estimatedHours}h
           </span>
         )}
       </div>

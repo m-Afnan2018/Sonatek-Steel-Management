@@ -59,6 +59,11 @@
   font-family: monospace;
 }
 
+.timerCell {
+  white-space: nowrap;
+  cursor: default;
+}
+
 .empty {
   text-align: center;
   color: var(--text-muted);
