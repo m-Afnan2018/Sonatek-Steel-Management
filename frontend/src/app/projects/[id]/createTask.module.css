@@ -253,6 +253,16 @@
   pointer-events: none;
 }
 
+.dropZoneCompact {
+  padding: 0.625rem 1rem;
+  flex-direction: row;
+  gap: 0.5rem;
+  justify-content: center;
+}
+
+.dropZoneCompact .dropZoneIcon { font-size: 1rem; }
+.dropZoneCompact .dropZoneText { font-size: 0.8125rem; }
+
 .dropZoneIcon { font-size: 2rem; line-height: 1; }
 
 .dropZoneText {

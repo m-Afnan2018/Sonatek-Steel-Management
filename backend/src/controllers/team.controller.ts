@@ -13,6 +13,13 @@ export const getTeamMembers = async (_req: Request, res: Response): Promise<void
           status: { $in: ['todo', 'in_progress', 'in_review'] },
         });
 
+        const temp =  await Task.find({
+          assignees: user._id,
+          status: { $in: ['todo', 'in_progress', 'in_review'] },
+        });
+
+        console.log(temp);
+
         return {
           id: user._id,
           name: user.name,

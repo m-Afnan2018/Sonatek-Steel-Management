@@ -1,5 +1,31 @@
 import axios from 'axios';
 
+const BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
+
+function getToken(): string | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const stored = localStorage.getItem('auth-storage');
+    return stored ? JSON.parse(stored)?.state?.accessToken ?? null : null;
+  } catch { return null; }
+}
+
+/** Upload a single file. Uses a bare axios call so the browser can set
+ *  `multipart/form-data; boundary=...` automatically — the api instance's
+ *  default `Content-Type: application/json` would otherwise corrupt it. */
+export async function uploadFile(file: File): Promise<{
+  url: string; name: string; type: 'image' | 'file'; size: number;
+}> {
+  const body = new FormData();
+  body.append('file', file);
+  const token = getToken();
+  const { data } = await axios.post(`${BASE}/upload`, body, {
+    withCredentials: true,
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+  return data;
+}
+
 const api = axios.create({
   baseURL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api',
   withCredentials: true,

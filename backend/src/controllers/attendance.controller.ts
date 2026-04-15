@@ -1,6 +1,25 @@
 import { Request, Response } from 'express';
 import Attendance from '../models/Attendance';
 import User from '../models/User';
+import Task from '../models/Task';
+
+async function pauseRunningTasksForUser(userId: string): Promise<void> {
+  const now = new Date();
+  const runningTasks = await Task.find({ assignees: userId, timerStatus: 'running' });
+  for (const task of runningTasks) {
+    // Calculate elapsed time up to now and add to totalElapsedSeconds
+    const lastStart = [...task.timerEvents]
+      .reverse()
+      .find((e) => e.action === 'start' || e.action === 'resume');
+    if (lastStart) {
+      const elapsed = Math.floor((now.getTime() - lastStart.timestamp.getTime()) / 1000);
+      task.totalElapsedSeconds = (task.totalElapsedSeconds || 0) + elapsed;
+    }
+    task.timerEvents.push({ action: 'pause', timestamp: now });
+    task.timerStatus = 'paused';
+    await task.save();
+  }
+}
 
 const getToday = (): Date => {
   const now = new Date();
@@ -66,6 +85,9 @@ export const checkOut = async (req: Request, res: Response): Promise<void> => {
       attendance.lunchDuration = Math.round(lunchMs / (1000 * 60));
     }
 
+    // Auto-pause any running tasks for this user
+    await pauseRunningTasksForUser(userId as string);
+
     attendance.checkOut = new Date();
     const totalMs = attendance.checkOut.getTime() - attendance.checkIn.getTime();
     const lunchMs = (attendance.lunchDuration || 0) * 60 * 1000;
@@ -97,6 +119,10 @@ export const lunchStart = async (req: Request, res: Response): Promise<void> => 
 
     attendance.lunchStart = new Date();
     await attendance.save();
+
+    // Auto-pause any running tasks for this user
+    await pauseRunningTasksForUser(userId as string);
+
     res.json(attendance);
   } catch (error) {
     res.status(500).json({ message: 'Server error.' });

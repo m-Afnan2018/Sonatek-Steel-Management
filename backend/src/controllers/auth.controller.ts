@@ -201,10 +201,9 @@ export const getMe = async (req: Request, res: Response): Promise<void> => {
 
 export const updateMe = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { name, department } = req.body;
+    const { name } = req.body;
     const updates: Record<string, string> = {};
     if (name?.trim()) updates.name = name.trim();
-    if (department !== undefined) updates.department = department.trim();
 
     const user = await User.findByIdAndUpdate(req.user?.id, updates, { new: true, runValidators: true });
     if (!user) {

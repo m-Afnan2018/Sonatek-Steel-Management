@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import AppShell from '@/components/layout/AppShell/AppShell';
 import Button from '@/components/ui/Button/Button';
 import Badge from '@/components/ui/Badge/Badge';
@@ -8,13 +8,18 @@ import Modal from '@/components/ui/Modal/Modal';
 import Avatar from '@/components/ui/Avatar/Avatar';
 import Spinner from '@/components/ui/Spinner/Spinner';
 import TaskTimer from '@/components/tasks/TaskTimer';
+import TaskModal from '@/components/projects/TaskModal/TaskModal';
 import { useTasks } from '@/hooks/useTasks';
 import { useProjects } from '@/hooks/useProjects';
 import { useTeam } from '@/hooks/useTeam';
 import { useAuthStore } from '@/store/authStore';
 import { formatDate } from '@/lib/utils';
-import type { Task } from '@/types';
+import api, { uploadFile } from '@/lib/api';
+import type { Task, Attachment } from '@/types';
 import styles from './tasks.module.css';
+
+const API_BASE = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api').replace(/\/api$/, '');
+type CreateTab = 'details' | 'notes' | 'links' | 'files';
 
 const priorityVariant = {
   critical: 'danger' as const,
@@ -40,6 +45,8 @@ export default function TasksPage() {
 
   const [tab, setTab] = useState<'personal' | 'assigned'>('assigned');
   const [showCreate, setShowCreate] = useState(false);
+  const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+  const [showTaskModal, setShowTaskModal] = useState(false);
   const [localTasks, setLocalTasks] = useState<Task[]>([]);
   const [completedOpen, setCompletedOpen] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState<Task | null>(null);
@@ -48,6 +55,9 @@ export default function TasksPage() {
   const [filterStatus, setFilterStatus] = useState('');
   const [filterPriority, setFilterPriority] = useState('');
   const [filterAssignee, setFilterAssignee] = useState('');
+  const [filterProject, setFilterProject] = useState('');
+  const [filterDateFrom, setFilterDateFrom] = useState('');
+  const [filterDateTo, setFilterDateTo] = useState('');
 
   const [form, setForm] = useState({
     title: '',
@@ -60,9 +70,16 @@ export default function TasksPage() {
     project: '',
     isPersonal: false,
     assignees: [] as string[],
-    links: [] as string[],
   });
+  const [createTab, setCreateTab] = useState<CreateTab>('details');
+  const [notes, setNotes] = useState('');
+  const [links, setLinks] = useState<string[]>([]);
   const [linkInput, setLinkInput] = useState('');
+  const [attachments, setAttachments] = useState<Attachment[]>([]);
+  const [fileUploading, setFileUploading] = useState(false);
+  const [fileUploadError, setFileUploadError] = useState('');
+  const [isDragging, setIsDragging] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -72,8 +89,19 @@ export default function TasksPage() {
 
   useEffect(() => { setLocalTasks(tasks); }, [tasks]);
 
+  const resetCreateForm = () => {
+    setForm({ title: '', description: '', remark: '', priority: 'medium', status: 'todo', dueDate: '', estimatedHours: '', project: '', isPersonal: tab === 'personal', assignees: [] });
+    setNotes('');
+    setLinks([]);
+    setLinkInput('');
+    setAttachments([]);
+    setFileUploadError('');
+    setCreateTab('details');
+  };
+
   const openCreate = () => {
     setForm((f) => ({ ...f, isPersonal: tab === 'personal', project: '', assignees: [] }));
+    setCreateTab('details');
     setShowCreate(true);
   };
 
@@ -81,13 +109,15 @@ export default function TasksPage() {
     if (!form.title.trim()) return;
     setSaving(true);
     const payload: Record<string, unknown> = {
-      title: form.title,
-      description: form.description,
-      remark: form.remark,
+      title: form.title.trim(),
+      description: form.description.trim() || undefined,
+      remark: form.remark.trim() || undefined,
       priority: form.priority,
       status: form.status,
       isPersonal: form.isPersonal,
-      links: form.links,
+      notes: notes.trim() || undefined,
+      links: links.length ? links : undefined,
+      attachments: attachments.length ? attachments : undefined,
     };
     if (form.dueDate) payload.dueDate = form.dueDate;
     if (form.estimatedHours) payload.estimatedHours = parseFloat(form.estimatedHours);
@@ -97,7 +127,31 @@ export default function TasksPage() {
     await createTask(payload as Partial<Task>);
     setSaving(false);
     setShowCreate(false);
-    setForm({ title: '', description: '', remark: '', priority: 'medium', status: 'todo', dueDate: '', estimatedHours: '', project: '', isPersonal: tab === 'personal', assignees: [], links: [] });
+    resetCreateForm();
+  };
+
+  const addLink = () => {
+    const url = linkInput.trim();
+    if (!url || links.includes(url)) return;
+    setLinks((prev) => [...prev, url]);
+    setLinkInput('');
+  };
+
+  const uploadFiles = async (files: FileList | File[]) => {
+    setFileUploadError('');
+    setFileUploading(true);
+    try {
+      for (const file of Array.from(files)) {
+        const data = await uploadFile(file);
+        setAttachments((prev) => [...prev, {
+          name: data.name, url: data.url, type: data.type, uploadedAt: new Date().toISOString(),
+        }]);
+      }
+    } catch {
+      setFileUploadError('Upload failed. Check file type/size (max 10 MB).');
+    } finally {
+      setFileUploading(false);
+    }
   };
 
   const handleStatusChange = async (task: Task, status: string) => {
@@ -106,6 +160,21 @@ export default function TasksPage() {
   };
 
   const handleTimerUpdate = (updated: Task) => {
+    setLocalTasks((prev) => prev.map((t) => (t._id === updated._id ? updated : t)));
+  };
+
+  const handleTaskClick = async (task: Task) => {
+    try {
+      const { data } = await api.get(`/tasks/${task._id}`);
+      setSelectedTask(data);
+    } catch {
+      setSelectedTask(task);
+    }
+    setShowTaskModal(true);
+  };
+
+  const handleTaskUpdate = (updated: Task) => {
+    setSelectedTask(updated);
     setLocalTasks((prev) => prev.map((t) => (t._id === updated._id ? updated : t)));
   };
 
@@ -118,25 +187,37 @@ export default function TasksPage() {
     setDeleteConfirm(null);
   };
 
-  const addLink = () => {
-    if (linkInput.trim()) {
-      setForm((f) => ({ ...f, links: [...f.links, linkInput.trim()] }));
-      setLinkInput('');
-    }
-  };
-
   const filtered = useMemo(() => {
     return localTasks.filter((t) => {
       if (filterStatus && t.status !== filterStatus) return false;
       if (filterPriority && t.priority !== filterPriority) return false;
       if (filterAssignee && !t.assignees.some((a) => a.id === filterAssignee)) return false;
+      if (filterProject) {
+        const projId = typeof t.project === 'object' ? t.project?._id : t.project;
+        if (projId !== filterProject) return false;
+      }
+      if (filterDateFrom && t.dueDate) {
+        if (new Date(t.dueDate) < new Date(filterDateFrom)) return false;
+      }
+      if (filterDateTo && t.dueDate) {
+        if (new Date(t.dueDate) > new Date(filterDateTo + 'T23:59:59')) return false;
+      }
       return true;
     });
-  }, [localTasks, filterStatus, filterPriority, filterAssignee]);
+  }, [localTasks, filterStatus, filterPriority, filterAssignee, filterProject, filterDateFrom, filterDateTo]);
 
   const activeTasks = filtered.filter((t) => t.status !== 'done');
   const completedTasks = filtered.filter((t) => t.status === 'done');
-  const hasFilters = filterStatus || filterPriority || filterAssignee;
+  const hasFilters = filterStatus || filterPriority || filterAssignee || filterProject || filterDateFrom || filterDateTo;
+
+  const clearFilters = () => {
+    setFilterStatus('');
+    setFilterPriority('');
+    setFilterAssignee('');
+    setFilterProject('');
+    setFilterDateFrom('');
+    setFilterDateTo('');
+  };
 
   const emptyMessage = hasFilters
     ? { icon: '🔍', title: 'No matches', text: 'No tasks match the current filters.' }
@@ -165,22 +246,59 @@ export default function TasksPage() {
 
         {/* Filters */}
         <div className={styles.filters}>
-          <span className={styles.filtersLabel}>Filter</span>
-          <select className={styles.filterSelect} value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)}>
-            <option value="">All Statuses</option>
-            <option value="backlog">Backlog</option>
-            <option value="todo">To Do</option>
-            <option value="in_progress">In Progress</option>
-            <option value="in_review">In Review</option>
-            <option value="done">Done</option>
-          </select>
-          <select className={styles.filterSelect} value={filterPriority} onChange={(e) => setFilterPriority(e.target.value)}>
-            <option value="">All Priorities</option>
-            <option value="low">Low</option>
-            <option value="medium">Medium</option>
-            <option value="high">High</option>
-            <option value="critical">Critical</option>
-          </select>
+          {/* Status pills */}
+          <div className={styles.filterGroup}>
+            {[
+              { value: '', label: 'All' },
+              { value: 'backlog', label: 'Backlog' },
+              { value: 'todo', label: 'Todo' },
+              { value: 'in_progress', label: 'In Progress' },
+              { value: 'in_review', label: 'In Review' },
+              { value: 'done', label: 'Done' },
+            ].map((opt) => (
+              <button
+                key={opt.value}
+                className={`${styles.filterPill} ${filterStatus === opt.value ? styles.filterPillActive : ''} ${opt.value ? styles[`pill_${opt.value}`] : ''}`}
+                onClick={() => setFilterStatus(opt.value)}
+              >
+                {opt.value && <span className={`${styles.pillDot} ${styles[`dot_${opt.value}`]}`} />}
+                {opt.label}
+              </button>
+            ))}
+          </div>
+
+          <span className={styles.filterDivider} />
+
+          {/* Priority pills */}
+          <div className={styles.filterGroup}>
+            {[
+              { value: '', label: 'Any' },
+              { value: 'low', label: 'Low' },
+              { value: 'medium', label: 'Med' },
+              { value: 'high', label: 'High' },
+              { value: 'critical', label: 'Crit' },
+            ].map((opt) => (
+              <button
+                key={opt.value}
+                className={`${styles.filterPill} ${filterPriority === opt.value ? styles.filterPillActive : ''} ${opt.value ? styles[`pill_p_${opt.value}`] : ''}`}
+                onClick={() => setFilterPriority(opt.value)}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+
+          <span className={styles.filterDivider} />
+
+          {/* Project + Assignee selects */}
+          {projects.length > 0 && (
+            <select className={styles.filterSelect} value={filterProject} onChange={(e) => setFilterProject(e.target.value)}>
+              <option value="">All Projects</option>
+              {projects.map((p) => (
+                <option key={p._id} value={p._id}>{p.title}</option>
+              ))}
+            </select>
+          )}
           {tab === 'assigned' && members.length > 0 && (
             <select className={styles.filterSelect} value={filterAssignee} onChange={(e) => setFilterAssignee(e.target.value)}>
               <option value="">All Assignees</option>
@@ -189,10 +307,31 @@ export default function TasksPage() {
               ))}
             </select>
           )}
+
+          {/* Date range */}
+          <div className={styles.dateRange}>
+            <span className={styles.dateRangeIcon}>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+            </span>
+            <input
+              type="date"
+              className={styles.dateInput}
+              value={filterDateFrom}
+              onChange={(e) => setFilterDateFrom(e.target.value)}
+              title="Due date from"
+            />
+            <span className={styles.dateRangeSep}>–</span>
+            <input
+              type="date"
+              className={styles.dateInput}
+              value={filterDateTo}
+              onChange={(e) => setFilterDateTo(e.target.value)}
+              title="Due date to"
+            />
+          </div>
+
           {hasFilters && (
-            <button className={styles.clearFilters} onClick={() => { setFilterStatus(''); setFilterPriority(''); setFilterAssignee(''); }}>
-              ✕ Clear
-            </button>
+            <button className={styles.clearFilters} onClick={clearFilters}>✕ Clear</button>
           )}
         </div>
 
@@ -224,6 +363,7 @@ export default function TasksPage() {
                     onStatusChange={handleStatusChange}
                     onTimerUpdate={handleTimerUpdate}
                     onDelete={(t) => setDeleteConfirm(t)}
+                    onClick={handleTaskClick}
                     patchTimer={patchTimer}
                   />
                 ))}
@@ -248,6 +388,7 @@ export default function TasksPage() {
                         onStatusChange={handleStatusChange}
                         onTimerUpdate={handleTimerUpdate}
                         onDelete={(t) => setDeleteConfirm(t)}
+                        onClick={handleTaskClick}
                         patchTimer={patchTimer}
                       />
                     ))}
@@ -260,106 +401,264 @@ export default function TasksPage() {
       </div>
 
       {/* Create modal */}
-      <Modal isOpen={showCreate} onClose={() => setShowCreate(false)} title="Create Task" size="lg">
+      <Modal isOpen={showCreate} onClose={() => { setShowCreate(false); resetCreateForm(); }} title="New Task" size="lg">
         <div className={styles.form}>
-          <div className={styles.field}>
-            <label>Title *</label>
-            <input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} placeholder="Task title" />
+
+          {/* ── Tab bar ── */}
+          <div className={styles.modalTabBar}>
+            {(['details', 'notes', 'links', 'files'] as CreateTab[]).map((t) => (
+              <button
+                key={t}
+                type="button"
+                className={`${styles.modalTabBtn} ${createTab === t ? styles.modalTabBtnActive : ''}`}
+                onClick={() => setCreateTab(t)}
+              >
+                {t === 'details' && 'Details'}
+                {t === 'notes' && 'Notes'}
+                {t === 'links' && (<>Links{links.length > 0 && <span className={styles.modalTabCount}>{links.length}</span>}</>)}
+                {t === 'files' && (<>Files{attachments.length > 0 && <span className={styles.modalTabCount}>{attachments.length}</span>}</>)}
+              </button>
+            ))}
           </div>
-          <div className={styles.toggleRow}>
-            <span className={styles.toggleLabel}>
-              {form.isPersonal ? 'Personal Task' : 'Team Task'}
-              <span className={styles.toggleSub}>{form.isPersonal ? 'Only visible to you' : 'Can be assigned to members'}</span>
-            </span>
-            <label className={styles.toggle}>
-              <input type="checkbox" checked={form.isPersonal} onChange={(e) => setForm((f) => ({ ...f, isPersonal: e.target.checked, project: '', assignees: [] }))} />
-              <span className={styles.toggleSlider} />
-            </label>
-          </div>
-          <div className={styles.field}>
-            <label>Description</label>
-            <textarea rows={3} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="Optional description" />
-          </div>
-          <div className={styles.field}>
-            <label>Remark</label>
-            <input value={form.remark} onChange={(e) => setForm({ ...form, remark: e.target.value })} placeholder="Short remark or note" />
-          </div>
-          <div className={styles.row}>
-            <div className={styles.field}>
-              <label>Priority</label>
-              <select value={form.priority} onChange={(e) => setForm({ ...form, priority: e.target.value })}>
-                <option value="low">Low</option>
-                <option value="medium">Medium</option>
-                <option value="high">High</option>
-                <option value="critical">Critical</option>
-              </select>
-            </div>
-            <div className={styles.field}>
-              <label>Status</label>
-              <select value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })}>
-                <option value="backlog">Backlog</option>
-                <option value="todo">To Do</option>
-                <option value="in_progress">In Progress</option>
-                <option value="in_review">In Review</option>
-                <option value="done">Done</option>
-              </select>
-            </div>
-          </div>
-          <div className={styles.row}>
-            <div className={styles.field}>
-              <label>Due Date</label>
-              <input type="date" value={form.dueDate} onChange={(e) => setForm({ ...form, dueDate: e.target.value })} />
-            </div>
-            <div className={styles.field}>
-              <label>Est. Hours</label>
-              <input type="number" min="0" step="0.5" value={form.estimatedHours} onChange={(e) => setForm({ ...form, estimatedHours: e.target.value })} placeholder="0" />
-            </div>
-          </div>
-          {!form.isPersonal && (
-            <div className={styles.field}>
-              <label>Project (optional)</label>
-              <select value={form.project} onChange={(e) => setForm({ ...form, project: e.target.value })}>
-                <option value="">No project</option>
-                {projects.map((p) => (
-                  <option key={p._id} value={p._id}>{p.title}</option>
-                ))}
-              </select>
-            </div>
-          )}
-          {isAdminOrManager && !form.isPersonal && (
-            <div className={styles.field}>
-              <label>Assign To</label>
-              <select multiple value={form.assignees} onChange={(e) => setForm({ ...form, assignees: Array.from(e.target.selectedOptions, (o) => o.value) })} size={4}>
-                {members.map((m) => (
-                  <option key={m.id} value={m.id}>{m.name}</option>
-                ))}
-              </select>
-              <span className={styles.hint}>Hold Ctrl/Cmd to select multiple</span>
-            </div>
-          )}
-          <div className={styles.field}>
-            <label>Links</label>
-            <div className={styles.linkRow}>
-              <input value={linkInput} onChange={(e) => setLinkInput(e.target.value)} placeholder="https://..." onKeyDown={(e) => e.key === 'Enter' && addLink()} />
-              <Button size="sm" variant="secondary" onClick={addLink}>Add</Button>
-            </div>
-            {form.links.length > 0 && (
-              <div className={styles.links}>
-                {form.links.map((l, i) => (
-                  <div key={i} className={styles.linkChip}>
-                    <span>{l}</span>
-                    <button onClick={() => setForm((f) => ({ ...f, links: f.links.filter((_, j) => j !== i) }))}>×</button>
-                  </div>
-                ))}
+
+          {/* ── Details tab ── */}
+          {createTab === 'details' && (
+            <div className={styles.modalTabContent}>
+              <div className={styles.field}>
+                <label>Title <span className={styles.req}>*</span></label>
+                <input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} placeholder="What needs to be done?" autoFocus />
               </div>
-            )}
-          </div>
+
+              <div className={styles.toggleRow}>
+                <span className={styles.toggleLabel}>
+                  {form.isPersonal ? 'Personal Task' : 'Team Task'}
+                  <span className={styles.toggleSub}>{form.isPersonal ? 'Only visible to you' : 'Can be assigned to members'}</span>
+                </span>
+                <label className={styles.toggle}>
+                  <input type="checkbox" checked={form.isPersonal} onChange={(e) => setForm((f) => ({ ...f, isPersonal: e.target.checked, project: '', assignees: [] }))} />
+                  <span className={styles.toggleSlider} />
+                </label>
+              </div>
+
+              <div className={styles.field}>
+                <label>Description</label>
+                <textarea rows={3} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="Add more details…" />
+              </div>
+
+              <div className={styles.field}>
+                <label>Remark</label>
+                <input value={form.remark} onChange={(e) => setForm({ ...form, remark: e.target.value })} placeholder="Short remark visible on the task card" />
+              </div>
+
+              <div className={styles.row}>
+                <div className={styles.field}>
+                  <label>Priority</label>
+                  <select value={form.priority} onChange={(e) => setForm({ ...form, priority: e.target.value })}>
+                    <option value="low">Low</option>
+                    <option value="medium">Medium</option>
+                    <option value="high">High</option>
+                    <option value="critical">Critical</option>
+                  </select>
+                </div>
+                <div className={styles.field}>
+                  <label>Status</label>
+                  <select value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })}>
+                    <option value="backlog">Backlog</option>
+                    <option value="todo">To Do</option>
+                    <option value="in_progress">In Progress</option>
+                    <option value="in_review">In Review</option>
+                    <option value="done">Done</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className={styles.row}>
+                <div className={styles.field}>
+                  <label>Due Date</label>
+                  <input type="date" value={form.dueDate} onChange={(e) => setForm({ ...form, dueDate: e.target.value })} />
+                </div>
+                <div className={styles.field}>
+                  <label>Est. Hours</label>
+                  <input type="number" min="0" step="0.5" value={form.estimatedHours} onChange={(e) => setForm({ ...form, estimatedHours: e.target.value })} placeholder="0" />
+                </div>
+              </div>
+
+              {!form.isPersonal && (
+                <div className={styles.field}>
+                  <label>Project (optional)</label>
+                  <select value={form.project} onChange={(e) => setForm({ ...form, project: e.target.value })}>
+                    <option value="">No project</option>
+                    {projects.map((p) => (
+                      <option key={p._id} value={p._id}>{p.title}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {isAdminOrManager && !form.isPersonal && (
+                <div className={styles.field}>
+                  <label>Assignees</label>
+                  <div className={styles.assigneeGrid}>
+                    {members.map((m) => {
+                      const checked = form.assignees.includes(m.id);
+                      return (
+                        <button
+                          key={m.id}
+                          type="button"
+                          className={`${styles.assigneeChip} ${checked ? styles.assigneeChipActive : ''}`}
+                          onClick={() => setForm((f) => ({
+                            ...f,
+                            assignees: checked
+                              ? f.assignees.filter((id) => id !== m.id)
+                              : [...f.assignees, m.id],
+                          }))}
+                        >
+                          <span className={styles.assigneeInitial}>{m.name.charAt(0).toUpperCase()}</span>
+                          <span>{m.name}</span>
+                          {checked && (
+                            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                              <polyline points="20 6 9 17 4 12" />
+                            </svg>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ── Notes tab ── */}
+          {createTab === 'notes' && (
+            <div className={styles.modalTabContent}>
+              <div className={styles.field}>
+                <label>Notes</label>
+                <textarea
+                  className={styles.notesArea}
+                  rows={12}
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  placeholder="Add internal notes, checklists, or any context for this task…"
+                  autoFocus
+                />
+              </div>
+            </div>
+          )}
+
+          {/* ── Links tab ── */}
+          {createTab === 'links' && (
+            <div className={styles.modalTabContent}>
+              <div className={styles.field}>
+                <label>Add Link</label>
+                <div className={styles.linkRow}>
+                  <input
+                    value={linkInput}
+                    onChange={(e) => setLinkInput(e.target.value)}
+                    placeholder="https://..."
+                    onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addLink(); } }}
+                    autoFocus
+                  />
+                  <Button size="sm" onClick={addLink} disabled={!linkInput.trim()}>Add</Button>
+                </div>
+              </div>
+              {links.length > 0 ? (
+                <div className={styles.linkItemList}>
+                  {links.map((url, i) => (
+                    <div key={i} className={styles.linkItem}>
+                      <span className={styles.linkItemIcon}>🔗</span>
+                      <a href={url} target="_blank" rel="noopener noreferrer" className={styles.linkItemUrl}>{url}</a>
+                      <button
+                        type="button"
+                        className={styles.removeBtn}
+                        onClick={() => setLinks((prev) => prev.filter((_, j) => j !== i))}
+                      >✕</button>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className={styles.tabEmpty}>No links added yet. Paste a URL above and press Add.</p>
+              )}
+            </div>
+          )}
+
+          {/* ── Files tab ── */}
+          {createTab === 'files' && (
+            <div className={styles.modalTabContent}>
+              <input
+                ref={fileInputRef}
+                type="file"
+                multiple
+                className={styles.fileInputHidden}
+                onChange={(e) => { if (e.target.files) uploadFiles(e.target.files); e.target.value = ''; }}
+                accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.zip"
+              />
+
+              {/* Uploaded file list — shown FIRST so it's always visible */}
+              {attachments.length > 0 && (
+                <div className={styles.attachList}>
+                  {attachments.map((a, i) => (
+                    <div key={a.url} className={styles.attachItem}>
+                      {a.type === 'image' ? (
+                        <div className={styles.previewThumb}>
+                          <img src={`${API_BASE}${a.url}`} alt={a.name} />
+                        </div>
+                      ) : (
+                        <span className={styles.attachIcon}>📄</span>
+                      )}
+                      <div className={styles.attachInfo}>
+                        <a href={`${API_BASE}${a.url}`} target="_blank" rel="noopener noreferrer" className={styles.attachName}>{a.name}</a>
+                      </div>
+                      <button
+                        type="button"
+                        className={styles.removeBtn}
+                        onClick={() => setAttachments((prev) => prev.filter((_, j) => j !== i))}
+                      >✕</button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Drop zone — compact when files already uploaded */}
+              <div
+                className={`${styles.dropZone} ${attachments.length > 0 ? styles.dropZoneCompact : ''} ${isDragging ? styles.dropZoneActive : ''} ${fileUploading ? styles.dropZoneUploading : ''}`}
+                onClick={() => !fileUploading && fileInputRef.current?.click()}
+                onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
+                onDragLeave={() => setIsDragging(false)}
+                onDrop={(e) => { e.preventDefault(); setIsDragging(false); if (e.dataTransfer.files.length) uploadFiles(e.dataTransfer.files); }}
+              >
+                <span className={styles.dropZoneIcon}>{fileUploading ? '⏳' : '📎'}</span>
+                <span className={styles.dropZoneText}>
+                  {fileUploading ? 'Uploading…' : <><u>Click to browse</u> or drag &amp; drop</>}
+                </span>
+                {!attachments.length && <span className={styles.dropZoneSub}>Images, PDFs, docs — max 10 MB each</span>}
+              </div>
+              {fileUploadError && <p className={styles.uploadError}>{fileUploadError}</p>}
+              {attachments.length === 0 && !fileUploading && (
+                <p className={styles.tabEmpty}>No files attached yet.</p>
+              )}
+            </div>
+          )}
+
+          {/* ── Always-visible actions ── */}
           <div className={styles.actions}>
-            <Button variant="secondary" onClick={() => setShowCreate(false)}>Cancel</Button>
-            <Button onClick={handleCreate} loading={saving} disabled={!form.title.trim()}>Create Task</Button>
+            <Button variant="ghost" onClick={() => { setShowCreate(false); resetCreateForm(); }} disabled={saving}>Cancel</Button>
+            <Button onClick={handleCreate} loading={saving} disabled={!form.title.trim() || fileUploading}>
+              Create Task
+            </Button>
           </div>
         </div>
       </Modal>
+
+      {/* Task detail modal */}
+      <TaskModal
+        task={selectedTask}
+        isOpen={showTaskModal}
+        onClose={() => { setShowTaskModal(false); setSelectedTask(null); }}
+        onUpdate={handleTaskUpdate}
+        members={members}
+        patchTimer={patchTimer}
+      />
 
       {/* Delete confirm */}
       <Modal isOpen={!!deleteConfirm} onClose={() => setDeleteConfirm(null)} title="Delete Task" size="sm">
@@ -382,6 +681,7 @@ function TaskRow({
   onStatusChange,
   onTimerUpdate,
   onDelete,
+  onClick,
   patchTimer,
 }: {
   task: Task;
@@ -390,21 +690,24 @@ function TaskRow({
   onStatusChange: (t: Task, status: string) => void;
   onTimerUpdate: (updated: Task) => void;
   onDelete: (t: Task) => void;
+  onClick: (t: Task) => void;
   patchTimer: (id: string, action: 'start' | 'pause' | 'resume' | 'hold' | 'finish') => Promise<Task | null>;
 }) {
   const isOverdue = task.dueDate && task.status !== 'done' && new Date(task.dueDate) < new Date();
 
+  const stop = (e: React.MouseEvent) => e.stopPropagation();
+
   const renderWorkflowBtn = () => {
     if (task.status === 'backlog') {
       return (
-        <button className={`${styles.statusBtn} ${styles.statusStart}`} onClick={() => onStatusChange(task, 'todo')}>
+        <button className={`${styles.statusBtn} ${styles.statusStart}`} onClick={(e) => { stop(e); onStatusChange(task, 'todo'); }}>
           → Todo
         </button>
       );
     }
     if (task.status === 'done') {
       return (
-        <button className={`${styles.statusBtn} ${styles.statusReopen}`} onClick={() => onStatusChange(task, 'todo')}>
+        <button className={`${styles.statusBtn} ${styles.statusReopen}`} onClick={(e) => { stop(e); onStatusChange(task, 'todo'); }}>
           ↩ Reopen
         </button>
       );
@@ -421,7 +724,13 @@ function TaskRow({
   const accentClass = statusAccent[task.status] ?? '';
 
   return (
-    <div className={`${styles.taskRow} ${accentClass} ${task.status === 'done' ? styles.taskDone : ''}`}>
+    <div
+      className={`${styles.taskRow} ${accentClass} ${task.status === 'done' ? styles.taskDone : ''}`}
+      onClick={() => onClick(task)}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => e.key === 'Enter' && onClick(task)}
+    >
       <div className={styles.stepIndicator}>
         <div className={`${styles.stepDot} ${styles[`step_${task.status}`]}`} title={task.status.replace(/_/g, ' ')} />
       </div>
@@ -445,7 +754,7 @@ function TaskRow({
         </div>
       </div>
 
-      <div className={styles.taskRight}>
+      <div className={styles.taskRight} onClick={stop}>
         {task.assignees.length > 0 && (
           <div className={styles.assignees}>
             {task.assignees.slice(0, 4).map((a) => (
@@ -471,7 +780,7 @@ function TaskRow({
         </span>
 
         {canDelete && (
-          <button className={styles.deleteBtn} onClick={() => onDelete(task)} title="Delete task">
+          <button className={styles.deleteBtn} onClick={(e) => { stop(e); onDelete(task); }} title="Delete task">
             ✕
           </button>
         )}

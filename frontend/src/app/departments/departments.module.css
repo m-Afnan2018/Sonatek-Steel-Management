@@ -593,6 +593,18 @@
   gap: 0.5rem;
 }
 
+/* ─── Action error banner ────────────────────────────────────────── */
+.actionError {
+  font-size: 0.8125rem;
+  color: var(--danger);
+  background: var(--danger-light);
+  border: 1px solid rgba(255, 71, 87, 0.25);
+  border-radius: var(--radius-sm);
+  padding: 0.5rem 0.875rem;
+  margin-bottom: 0.75rem;
+  cursor: pointer;
+}
+
 /* ─── Shared ─────────────────────────────────────────────────────── */
 .linkBtn {
   background: none;

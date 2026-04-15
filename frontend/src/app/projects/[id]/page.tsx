@@ -17,7 +17,7 @@ import { useTasks } from '@/hooks/useTasks';
 import { useTeam } from '@/hooks/useTeam';
 import { useAuthStore } from '@/store/authStore';
 import { formatDate, formatStatus } from '@/lib/utils';
-import api from '@/lib/api';
+import api, { uploadFile } from '@/lib/api';
 import type { Project, Task, User, Attachment } from '@/types';
 import styles from './projectDetail.module.css';
 import createStyles from './createTask.module.css';
@@ -160,20 +160,11 @@ export default function ProjectDetailPage() {
     setFileUploadError('');
     setFileUploading(true);
     try {
-      const arr = Array.from(files);
-      for (const file of arr) {
-        const formData = new FormData();
-        formData.append('file', file);
-        const { data } = await api.post('/upload', formData, {
-          headers: { 'Content-Type': 'multipart/form-data' },
-        });
-        const attachment: Attachment = {
-          name: data.name,
-          url: data.url,
-          type: data.type,
-          uploadedAt: new Date().toISOString(),
-        };
-        setNewTaskAttachments((prev) => [...prev, attachment]);
+      for (const file of Array.from(files)) {
+        const data = await uploadFile(file);
+        setNewTaskAttachments((prev) => [...prev, {
+          name: data.name, url: data.url, type: data.type, uploadedAt: new Date().toISOString(),
+        }]);
       }
     } catch {
       setFileUploadError('Upload failed. Check file type/size (max 10 MB).');
@@ -505,24 +496,8 @@ export default function ProjectDetailPage() {
                 className={createStyles.fileInputHidden}
                 onChange={(e) => { if (e.target.files) uploadFiles(e.target.files); e.target.value = ''; }}
               />
-              <div
-                className={`${createStyles.dropZone} ${isDragging ? createStyles.dropZoneActive : ''} ${fileUploading ? createStyles.dropZoneUploading : ''}`}
-                onClick={() => !fileUploading && fileInputRef.current?.click()}
-                onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
-                onDragLeave={() => setIsDragging(false)}
-                onDrop={(e) => {
-                  e.preventDefault();
-                  setIsDragging(false);
-                  if (e.dataTransfer.files.length) uploadFiles(e.dataTransfer.files);
-                }}
-              >
-                <span className={createStyles.dropZoneIcon}>{fileUploading ? '⏳' : '📁'}</span>
-                <span className={createStyles.dropZoneText}>
-                  {fileUploading ? 'Uploading…' : <><u>Click to browse</u> or drag &amp; drop files here</>}
-                </span>
-                <span className={createStyles.dropZoneSub}>Images, PDFs, docs — max 10 MB each</span>
-              </div>
-              {fileUploadError && <p className={createStyles.uploadError}>{fileUploadError}</p>}
+
+              {/* Uploaded file list — shown FIRST so it's always visible */}
               {newTaskAttachments.length > 0 && (
                 <div className={createStyles.attachList}>
                   {newTaskAttachments.map((a) => (
@@ -542,6 +517,26 @@ export default function ProjectDetailPage() {
                   ))}
                 </div>
               )}
+
+              {/* Drop zone — compact when files already uploaded */}
+              <div
+                className={`${createStyles.dropZone} ${newTaskAttachments.length > 0 ? createStyles.dropZoneCompact : ''} ${isDragging ? createStyles.dropZoneActive : ''} ${fileUploading ? createStyles.dropZoneUploading : ''}`}
+                onClick={() => !fileUploading && fileInputRef.current?.click()}
+                onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
+                onDragLeave={() => setIsDragging(false)}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  setIsDragging(false);
+                  if (e.dataTransfer.files.length) uploadFiles(e.dataTransfer.files);
+                }}
+              >
+                <span className={createStyles.dropZoneIcon}>{fileUploading ? '⏳' : '📎'}</span>
+                <span className={createStyles.dropZoneText}>
+                  {fileUploading ? 'Uploading…' : <><u>Click to browse</u> or drag &amp; drop</>}
+                </span>
+                {!newTaskAttachments.length && <span className={createStyles.dropZoneSub}>Images, PDFs, docs — max 10 MB each</span>}
+              </div>
+              {fileUploadError && <p className={createStyles.uploadError}>{fileUploadError}</p>}
               {newTaskAttachments.length === 0 && !fileUploading && (
                 <p className={createStyles.emptyHint}>No files attached yet.</p>
               )}

@@ -200,7 +200,7 @@ function AddMemberModal({
 // ── Main Page ─────────────────────────────────────────────────────
 export default function DepartmentsPage() {
   const {
-    departments, loading,
+    departments, loading, error,
     createDepartment, updateDepartment, deleteDepartment,
     addMember, removeMember, setHead,
   } = useDepartments();
@@ -215,6 +215,7 @@ export default function DepartmentsPage() {
   const [showEdit, setShowEdit] = useState(false);
   const [showConfirmDelete, setShowConfirmDelete] = useState(false);
   const [showAddMember, setShowAddMember] = useState(false);
+  const [actionError, setActionError] = useState('');
 
   // Keep selected in sync with departments updates
   const selectedDept = selected
@@ -246,8 +247,10 @@ export default function DepartmentsPage() {
 
   const handleRemoveMember = async (userId: string) => {
     if (!selectedDept) return;
+    setActionError('');
     const updated = await removeMember(selectedDept._id, userId);
     if (updated) setSelected(updated);
+    else setActionError(error || 'Failed to remove member. Please try again.');
   };
 
   const handleSetHead = async (userId: string) => {
@@ -393,6 +396,11 @@ export default function DepartmentsPage() {
 
               {/* ── Members section ── */}
               <div className={styles.membersSection}>
+                {actionError && (
+                  <div className={styles.actionError} onClick={() => setActionError('')}>
+                    {actionError}
+                  </div>
+                )}
                 <div className={styles.membersSectionHeader}>
                   <h2 className={styles.membersSectionTitle}>
                     Members

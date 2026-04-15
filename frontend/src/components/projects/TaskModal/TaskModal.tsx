@@ -8,6 +8,7 @@ import Avatar from '@/components/ui/Avatar/Avatar';
 import TaskTimer from '@/components/tasks/TaskTimer';
 import { formatDate, timeAgo } from '@/lib/utils';
 import { useTasks } from '@/hooks/useTasks';
+import { uploadFile } from '@/lib/api';
 import type { Task, Comment, User, Attachment } from '@/types';
 import styles from './TaskModal.module.css';
 
@@ -183,24 +184,8 @@ export default function TaskModal({ task, isOpen, onClose, onUpdate, members, pa
     const uploaded: Attachment[] = [];
     try {
       for (const file of list) {
-        const form = new FormData();
-        form.append('file', file);
-        const res = await fetch(`${API_BASE}/api/upload`, {
-          method: 'POST',
-          credentials: 'include',
-          body: form,
-        });
-        if (!res.ok) {
-          const err = await res.json().catch(() => ({ message: 'Upload failed' }));
-          throw new Error(err.message || 'Upload failed');
-        }
-        const data = await res.json();
-        uploaded.push({
-          name: data.name,
-          url: `${API_BASE}${data.url}`,
-          type: data.type,
-          uploadedAt: new Date().toISOString(),
-        });
+        const data = await uploadFile(file);
+        uploaded.push({ name: data.name, url: data.url, type: data.type, uploadedAt: new Date().toISOString() });
       }
       const next = [...attachments, ...uploaded];
       const result = await updateTask(task._id, { attachments: next } as Partial<Task>);

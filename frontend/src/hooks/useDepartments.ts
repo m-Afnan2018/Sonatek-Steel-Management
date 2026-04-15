@@ -63,7 +63,9 @@ export function useDepartments(autoFetch = true) {
       const { data } = await api.post(`/departments/${deptId}/members`, { userId });
       setDepartments((prev) => prev.map((d) => (d._id === deptId ? data : d)));
       return data;
-    } catch {
+    } catch (err: any) {
+      const msg = err?.response?.data?.message || 'Failed to add member.';
+      setError(msg);
       return null;
     }
   }, []);
@@ -73,7 +75,9 @@ export function useDepartments(autoFetch = true) {
       const { data } = await api.delete(`/departments/${deptId}/members/${userId}`);
       setDepartments((prev) => prev.map((d) => (d._id === deptId ? data : d)));
       return data;
-    } catch {
+    } catch (err: any) {
+      const msg = err?.response?.data?.message || 'Failed to remove member.';
+      setError(msg);
       return null;
     }
   }, []);

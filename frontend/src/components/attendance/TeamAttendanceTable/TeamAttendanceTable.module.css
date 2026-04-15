@@ -56,6 +56,12 @@
   font-weight: 600;
 }
 
+.lunch {
+  font-family: monospace;
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+}
+
 .mode {
   text-transform: capitalize;
   font-size: 0.75rem;

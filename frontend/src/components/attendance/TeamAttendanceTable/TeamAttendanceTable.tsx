@@ -28,6 +28,9 @@ export default function TeamAttendanceTable({ records }: TeamAttendanceTableProp
             <th>Status</th>
             <th>Check In</th>
             <th>Check Out</th>
+            <th>Lunch Start</th>
+            <th>Lunch End</th>
+            <th>Lunch</th>
             <th>Hours</th>
             <th>Work Mode</th>
           </tr>
@@ -56,6 +59,15 @@ export default function TeamAttendanceTable({ records }: TeamAttendanceTableProp
                 </td>
                 <td className={styles.time}>
                   {r.checkOut ? formatTime(r.checkOut) : '-'}
+                </td>
+                <td className={styles.time}>
+                  {r.lunchStart ? formatTime(r.lunchStart) : '-'}
+                </td>
+                <td className={styles.time}>
+                  {r.lunchStop ? formatTime(r.lunchStop) : '-'}
+                </td>
+                <td className={styles.lunch}>
+                  {r.lunchDuration != null && r.lunchDuration > 0 ? `${r.lunchDuration}m` : '-'}
                 </td>
                 <td className={styles.hours}>{r.hoursWorked}h</td>
                 <td>

@@ -1,12 +1,14 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
+import Link from 'next/link';
 import AppShell from '@/components/layout/AppShell/AppShell';
 import Button from '@/components/ui/Button/Button';
 import Avatar from '@/components/ui/Avatar/Avatar';
 import Badge from '@/components/ui/Badge/Badge';
 import { useAuthStore } from '@/store/authStore';
 import { useAuth } from '@/hooks/useAuth';
+import { useDepartments } from '@/hooks/useDepartments';
 import api from '@/lib/api';
 import styles from './settings.module.css';
 
@@ -14,9 +16,9 @@ export default function SettingsPage() {
   const user = useAuthStore((s) => s.user);
   const { logout } = useAuth();
   const updateUser = useAuthStore((s) => s.updateUser);
+  const { departments } = useDepartments();
 
   const [name, setName] = useState(user?.name || '');
-  const [department, setDepartment] = useState(user?.department || '');
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState('');
   const [notifPrefs, setNotifPrefs] = useState({
@@ -26,6 +28,14 @@ export default function SettingsPage() {
     statusChanges: false,
   });
 
+  // Departments this user belongs to
+  const myDepartments = useMemo(() =>
+    departments.filter((d) =>
+      d.members.some((m) => m.id === user?.id || (m as any)._id === user?.id)
+    ),
+    [departments, user?.id]
+  );
+
   const handleSave = async () => {
     if (!name.trim()) {
       setMessage('Name cannot be empty.');
@@ -34,7 +44,7 @@ export default function SettingsPage() {
     setSaving(true);
     setMessage('');
     try {
-      const { data } = await api.put('/auth/me', { name: name.trim(), department });
+      const { data } = await api.put('/auth/me', { name: name.trim() });
       updateUser({ name: data.name, department: data.department });
       setMessage('Profile updated successfully.');
     } catch {
@@ -71,14 +81,6 @@ export default function SettingsPage() {
               <input value={user?.email || ''} disabled />
             </div>
             <div className={styles.field}>
-              <label>Department</label>
-              <input
-                value={department}
-                onChange={(e) => { setDepartment(e.target.value); setMessage(''); }}
-                placeholder="e.g. Engineering"
-              />
-            </div>
-            <div className={styles.field}>
               <label>Role</label>
               <input value={user?.role || ''} disabled />
             </div>
@@ -90,6 +92,33 @@ export default function SettingsPage() {
             )}
 
             <Button onClick={handleSave} loading={saving}>Save Changes</Button>
+          </div>
+
+          {/* Departments — linked from Department collection */}
+          <div className={styles.deptSection}>
+            <div className={styles.deptSectionHeader}>
+              <span className={styles.deptSectionTitle}>Departments</span>
+              <Link href="/departments" className={styles.deptManageLink}>
+                Manage
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+              </Link>
+            </div>
+            {myDepartments.length === 0 ? (
+              <p className={styles.deptEmpty}>You are not part of any department yet.</p>
+            ) : (
+              <div className={styles.deptChips}>
+                {myDepartments.map((d) => {
+                  const isHead = (d.head as any)?.id === user?.id || (d.head as any)?._id === user?.id;
+                  return (
+                    <Link key={d._id} href="/departments" className={styles.deptChip} style={{ '--dept-color': d.color } as React.CSSProperties}>
+                      <span className={styles.deptDot} style={{ background: d.color }} />
+                      <span className={styles.deptChipName}>{d.name}</span>
+                      {isHead && <span className={styles.deptHeadBadge}>Head</span>}
+                    </Link>
+                  );
+                })}
+              </div>
+            )}
           </div>
         </div>
 
