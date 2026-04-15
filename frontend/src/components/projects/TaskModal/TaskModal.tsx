@@ -150,7 +150,7 @@ export default function TaskModal({ task, isOpen, onClose, onUpdate, members, pa
 
   const handleAssigneesSave = async () => {
     setSavingAssignees(true);
-    await save({ assignees: assigneeIds } as Partial<Task>);
+    await save({ assignees: assigneeIds } as unknown as Partial<Task>);
     setSavingAssignees(false);
     setEditingAssignees(false);
   };

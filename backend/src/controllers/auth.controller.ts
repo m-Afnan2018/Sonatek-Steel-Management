@@ -186,7 +186,6 @@ export const getMe = async (req: Request, res: Response): Promise<void> => {
       email: user.email,
       role: user.role,
       avatar: user.avatar,
-      department: user.department,
       isActive: user.isActive,
       createdAt: user.createdAt,
     });
@@ -214,7 +213,6 @@ export const updateMe = async (req: Request, res: Response): Promise<void> => {
       email: user.email,
       role: user.role,
       avatar: user.avatar,
-      department: user.department,
       isActive: user.isActive,
       createdAt: user.createdAt,
     });
