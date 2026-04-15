@@ -12,6 +12,11 @@ import { useAuthStore } from '@/store/authStore';
 import type { Department, User } from '@/types';
 import styles from './departments.module.css';
 
+/** Safely extract string ID from a User — handles both `id` and `_id` */
+function uid(m: User | any): string {
+  return (m?.id || m?._id)?.toString() ?? '';
+}
+
 const PALETTE = [
   '#6366f1', '#0ea5e9', '#10b981', '#f59e0b',
   '#ef4444', '#8b5cf6', '#ec4899', '#14b8a6',
@@ -118,7 +123,7 @@ function DeptFormModal({
           >
             <option value="">— None —</option>
             {allMembers.map((m) => (
-              <option key={m.id} value={m.id}>{m.name}</option>
+              <option key={uid(m)} value={uid(m)}>{m.name}</option>
             ))}
           </select>
         </div>
@@ -142,12 +147,11 @@ function AddMemberModal({
   onAdd: (userId: string) => Promise<void>;
   dept: Department; allMembers: User[];
 }) {
-  const existing = new Set(dept.members.map((m) => m.id));
-  const available = allMembers.filter((m) => !existing.has(m.id));
+  const existingIds = new Set(dept.members.map((m) => uid(m)));
   const [search, setSearch] = useState('');
   const [adding, setAdding] = useState('');
 
-  const filtered = available.filter((m) =>
+  const filtered = allMembers.filter((m) =>
     m.name.toLowerCase().includes(search.toLowerCase()) ||
     m.email.toLowerCase().includes(search.toLowerCase())
   );
@@ -156,7 +160,6 @@ function AddMemberModal({
     setAdding(userId);
     await onAdd(userId);
     setAdding('');
-    if (available.length <= 1) onClose();
   };
 
   return (
@@ -171,26 +174,32 @@ function AddMemberModal({
         />
         <div className={styles.addMemberList}>
           {filtered.length === 0 && (
-            <p className={styles.emptyText}>
-              {available.length === 0 ? 'All team members are already in this department.' : 'No results.'}
-            </p>
+            <p className={styles.emptyText}>No results.</p>
           )}
-          {filtered.map((m) => (
-            <div key={m.id} className={styles.addMemberItem}>
-              <Avatar name={m.name} size="sm" />
-              <div className={styles.addMemberInfo}>
-                <span className={styles.addMemberName}>{m.name}</span>
-                <span className={styles.addMemberEmail}>{m.email}</span>
+          {filtered.map((m) => {
+            const memberId = uid(m);
+            const alreadyIn = existingIds.has(memberId);
+            return (
+              <div key={memberId} className={styles.addMemberItem}>
+                <Avatar name={m.name} size="sm" />
+                <div className={styles.addMemberInfo}>
+                  <span className={styles.addMemberName}>{m.name}</span>
+                  <span className={styles.addMemberEmail}>{m.email}</span>
+                </div>
+                {alreadyIn ? (
+                  <Button size="sm" variant="secondary" disabled>Added</Button>
+                ) : (
+                  <Button
+                    size="sm"
+                    onClick={() => handleAdd(memberId)}
+                    disabled={!!adding}
+                  >
+                    {adding === memberId ? '…' : 'Add'}
+                  </Button>
+                )}
               </div>
-              <Button
-                size="sm"
-                onClick={() => handleAdd(m.id)}
-                disabled={!!adding}
-              >
-                {adding === m.id ? '…' : 'Add'}
-              </Button>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
     </Modal>
@@ -241,16 +250,18 @@ export default function DepartmentsPage() {
 
   const handleAddMember = async (userId: string) => {
     if (!selectedDept) return;
+    setActionError('');
     const updated = await addMember(selectedDept._id, userId);
     if (updated) setSelected(updated);
+    else setActionError(error || 'Failed to add member. Please try again.');
   };
 
   const handleRemoveMember = async (userId: string) => {
     if (!selectedDept) return;
     setActionError('');
-    const updated = await removeMember(selectedDept._id, userId);
+    const { data: updated, error: removeError } = await removeMember(selectedDept._id, userId);
     if (updated) setSelected(updated);
-    else setActionError(error || 'Failed to remove member. Please try again.');
+    else setActionError(removeError || 'Failed to remove member. Please try again.');
   };
 
   const handleSetHead = async (userId: string) => {
@@ -427,9 +438,10 @@ export default function DepartmentsPage() {
                 ) : (
                   <div className={styles.membersGrid}>
                     {selectedDept.members.map((m) => {
-                      const isHead = selectedDept.head?.id === m.id || selectedDept.head?.email === m.email;
+                      const memberId = uid(m);
+                      const isHead = uid(selectedDept.head) === memberId;
                       return (
-                        <div key={m.id} className={styles.memberCard}>
+                        <div key={memberId} className={styles.memberCard}>
                           <div className={styles.memberCardTop}>
                             <div className={styles.memberAvatarWrap}>
                               <Avatar name={m.name} size="md" />
@@ -453,7 +465,7 @@ export default function DepartmentsPage() {
                                 <button
                                   className={styles.memberActionBtn}
                                   title="Set as head"
-                                  onClick={() => handleSetHead(m.id)}
+                                  onClick={() => handleSetHead(memberId)}
                                 >
                                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                                     <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
@@ -464,7 +476,7 @@ export default function DepartmentsPage() {
                               <button
                                 className={`${styles.memberActionBtn} ${styles.memberActionBtnRemove}`}
                                 title="Remove from department"
-                                onClick={() => handleRemoveMember(m.id)}
+                                onClick={() => handleRemoveMember(memberId)}
                               >
                                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                                   <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />

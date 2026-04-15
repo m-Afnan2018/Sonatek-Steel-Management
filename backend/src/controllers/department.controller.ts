@@ -3,15 +3,11 @@ import mongoose from 'mongoose';
 import Department from '../models/Department';
 import User from '../models/User';
 
-const MEMBER_SELECT = 'name email avatar role department';
+const MEMBER_SELECT = 'name email avatar role';
 
-/** Recompute user.department as a comma-separated list of all dept names
- *  the user currently belongs to. Called after any membership change. */
-async function syncUserDepts(userId: string | mongoose.Types.ObjectId): Promise<void> {
-  const depts = await Department.find({ members: userId }).select('name').sort({ name: 1 });
-  const names = depts.map((d) => d.name).join(', ');
-  await User.findByIdAndUpdate(userId, { department: names });
-}
+// department field removed from User model — membership is tracked via Department.members[]
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+async function syncUserDepts(_userId: string | mongoose.Types.ObjectId): Promise<void> {}
 
 export const getDepartments = async (_req: Request, res: Response): Promise<void> => {
   try {

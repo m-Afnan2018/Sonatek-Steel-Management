@@ -45,7 +45,6 @@ export default function TeamAttendanceTable({ records }: TeamAttendanceTableProp
                     <Avatar name={user?.name || 'U'} size="sm" />
                     <div>
                       <span className={styles.name}>{user?.name}</span>
-                      <span className={styles.dept}>{user?.department}</span>
                     </div>
                   </div>
                 </td>

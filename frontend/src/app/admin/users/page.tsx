@@ -19,7 +19,7 @@ export default function AdminUsersPage() {
   const [showCreate, setShowCreate] = useState(false);
   const [editUser, setEditUser] = useState<User | null>(null);
   const [form, setForm] = useState({
-    name: '', email: '', password: '', role: 'member', department: '', lateThreshold: '09:30',
+    name: '', email: '', password: '', role: 'member', lateThreshold: '09:30',
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -37,7 +37,7 @@ export default function AdminUsersPage() {
   useEffect(() => { fetchUsers(); }, []);
 
   const resetForm = () => {
-    setForm({ name: '', email: '', password: '', role: 'member', department: '', lateThreshold: '09:30' });
+    setForm({ name: '', email: '', password: '', role: 'member', lateThreshold: '09:30' });
     setError('');
   };
 
@@ -68,7 +68,6 @@ export default function AdminUsersPage() {
         name: form.name,
         email: form.email,
         role: form.role,
-        department: form.department,
         lateThreshold: form.lateThreshold,
       };
       if (form.password) payload.password = form.password;
@@ -105,7 +104,7 @@ export default function AdminUsersPage() {
 
   const openEdit = (u: User) => {
     setEditUser(u);
-    setForm({ name: u.name, email: u.email, password: '', role: u.role, department: u.department || '', lateThreshold: u.lateThreshold || '09:30' });
+    setForm({ name: u.name, email: u.email, password: '', role: u.role, lateThreshold: u.lateThreshold || '09:30' });
     setError('');
   };
 
@@ -137,7 +136,6 @@ export default function AdminUsersPage() {
                 <tr>
                   <th>User</th>
                   <th>Role</th>
-                  <th>Department</th>
                   <th>Late Threshold</th>
                   <th>Status</th>
                   <th>Actions</th>
@@ -156,7 +154,6 @@ export default function AdminUsersPage() {
                       </div>
                     </td>
                     <td><Badge variant={roleVariant[u.role]}>{u.role}</Badge></td>
-                    <td><span className={styles.dept}>{u.department || '—'}</span></td>
                     <td><span className={styles.threshold}>{u.lateThreshold || '09:30'}</span></td>
                     <td>
                       <Badge variant={u.isActive ? 'success' : 'default'}>
@@ -225,10 +222,6 @@ export default function AdminUsersPage() {
           </div>
           <div className={styles.row}>
             <div className={styles.field}>
-              <label>Department</label>
-              <input value={form.department} onChange={(e) => setForm({ ...form, department: e.target.value })} placeholder="Engineering" />
-            </div>
-            <div className={styles.field}>
               <label>Late Threshold (HH:MM)</label>
               <input value={form.lateThreshold} onChange={(e) => setForm({ ...form, lateThreshold: e.target.value })} placeholder="09:30" />
             </div>
@@ -270,10 +263,6 @@ export default function AdminUsersPage() {
             </div>
           </div>
           <div className={styles.row}>
-            <div className={styles.field}>
-              <label>Department</label>
-              <input value={form.department} onChange={(e) => setForm({ ...form, department: e.target.value })} />
-            </div>
             <div className={styles.field}>
               <label>Late Threshold (HH:MM)</label>
               <input value={form.lateThreshold} onChange={(e) => setForm({ ...form, lateThreshold: e.target.value })} />

@@ -7,7 +7,6 @@ export interface IUser extends Document {
   password: string;
   role: 'admin' | 'manager' | 'member' | 'viewer';
   avatar?: string;
-  department?: string;
   isActive: boolean;
   lateThreshold?: string; // "HH:MM" e.g. "09:30"
   refreshToken?: string;
@@ -23,7 +22,6 @@ const userSchema = new Schema<IUser>(
     password: { type: String, required: [true, 'Password is required'], minlength: 6, select: false },
     role: { type: String, enum: ['admin', 'manager', 'member', 'viewer'], default: 'member' },
     avatar: { type: String, default: '' },
-    department: { type: String, trim: true, default: '' },
     isActive: { type: Boolean, default: true },
     lateThreshold: { type: String, default: '09:30' },
     refreshToken: { type: String, select: false },

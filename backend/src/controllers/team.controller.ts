@@ -26,7 +26,6 @@ export const getTeamMembers = async (_req: Request, res: Response): Promise<void
           email: user.email,
           role: user.role,
           avatar: user.avatar,
-          department: user.department,
           activeTasks,
         };
       })

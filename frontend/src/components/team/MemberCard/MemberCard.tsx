@@ -27,9 +27,6 @@ export default function MemberCard({ member, onClick }: MemberCardProps) {
         <p className={styles.email}>{member.email}</p>
         <div className={styles.badges}>
           <Badge variant={roleVariant[member.role] || 'default'}>{member.role}</Badge>
-          {member.department && (
-            <Badge variant="default">{member.department}</Badge>
-          )}
         </div>
       </div>
       <div className={styles.workload}>

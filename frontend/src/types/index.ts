@@ -15,7 +15,6 @@ export interface User {
   email: string;
   role: 'admin' | 'manager' | 'member' | 'viewer';
   avatar?: string;
-  department?: string;
   isActive?: boolean;
   lateThreshold?: string;
   createdAt?: string;

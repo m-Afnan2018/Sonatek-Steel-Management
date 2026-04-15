@@ -45,7 +45,7 @@ export default function SettingsPage() {
     setMessage('');
     try {
       const { data } = await api.put('/auth/me', { name: name.trim() });
-      updateUser({ name: data.name, department: data.department });
+      updateUser({ name: data.name });
       setMessage('Profile updated successfully.');
     } catch {
       setMessage('Failed to update profile.');

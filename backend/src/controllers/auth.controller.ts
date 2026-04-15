@@ -10,7 +10,7 @@ export const register = async (req: Request, res: Response): Promise<void> => {
     return;
   }
 
-  const { name, email, password, role, department } = req.body;
+  const { name, email, password, role } = req.body;
 
   try {
     const existingUser = await User.findOne({ email });
@@ -24,7 +24,6 @@ export const register = async (req: Request, res: Response): Promise<void> => {
       email,
       password,
       role: role || 'member',
-      department: department || '',
     });
 
     await user.save();
@@ -50,7 +49,6 @@ export const register = async (req: Request, res: Response): Promise<void> => {
         email: user.email,
         role: user.role,
         avatar: user.avatar,
-        department: user.department,
       },
       accessToken,
     });
@@ -108,7 +106,6 @@ export const login = async (req: Request, res: Response): Promise<void> => {
         email: user.email,
         role: user.role,
         avatar: user.avatar,
-        department: user.department,
       },
       accessToken,
     });

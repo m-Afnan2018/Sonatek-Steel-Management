@@ -59,6 +59,7 @@ export function useDepartments(autoFetch = true) {
   }, []);
 
   const addMember = useCallback(async (deptId: string, userId: string): Promise<Department | null> => {
+    setError(null);
     try {
       const { data } = await api.post(`/departments/${deptId}/members`, { userId });
       setDepartments((prev) => prev.map((d) => (d._id === deptId ? data : d)));
@@ -70,15 +71,16 @@ export function useDepartments(autoFetch = true) {
     }
   }, []);
 
-  const removeMember = useCallback(async (deptId: string, userId: string): Promise<Department | null> => {
+  const removeMember = useCallback(async (deptId: string, userId: string): Promise<{ data: Department | null; error: string | null }> => {
+    setError(null);
     try {
       const { data } = await api.delete(`/departments/${deptId}/members/${userId}`);
       setDepartments((prev) => prev.map((d) => (d._id === deptId ? data : d)));
-      return data;
+      return { data, error: null };
     } catch (err: any) {
       const msg = err?.response?.data?.message || 'Failed to remove member.';
       setError(msg);
-      return null;
+      return { data: null, error: msg };
     }
   }, []);
 

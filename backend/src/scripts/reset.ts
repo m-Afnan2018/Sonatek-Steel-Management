@@ -12,6 +12,7 @@ dotenv.config();
 
 import mongoose from 'mongoose';
 import crypto from 'crypto';
+import bcrypt from 'bcryptjs';
 import User from '../models/User';
 import Project from '../models/Project';
 import Task from '../models/Task';
@@ -99,14 +100,20 @@ const reset = async () => {
   ]);
   console.log('✓ Cleared all collections\n');
 
+  const SALT_ROUNDS = 12;
+
   // ── Admin account ─────────────────────────────────────────────────
   const ADMIN_PASSWORD = 'Tracksy@Admin2025!';
-  await User.create({
+  await User.collection.insertOne({
     name: 'Admin',
     email: 'admin@ganesyx.com',
-    password: ADMIN_PASSWORD,
+    password: await bcrypt.hash(ADMIN_PASSWORD, SALT_ROUNDS),
     role: 'admin',
     isActive: true,
+    avatar: '',
+    lateThreshold: '09:30',
+    createdAt: new Date(),
+    updatedAt: new Date(),
   });
 
   // ── Member accounts with individual passwords ─────────────────────
@@ -115,17 +122,23 @@ const reset = async () => {
     password: generatePassword(),
   }));
 
-  await Promise.all(
-    credentials.map(({ email, password }) =>
-      User.create({
-        name: nameFromEmail(email),
-        email,
-        password,
-        role: 'member',
-        isActive: true,
-      })
-    )
+  // Hash all passwords in parallel, then bulk-insert (bypasses pre-save hook — no double-hash)
+  const memberDocs = await Promise.all(
+    credentials.map(async ({ email, password }) => ({
+      name: nameFromEmail(email),
+      email,
+      password: await bcrypt.hash(password, SALT_ROUNDS),
+      role: 'member',
+      isActive: true,
+      department: '',
+      avatar: '',
+      lateThreshold: '09:30',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    }))
   );
+
+  await User.collection.insertMany(memberDocs);
 
   // ── Print credentials table ───────────────────────────────────────
   const COL = 42;
