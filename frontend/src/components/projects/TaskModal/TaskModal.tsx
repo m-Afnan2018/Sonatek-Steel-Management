@@ -8,11 +8,12 @@ import Avatar from '@/components/ui/Avatar/Avatar';
 import TaskTimer from '@/components/tasks/TaskTimer';
 import { formatDate, timeAgo } from '@/lib/utils';
 import { useTasks } from '@/hooks/useTasks';
+import { useAuthStore } from '@/store/authStore';
 import { uploadFile } from '@/lib/api';
 import type { Task, Comment, User, Attachment } from '@/types';
 import styles from './TaskModal.module.css';
 
-type Tab = 'details' | 'notes' | 'links' | 'files' | 'comments';
+type Tab = 'details' | 'notes' | 'links' | 'files' | 'comments' | 'timeline';
 
 interface TaskModalProps {
   task: Task | null;
@@ -41,8 +42,15 @@ const statusVariant = {
 // Derive base URL once (env var never changes at runtime)
 const API_BASE = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api').replace(/\/api$/, '');
 
+/** Extract string ID from a User-like object (handles both `id` and `_id`) */
+function uid(u: User | any): string {
+  return (u?.id || u?._id)?.toString() ?? '';
+}
+
 export default function TaskModal({ task, isOpen, onClose, onUpdate, members, patchTimer }: TaskModalProps) {
   const { updateTask, addComment } = useTasks();
+  const currentUser = useAuthStore((s) => s.user);
+  const isAdminOrManager = currentUser?.role === 'admin' || currentUser?.role === 'manager';
 
   const [tab, setTab] = useState<Tab>('details');
   const [comments, setComments] = useState<Comment[]>([]);
@@ -59,6 +67,7 @@ export default function TaskModal({ task, isOpen, onClose, onUpdate, members, pa
   const [editStatus, setEditStatus] = useState('');
   const [editPriority, setEditPriority] = useState('');
   const [editDue, setEditDue] = useState('');
+  const [editEstHours, setEditEstHours] = useState('');
 
   // Links
   const [newLink, setNewLink] = useState('');
@@ -74,6 +83,11 @@ export default function TaskModal({ task, isOpen, onClose, onUpdate, members, pa
   const [uploadError, setUploadError] = useState('');
   const [dragOver, setDragOver] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Assignee editing
+  const [editingAssignees, setEditingAssignees] = useState(false);
+  const [assigneeIds, setAssigneeIds] = useState<string[]>([]);
+  const [savingAssignees, setSavingAssignees] = useState(false);
 
   // Mentions
   const [mentionSearch, setMentionSearch] = useState('');
@@ -93,9 +107,12 @@ export default function TaskModal({ task, isOpen, onClose, onUpdate, members, pa
       setComments(task.comments || []);
       setLinks(task.links || []);
       setAttachments(task.attachments || []);
+      setAssigneeIds(task.assignees.filter(Boolean).map((a) => uid(a)));
+      setEditEstHours(task.estimatedHours != null ? String(task.estimatedHours) : '');
       setTab('details');
       setEditingTitle(false);
       setEditingDesc(false);
+      setEditingAssignees(false);
     }
   }, [task]);
 
@@ -129,6 +146,19 @@ export default function TaskModal({ task, isOpen, onClose, onUpdate, members, pa
     setSavingNotes(true);
     await save({ notes: editNotes } as Partial<Task>);
     setSavingNotes(false);
+  };
+
+  const handleAssigneesSave = async () => {
+    setSavingAssignees(true);
+    await save({ assignees: assigneeIds } as Partial<Task>);
+    setSavingAssignees(false);
+    setEditingAssignees(false);
+  };
+
+  const toggleAssignee = (id: string) => {
+    setAssigneeIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    );
   };
 
   // ── Links ─────────────────────────────────────────────────────────
@@ -245,6 +275,7 @@ export default function TaskModal({ task, isOpen, onClose, onUpdate, members, pa
     if (t === 'links') return links.length || undefined;
     if (t === 'files') return attachments.length || undefined;
     if (t === 'comments') return comments.length || undefined;
+    if (t === 'timeline') return task.timerEvents.length || undefined;
     return undefined;
   };
 
@@ -254,7 +285,54 @@ export default function TaskModal({ task, isOpen, onClose, onUpdate, members, pa
     { key: 'links', label: 'Links' },
     { key: 'files', label: 'Files' },
     { key: 'comments', label: 'Comments' },
+    { key: 'timeline', label: 'Timeline' },
   ];
+
+  // ── Timeline helpers ──────────────────────────────────────────────
+  const ACTION_META: Record<string, { label: string; color: string; bg: string }> = {
+    start:  { label: 'Started',   color: '#10b981', bg: '#d1fae5' },
+    resume: { label: 'Resumed',   color: '#0ea5e9', bg: '#e0f2fe' },
+    pause:  { label: 'Paused',    color: '#f59e0b', bg: '#fef3c7' },
+    hold:   { label: 'On Hold',   color: '#f97316', bg: '#ffedd5' },
+    finish: { label: 'Finished',  color: '#8b5cf6', bg: '#ede9fe' },
+  };
+
+  function fmtDuration(ms: number): string {
+    const s = Math.floor(ms / 1000);
+    if (s < 60) return `${s}s`;
+    const m = Math.floor(s / 60);
+    const h = Math.floor(m / 60);
+    if (h > 0) return `${h}h ${m % 60}m`;
+    return `${m}m`;
+  }
+
+  function fmtDateTime(iso: string): string {
+    const d = new Date(iso);
+    return d.toLocaleString(undefined, {
+      month: 'short', day: 'numeric',
+      hour: '2-digit', minute: '2-digit',
+    });
+  }
+
+  // Build enriched timeline entries with duration annotations
+  const timelineEntries = task.timerEvents.map((ev, i) => {
+    const prev = i > 0 ? task.timerEvents[i - 1] : null;
+    const durationMs = prev
+      ? new Date(ev.timestamp).getTime() - new Date(prev.timestamp).getTime()
+      : null;
+
+    // Label the duration based on what happened in the segment
+    let durationLabel: string | null = null;
+    if (durationMs !== null && durationMs >= 0) {
+      const prevAction = prev!.action;
+      if (prevAction === 'start' || prevAction === 'resume') {
+        durationLabel = `Worked for ${fmtDuration(durationMs)}`;
+      } else if (prevAction === 'pause' || prevAction === 'hold') {
+        durationLabel = `Inactive for ${fmtDuration(durationMs)}`;
+      }
+    }
+    return { ...ev, durationLabel };
+  });
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} size="xl">
@@ -347,18 +425,63 @@ export default function TaskModal({ task, isOpen, onClose, onUpdate, members, pa
                   </div>
                 )}
 
-                <div className={styles.sectionLabel} style={{ marginTop: '1rem' }}>Assignees</div>
-                <div className={styles.assignees}>
-                  {task.assignees.length === 0
-                    ? <span className={styles.placeholder}>No assignees</span>
-                    : task.assignees.map((a) => (
-                        <div key={a.id || a.email} className={styles.person}>
-                          <Avatar name={a.name} size="sm" />
-                          <span>{a.name}</span>
-                        </div>
-                      ))
-                  }
+                <div className={styles.sectionHeader} style={{ marginTop: '1rem' }}>
+                  <span className={styles.sectionLabel}>Assignees</span>
+                  {isAdminOrManager && !editingAssignees && (
+                    <button
+                      className={styles.inlineEditBtn}
+                      onClick={() => setEditingAssignees(true)}
+                    >
+                      Edit
+                    </button>
+                  )}
                 </div>
+
+                {editingAssignees ? (
+                  <div className={styles.assigneeEditor}>
+                    <div className={styles.assigneePickerGrid}>
+                      {members.map((m) => {
+                        const id = uid(m);
+                        const selected = assigneeIds.includes(id);
+                        return (
+                          <button
+                            key={id}
+                            type="button"
+                            className={`${styles.assigneePickerChip} ${selected ? styles.assigneePickerChipActive : ''}`}
+                            onClick={() => toggleAssignee(id)}
+                          >
+                            <Avatar name={m.name || '?'} size="sm" />
+                            <span className={styles.assigneePickerName}>{m.name}</span>
+                            {selected && (
+                              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                                <polyline points="20 6 9 17 4 12" />
+                              </svg>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    <div className={styles.editActions}>
+                      <Button size="sm" onClick={handleAssigneesSave} loading={savingAssignees}>Save</Button>
+                      <Button size="sm" variant="ghost" onClick={() => {
+                        setAssigneeIds(task.assignees.filter(Boolean).map((a) => uid(a)));
+                        setEditingAssignees(false);
+                      }}>Cancel</Button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className={styles.assignees}>
+                    {task.assignees.filter(Boolean).length === 0
+                      ? <span className={styles.placeholder}>No assignees</span>
+                      : task.assignees.filter(Boolean).map((a) => (
+                          <div key={(a as any)._id?.toString() || a.id || a.email} className={styles.person}>
+                            <Avatar name={a.name || '?'} size="sm" />
+                            <span>{a.name}</span>
+                          </div>
+                        ))
+                    }
+                  </div>
+                )}
               </div>
             )}
 
@@ -476,6 +599,61 @@ export default function TaskModal({ task, isOpen, onClose, onUpdate, members, pa
               </div>
             )}
 
+            {/* TIMELINE */}
+            {tab === 'timeline' && (
+              <div className={styles.section}>
+                <div className={styles.sectionLabel}>Timer Activity</div>
+
+                {timelineEntries.length === 0 ? (
+                  <p className={styles.placeholder}>No timer activity yet. Start the timer to begin tracking.</p>
+                ) : (
+                  <div className={styles.timeline}>
+                    {timelineEntries.map((ev, i) => {
+                      const meta = ACTION_META[ev.action] ?? { label: ev.action, color: '#6366f1', bg: '#eef2ff' };
+                      const isLast = i === timelineEntries.length - 1;
+                      return (
+                        <div key={i} className={styles.timelineItem}>
+                          {/* Spine */}
+                          <div className={styles.timelineSpine}>
+                            <span
+                              className={styles.timelineDot}
+                              style={{ background: meta.color, boxShadow: `0 0 0 3px ${meta.bg}` }}
+                            />
+                            {!isLast && <div className={styles.timelineLine} />}
+                          </div>
+
+                          {/* Content */}
+                          <div className={styles.timelineContent}>
+                            <div className={styles.timelineHeader}>
+                              <span className={styles.timelineAction} style={{ color: meta.color, background: meta.bg }}>
+                                {meta.label}
+                              </span>
+                              <span className={styles.timelineTime}>{fmtDateTime(ev.timestamp)}</span>
+                            </div>
+                            {ev.durationLabel && (
+                              <span className={styles.timelineDuration}>{ev.durationLabel}</span>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+
+                    {/* Total elapsed summary */}
+                    <div className={styles.timelineSummary}>
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+                      </svg>
+                      Total time logged:&nbsp;
+                      <strong>{fmtDuration(task.totalElapsedSeconds * 1000)}</strong>
+                      {task.estimatedHours != null && task.estimatedHours > 0 && (
+                        <> &nbsp;/&nbsp; {task.estimatedHours}h estimated</>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* COMMENTS */}
             {tab === 'comments' && (
               <div className={styles.section}>
@@ -555,6 +733,33 @@ export default function TaskModal({ task, isOpen, onClose, onUpdate, members, pa
                 <span className={styles.sideLabel}>Due Date</span>
                 <input type="date" className={styles.metaDate} value={editDue}
                   onChange={(e) => { setEditDue(e.target.value); handleMetaSave('dueDate', e.target.value); }} />
+              </div>
+              <div className={styles.metaRow}>
+                <span className={styles.sideLabel}>Est. Hours</span>
+                {isAdminOrManager ? (
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.5"
+                    className={styles.metaDate}
+                    value={editEstHours}
+                    placeholder="0"
+                    onChange={(e) => setEditEstHours(e.target.value)}
+                    onBlur={() => {
+                      const val = editEstHours === '' ? null : parseFloat(editEstHours);
+                      if (val !== task.estimatedHours) {
+                        save({ estimatedHours: val ?? undefined } as Partial<Task>);
+                      }
+                    }}
+                  />
+                ) : (
+                  <span className={styles.metaValue}>
+                    {task.estimatedHours != null && task.estimatedHours > 0
+                      ? `${task.estimatedHours}h`
+                      : <span style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>—</span>
+                    }
+                  </span>
+                )}
               </div>
               <div className={styles.metaRow}>
                 <span className={styles.sideLabel}>Reporter</span>

@@ -423,6 +423,34 @@
 .assignees {
   display: flex;
   align-items: center;
+  gap: 0.375rem;
+  flex-wrap: wrap;
+  max-width: 220px;
+}
+
+.assigneeChip {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 0.125rem 0.5rem 0.125rem 0.125rem;
+  transition: background var(--transition);
+}
+
+.assigneeChip:hover {
+  background: var(--card);
+}
+
+.assigneeName {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  max-width: 90px;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .assigneeAvatar {

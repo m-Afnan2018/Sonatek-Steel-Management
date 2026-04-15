@@ -191,7 +191,7 @@ export default function TasksPage() {
     return localTasks.filter((t) => {
       if (filterStatus && t.status !== filterStatus) return false;
       if (filterPriority && t.priority !== filterPriority) return false;
-      if (filterAssignee && !t.assignees.some((a) => a.id === filterAssignee)) return false;
+      if (filterAssignee && !t.assignees.filter(Boolean).some((a) => ((a as any)._id?.toString() || a.id) === filterAssignee)) return false;
       if (filterProject) {
         const projId = typeof t.project === 'object' ? t.project?._id : t.project;
         if (projId !== filterProject) return false;
@@ -495,35 +495,55 @@ export default function TasksPage() {
                 </div>
               )}
 
-              {isAdminOrManager && !form.isPersonal && (
+              {!form.isPersonal && (
                 <div className={styles.field}>
                   <label>Assignees</label>
-                  <div className={styles.assigneeGrid}>
-                    {members.map((m) => {
-                      const checked = form.assignees.includes(m.id);
-                      return (
-                        <button
-                          key={m.id}
-                          type="button"
-                          className={`${styles.assigneeChip} ${checked ? styles.assigneeChipActive : ''}`}
-                          onClick={() => setForm((f) => ({
-                            ...f,
-                            assignees: checked
-                              ? f.assignees.filter((id) => id !== m.id)
-                              : [...f.assignees, m.id],
-                          }))}
-                        >
-                          <span className={styles.assigneeInitial}>{m.name.charAt(0).toUpperCase()}</span>
-                          <span>{m.name}</span>
-                          {checked && (
-                            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
-                              <polyline points="20 6 9 17 4 12" />
-                            </svg>
-                          )}
-                        </button>
-                      );
-                    })}
-                  </div>
+                  {isAdminOrManager ? (
+                    <div className={styles.assigneeGrid}>
+                      {members.map((m) => {
+                        const checked = form.assignees.includes(m.id);
+                        return (
+                          <button
+                            key={m.id}
+                            type="button"
+                            className={`${styles.assigneeChip} ${checked ? styles.assigneeChipActive : ''}`}
+                            onClick={() => setForm((f) => ({
+                              ...f,
+                              assignees: checked
+                                ? f.assignees.filter((id) => id !== m.id)
+                                : [...f.assignees, m.id],
+                            }))}
+                          >
+                            <span className={styles.assigneeInitial}>{m.name.charAt(0).toUpperCase()}</span>
+                            <span>{m.name}</span>
+                            {checked && (
+                              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                                <polyline points="20 6 9 17 4 12" />
+                              </svg>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      className={`${styles.assigneeChip} ${form.assignees.includes(user?.id ?? '') ? styles.assigneeChipActive : ''}`}
+                      onClick={() => setForm((f) => {
+                        const id = user?.id ?? '';
+                        const already = f.assignees.includes(id);
+                        return { ...f, assignees: already ? f.assignees.filter((x) => x !== id) : [...f.assignees, id] };
+                      })}
+                    >
+                      <span className={styles.assigneeInitial}>{(user?.name ?? '?').charAt(0).toUpperCase()}</span>
+                      <span>Assign to me</span>
+                      {form.assignees.includes(user?.id ?? '') && (
+                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                          <polyline points="20 6 9 17 4 12" />
+                        </svg>
+                      )}
+                    </button>
+                  )}
                 </div>
               )}
             </div>
@@ -755,15 +775,16 @@ function TaskRow({
       </div>
 
       <div className={styles.taskRight} onClick={stop}>
-        {task.assignees.length > 0 && (
+        {task.assignees.filter(Boolean).length > 0 && (
           <div className={styles.assignees}>
-            {task.assignees.slice(0, 4).map((a) => (
-              <span key={a.id || a.email} className={styles.assigneeAvatar} title={a.name}>
-                <Avatar name={a.name} size="sm" />
+            {task.assignees.filter(Boolean).slice(0, 3).map((a) => (
+              <span key={(a as any)._id?.toString() || a.id || a.email} className={styles.assigneeChip}>
+                <Avatar name={a.name || '?'} size="sm" />
+                <span className={styles.assigneeName}>{a.name}</span>
               </span>
             ))}
-            {task.assignees.length > 4 && (
-              <span className={styles.assigneeMore}>+{task.assignees.length - 4}</span>
+            {task.assignees.filter(Boolean).length > 3 && (
+              <span className={styles.assigneeMore}>+{task.assignees.filter(Boolean).length - 3}</span>
             )}
           </div>
         )}
@@ -774,6 +795,10 @@ function TaskRow({
             <TaskTimer task={task} onUpdate={onTimerUpdate} overrideAct={act} />
           )}
         </div>
+
+        {/*<span className={styles.hours}>
+          {Math.floor(task.totalElapsedSeconds / 60)}m
+        </span>*/}
 
         <span className={styles.hours}>
           {Math.floor(task.totalElapsedSeconds / 60)}m
