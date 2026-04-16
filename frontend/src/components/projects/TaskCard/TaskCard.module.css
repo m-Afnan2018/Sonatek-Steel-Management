@@ -118,12 +118,27 @@
   margin-top: 0.25rem;
 }
 
-.avatars {
+.assignee {
   display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  min-width: 0;
 }
 
-.avatars > *:not(:first-child) {
-  margin-left: -6px;
+.assigneeName {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 90px;
+}
+
+.unassigned {
+  font-size: 0.6875rem;
+  color: var(--text-muted);
+  font-style: italic;
 }
 
 .hours {

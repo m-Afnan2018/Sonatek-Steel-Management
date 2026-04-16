@@ -6,6 +6,8 @@ import { cn } from '@/lib/utils';
 import { useAuthStore } from '@/store/authStore';
 import styles from './Sidebar.module.css';
 
+const STATIC_BASE = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api').replace(/\/api$/, '');
+
 const navItems = [
   {
     label: 'Dashboard',
@@ -162,6 +164,21 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
             <>
               <div className={styles.navDivider} />
               <Link
+                href="/team/timeline"
+                className={cn(styles.navItem, pathname === '/team/timeline' && styles.active)}
+                onClick={onClose}
+              >
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="3" y1="6"  x2="21" y2="6"  />
+                  <line x1="3" y1="12" x2="21" y2="12" />
+                  <line x1="3" y1="18" x2="21" y2="18" />
+                  <circle cx="7"  cy="6"  r="2" fill="currentColor" stroke="none" />
+                  <circle cx="13" cy="12" r="2" fill="currentColor" stroke="none" />
+                  <circle cx="9"  cy="18" r="2" fill="currentColor" stroke="none" />
+                </svg>
+                <span>Users Timeline</span>
+              </Link>
+              <Link
                 href="/tasks/timeline"
                 className={cn(styles.navItem, pathname === '/tasks/timeline' && styles.active)}
                 onClick={onClose}
@@ -187,9 +204,17 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
 
         <div className={styles.footer}>
           <div className={styles.userInfo}>
-            <div className={styles.userAvatar}>
-              {user?.name?.charAt(0) || 'U'}
-            </div>
+            {user?.avatar ? (
+              <img
+                src={`${STATIC_BASE}${user.avatar}`}
+                alt={user.name || 'User'}
+                className={styles.userAvatarImg}
+              />
+            ) : (
+              <div className={styles.userAvatar}>
+                {user?.name?.charAt(0) || 'U'}
+              </div>
+            )}
             <div className={styles.userDetails}>
               <span className={styles.userName}>{user?.name || 'User'}</span>
               <span className={styles.userRole}>{user?.role || 'member'}</span>

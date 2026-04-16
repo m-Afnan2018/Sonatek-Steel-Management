@@ -117,7 +117,7 @@
 /* ─── Body: two-column layout ────────────────────────────────────── */
 .body {
   display: grid;
-  grid-template-columns: 1fr 260px;
+  grid-template-columns: 1fr 375px;
   gap: 0;
   height: calc(90vh - 160px);
   min-height: 460px;

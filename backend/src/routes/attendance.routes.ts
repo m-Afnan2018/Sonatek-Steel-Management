@@ -6,6 +6,7 @@ import {
   lunchStop,
   getMyAttendance,
   getTeamAttendance,
+  getTeamTimeline,
   getAttendanceStats,
   updateAttendance,
   addNoteToDate,
@@ -24,6 +25,7 @@ router.post('/lunch-start', lunchStart);
 router.post('/lunch-stop', lunchStop);
 router.get('/my', getMyAttendance);
 router.get('/team', authorize('admin', 'manager'), getTeamAttendance);
+router.get('/team/timeline', authorize('admin', 'manager'), getTeamTimeline);
 router.get('/stats', getAttendanceStats);
 router.put('/:id', authorize('admin'), updateAttendance);
 router.post('/notes', addNoteToDate);

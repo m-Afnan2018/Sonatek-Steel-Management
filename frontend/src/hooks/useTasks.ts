@@ -129,7 +129,14 @@ export function useTasks() {
   ): Promise<Task | null> => {
     try {
       const { data } = await api.patch(`/tasks/${taskId}/timer`, { action });
-      setTasks((prev) => prev.map((t) => (t._id === taskId ? data : t)));
+      setTasks((prev) => prev.map((t) => {
+        if (t._id === taskId) return data;
+        // When a task starts/resumes, the backend pauses all other running tasks
+        if ((action === 'start' || action === 'resume') && t.timerStatus === 'running') {
+          return { ...t, timerStatus: 'paused', status: 'in_progress' };
+        }
+        return t;
+      }));
       return data;
     } catch (err: unknown) {
       const msg =

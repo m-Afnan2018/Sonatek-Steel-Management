@@ -215,6 +215,63 @@ export const getAttendanceStats = async (req: Request, res: Response): Promise<v
   }
 };
 
+export const getTeamTimeline = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const queryDate = req.query.date ? new Date(req.query.date as string) : getToday();
+    const dayStart = new Date(queryDate.getFullYear(), queryDate.getMonth(), queryDate.getDate(), 0, 0, 0, 0);
+    const dayEnd   = new Date(queryDate.getFullYear(), queryDate.getMonth(), queryDate.getDate(), 23, 59, 59, 999);
+
+    const [users, attendances, tasks] = await Promise.all([
+      User.find({ isActive: { $ne: false } }).select('name email role').lean(),
+      Attendance.find({ date: { $gte: dayStart, $lte: dayEnd } }).lean(),
+      Task.find({ timerEvents: { $elemMatch: { timestamp: { $gte: dayStart, $lte: dayEnd } } } })
+        .select('title timerStatus timerEvents assignees')
+        .populate('assignees', '_id')
+        .lean(),
+    ]);
+
+    const result = users
+      .map((user) => {
+        const uid = (user._id as any).toString();
+        const att = attendances.find((a) => a.user.toString() === uid) ?? null;
+
+        const userTasks = tasks
+          .filter((t) =>
+            (t.assignees as any[]).some((a: any) => (a._id ?? a).toString() === uid)
+          )
+          .map((t) => ({
+            _id: t._id,
+            title: t.title,
+            timerStatus: t.timerStatus,
+            timerEvents: (t.timerEvents as any[]).filter(
+              (e: any) => new Date(e.timestamp) >= dayStart && new Date(e.timestamp) <= dayEnd
+            ),
+          }))
+          .filter((t) => t.timerEvents.length > 0);
+
+        return {
+          user: { id: uid, name: user.name, email: user.email, role: user.role },
+          attendance: att
+            ? {
+                checkIn:    att.checkIn    ?? null,
+                checkOut:   att.checkOut   ?? null,
+                lunchStart: att.lunchStart ?? null,
+                lunchStop:  att.lunchStop  ?? null,
+                status:     att.status,
+              }
+            : null,
+          tasks: userTasks,
+        };
+      })
+      .filter((r) => r.attendance !== null || r.tasks.length > 0);
+
+    res.json(result);
+  } catch (error) {
+    console.error('TeamTimeline error:', error);
+    res.status(500).json({ message: 'Server error.' });
+  }
+};
+
 export const updateAttendance = async (req: Request, res: Response): Promise<void> => {
   try {
     const attendance = await Attendance.findByIdAndUpdate(

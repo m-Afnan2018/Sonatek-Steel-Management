@@ -1,19 +1,29 @@
 import mongoose, { Document, Schema, Model } from 'mongoose';
 
+export interface ICalEventAttachment {
+  name: string;
+  url: string;
+  mimeType: string;
+  fileType: 'image' | 'video' | 'document' | 'other';
+}
+
 export interface ICalendarEvent extends Document {
   title: string;
   description?: string;
+  note?: string;
   type: 'meeting' | 'reminder' | 'event' | 'deadline';
   date: Date;
   startTime?: string; // "HH:MM"
   endTime?: string;   // "HH:MM"
   allDay: boolean;
   color: string;
+  project?: mongoose.Types.ObjectId;
   owner: mongoose.Types.ObjectId;      // the user this event belongs to
   createdBy: mongoose.Types.ObjectId;  // who created it (admin can create for others)
   invitees: mongoose.Types.ObjectId[]; // other users invited
   location?: string;
   recurrence: 'none' | 'daily' | 'weekly' | 'monthly';
+  attachments: ICalEventAttachment[];
   createdAt: Date;
   updatedAt: Date;
 }
@@ -22,17 +32,28 @@ const calendarEventSchema = new Schema<ICalendarEvent>(
   {
     title: { type: String, required: true, trim: true, maxlength: 200 },
     description: { type: String, trim: true, maxlength: 2000 },
+    note: { type: String, maxlength: 10000 },
     type: { type: String, enum: ['meeting', 'reminder', 'event', 'deadline'], default: 'event' },
     date: { type: Date, required: true },
     startTime: { type: String },
     endTime: { type: String },
     allDay: { type: Boolean, default: false },
     color: { type: String, default: '#6366f1' },
+    project: { type: Schema.Types.ObjectId, ref: 'Project', index: true },
     owner: { type: Schema.Types.ObjectId, ref: 'User', required: true },
     createdBy: { type: Schema.Types.ObjectId, ref: 'User', required: true },
     invitees: [{ type: Schema.Types.ObjectId, ref: 'User' }],
     location: { type: String, trim: true },
     recurrence: { type: String, enum: ['none', 'daily', 'weekly', 'monthly'], default: 'none' },
+    attachments: [
+      {
+        name: { type: String },
+        url: { type: String, required: true },
+        mimeType: { type: String },
+        fileType: { type: String, enum: ['image', 'video', 'document', 'other'], default: 'other' },
+        _id: false,
+      },
+    ],
   },
   { timestamps: true }
 );

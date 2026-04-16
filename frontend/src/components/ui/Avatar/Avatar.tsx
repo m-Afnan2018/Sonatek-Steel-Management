@@ -22,10 +22,10 @@ export default function Avatar({ name, src, size = 'md', className }: AvatarProp
       />
     );
   }
-
+  
   return (
     <div className={cn(styles.avatar, styles.placeholder, styles[size], className)}>
-      {initials}
+    {initials}
     </div>
   );
 }

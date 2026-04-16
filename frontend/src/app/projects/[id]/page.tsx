@@ -6,6 +6,8 @@ import AppShell from '@/components/layout/AppShell/AppShell';
 import KanbanBoard from '@/components/projects/KanbanBoard/KanbanBoard';
 import ProjectListView from '@/components/projects/ProjectListView/ProjectListView';
 import TaskModal from '@/components/projects/TaskModal/TaskModal';
+import MediaLibrary from '@/components/projects/MediaLibrary/MediaLibrary';
+import ProjectCalendar from '@/components/projects/ProjectCalendar/ProjectCalendar';
 import Modal from '@/components/ui/Modal/Modal';
 import Button from '@/components/ui/Button/Button';
 import Badge from '@/components/ui/Badge/Badge';
@@ -26,7 +28,7 @@ const API_BASE = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api'
 
 type CreateTab = 'details' | 'notes' | 'links' | 'files';
 
-type TabType = 'board' | 'list' | 'members';
+type TabType = 'board' | 'list' | 'members' | 'media' | 'calendar';
 
 export default function ProjectDetailPage() {
   const params = useParams();
@@ -254,6 +256,18 @@ export default function ProjectDetailPage() {
           >
             Members ({project.members.length})
           </button>
+          <button
+            className={`${styles.tab} ${activeTab === 'media' ? styles.tabActive : ''}`}
+            onClick={() => setActiveTab('media')}
+          >
+            Media
+          </button>
+          <button
+            className={`${styles.tab} ${activeTab === 'calendar' ? styles.tabActive : ''}`}
+            onClick={() => setActiveTab('calendar')}
+          >
+            Calendar
+          </button>
 
           <div className={styles.tabActions}>
             <Button size="sm" onClick={() => setShowCreateTask(true)}>
@@ -309,6 +323,14 @@ export default function ProjectDetailPage() {
               </div>
             ))}
           </div>
+        )}
+
+        {activeTab === 'media' && (
+          <MediaLibrary projectId={projectId} />
+        )}
+
+        {activeTab === 'calendar' && (
+          <ProjectCalendar projectId={projectId} />
         )}
       </div>
 

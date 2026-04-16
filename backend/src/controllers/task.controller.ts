@@ -404,7 +404,8 @@ export const patchTimer = async (
             return;
         }
 
-        task.timerEvents.push({ action: action as never, timestamp: new Date() });
+        const now = new Date();
+        task.timerEvents.push({ action: action as never, timestamp: now });
 
         // Snapshot elapsed when a segment closes
         if (["pause", "hold", "finish"].includes(action)) {
@@ -417,6 +418,26 @@ export const patchTimer = async (
         if (action === "start" || action === "resume") task.status = "in_progress";
         if (action === "hold") task.status = "in_review";
         if (action === "finish") task.status = "done";
+
+        // One task at a time: pause every other running task for this user
+        if (action === "start" || action === "resume") {
+            const otherRunning = await Task.find({
+                _id: { $ne: task._id },
+                timerStatus: "running",
+                assignees: req.user?.id,
+            });
+
+            if (otherRunning.length > 0) {
+                await Promise.all(
+                    otherRunning.map((other) => {
+                        other.timerEvents.push({ action: "pause" as never, timestamp: now });
+                        other.totalElapsedSeconds = getElapsedSeconds(other.timerEvents);
+                        other.timerStatus = "paused" as never;
+                        return other.save();
+                    }),
+                );
+            }
+        }
 
         await task.save();
         await task.populate("assignees", "name email avatar");

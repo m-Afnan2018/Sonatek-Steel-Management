@@ -156,9 +156,8 @@ export default function TaskModal({ task, isOpen, onClose, onUpdate, members, pa
   };
 
   const toggleAssignee = (id: string) => {
-    setAssigneeIds((prev) =>
-      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
-    );
+    // Single-assignee: selecting a new one replaces; clicking the same one deselects
+    setAssigneeIds((prev) => (prev.includes(id) ? [] : [id]));
   };
 
   // ── Links ─────────────────────────────────────────────────────────

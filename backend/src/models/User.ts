@@ -26,7 +26,20 @@ const userSchema = new Schema<IUser>(
     lateThreshold: { type: String, default: '09:30' },
     refreshToken: { type: String, select: false },
   },
-  { timestamps: true }
+  {
+    timestamps: true,
+    toJSON: {
+      virtuals: true,
+      transform: (_doc, ret: Record<string, unknown>) => {
+        ret.id = ret._id;
+        delete ret._id;
+        delete ret.__v;
+        delete ret.password;
+        delete ret.refreshToken;
+        return ret;
+      },
+    },
+  }
 );
 
 userSchema.pre('save', async function (next) {

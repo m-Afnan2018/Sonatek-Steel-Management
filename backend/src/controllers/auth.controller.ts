@@ -221,3 +221,31 @@ export const updateMe = async (req: Request, res: Response): Promise<void> => {
     res.status(500).json({ message: 'Server error.' });
   }
 };
+
+export const uploadAvatar = async (req: Request, res: Response): Promise<void> => {
+  try {
+    if (!req.file) {
+      res.status(400).json({ message: 'No file uploaded.' });
+      return;
+    }
+
+    // Store relative path so it works regardless of host/port
+    const avatarUrl = `/uploads/usersDP/${req.file.filename}`;
+
+    const user = await User.findByIdAndUpdate(
+      req.user?.id,
+      { avatar: avatarUrl },
+      { new: true },
+    );
+
+    if (!user) {
+      res.status(404).json({ message: 'User not found.' });
+      return;
+    }
+
+    res.json({ avatar: avatarUrl });
+  } catch (error) {
+    console.error('UploadAvatar error:', error);
+    res.status(500).json({ message: 'Server error.' });
+  }
+};
