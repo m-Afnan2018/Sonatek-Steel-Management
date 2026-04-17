@@ -26,6 +26,13 @@ export default function SettingsPage() {
   const [avatarUploading, setAvatarUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Change password
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [pwSaving, setPwSaving] = useState(false);
+  const [pwMessage, setPwMessage] = useState('');
+
   const avatarSrc = user?.avatar ? `${STATIC_BASE}${user.avatar}` : undefined;
 
   const handleAvatarClick = () => fileInputRef.current?.click();
@@ -65,6 +72,34 @@ export default function SettingsPage() {
     ),
     [departments, user?.id]
   );
+
+  const handleChangePassword = async () => {
+    setPwMessage('');
+    if (!currentPassword || !newPassword || !confirmPassword) {
+      setPwMessage('All fields are required.');
+      return;
+    }
+    if (newPassword.length < 6) {
+      setPwMessage('New password must be at least 6 characters.');
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setPwMessage('New passwords do not match.');
+      return;
+    }
+    setPwSaving(true);
+    try {
+      await api.put('/auth/me/password', { currentPassword, newPassword });
+      setPwMessage('Password changed successfully.');
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+    } catch (err: any) {
+      setPwMessage(err?.response?.data?.message || 'Failed to change password.');
+    } finally {
+      setPwSaving(false);
+    }
+  };
 
   const handleSave = async () => {
     if (!name.trim()) {
@@ -213,6 +248,50 @@ export default function SettingsPage() {
               />
               <span>Status changes</span>
             </label>
+          </div>
+        </div>
+
+        <div className={styles.section}>
+          <h2 className={styles.sectionTitle}>Change Password</h2>
+          <div className={styles.form}>
+            <div className={styles.field}>
+              <label>Current Password</label>
+              <input
+                type="password"
+                value={currentPassword}
+                onChange={(e) => { setCurrentPassword(e.target.value); setPwMessage(''); }}
+                placeholder="Enter current password"
+                autoComplete="current-password"
+              />
+            </div>
+            <div className={styles.field}>
+              <label>New Password</label>
+              <input
+                type="password"
+                value={newPassword}
+                onChange={(e) => { setNewPassword(e.target.value); setPwMessage(''); }}
+                placeholder="At least 6 characters"
+                autoComplete="new-password"
+              />
+            </div>
+            <div className={styles.field}>
+              <label>Confirm New Password</label>
+              <input
+                type="password"
+                value={confirmPassword}
+                onChange={(e) => { setConfirmPassword(e.target.value); setPwMessage(''); }}
+                placeholder="Repeat new password"
+                autoComplete="new-password"
+              />
+            </div>
+
+            {pwMessage && (
+              <p className={pwMessage.includes('successfully') ? styles.success : styles.error}>
+                {pwMessage}
+              </p>
+            )}
+
+            <Button onClick={handleChangePassword} loading={pwSaving}>Update Password</Button>
           </div>
         </div>
 
