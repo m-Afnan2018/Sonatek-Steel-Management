@@ -23,8 +23,8 @@ export default function ProjectsPage() {
   const canCreate = user?.role === 'admin' || user?.role === 'manager';
 
   const handleCreate = async (data: Record<string, unknown>) => {
-    await createProject(data as Parameters<typeof createProject>[0]);
-    setShowCreate(false);
+    const project = await createProject(data as Parameters<typeof createProject>[0]);
+    return project as { _id: string } | undefined;
   };
 
   const filteredProjects = useMemo(() => {

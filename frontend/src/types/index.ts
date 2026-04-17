@@ -3,7 +3,7 @@ export interface Department {
   name: string;
   description?: string;
   color: string;
-  head?: User;
+  heads: User[];
   members: User[];
   createdAt: string;
   updatedAt: string;

@@ -12,7 +12,7 @@ async function syncUserDepts(_userId: string | mongoose.Types.ObjectId): Promise
 export const getDepartments = async (_req: Request, res: Response): Promise<void> => {
   try {
     const depts = await Department.find()
-      .populate('head', MEMBER_SELECT)
+      .populate('heads', MEMBER_SELECT)
       .populate('members', MEMBER_SELECT)
       .sort({ name: 1 });
     res.json(depts);
@@ -24,7 +24,7 @@ export const getDepartments = async (_req: Request, res: Response): Promise<void
 export const getDepartment = async (req: Request, res: Response): Promise<void> => {
   try {
     const dept = await Department.findById(req.params.id)
-      .populate('head', MEMBER_SELECT)
+      .populate('heads', MEMBER_SELECT)
       .populate('members', MEMBER_SELECT);
     if (!dept) { res.status(404).json({ message: 'Department not found.' }); return; }
     res.json(dept);
@@ -49,13 +49,13 @@ export const createDepartment = async (req: Request, res: Response): Promise<voi
       name: name.trim(),
       description: description?.trim() || '',
       color: color || '#6366f1',
-      head: headId || null,
+      heads: headId ? [headId] : [],
       members: headId ? [headId] : [],
     });
     if (headId) {
       await syncUserDepts(headId);
     }
-    await dept.populate('head', MEMBER_SELECT);
+    await dept.populate('heads', MEMBER_SELECT);
     await dept.populate('members', MEMBER_SELECT);
     res.status(201).json(dept);
   } catch {
@@ -65,15 +65,14 @@ export const createDepartment = async (req: Request, res: Response): Promise<voi
 
 export const updateDepartment = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { name, description, color, headId } = req.body;
+    const { name, description, color } = req.body;
     const patch: Record<string, unknown> = {};
     if (name !== undefined) patch.name = name.trim();
     if (description !== undefined) patch.description = description.trim();
     if (color !== undefined) patch.color = color;
-    if (headId !== undefined) patch.head = headId || null;
 
     const dept = await Department.findByIdAndUpdate(req.params.id, patch, { new: true })
-      .populate('head', MEMBER_SELECT)
+      .populate('heads', MEMBER_SELECT)
       .populate('members', MEMBER_SELECT);
     if (!dept) { res.status(404).json({ message: 'Department not found.' }); return; }
 
@@ -120,7 +119,7 @@ export const addMember = async (req: Request, res: Response): Promise<void> => {
       req.params.id,
       { $addToSet: { members: uid } },
       { new: true }
-    ).populate('head', MEMBER_SELECT).populate('members', MEMBER_SELECT);
+    ).populate('heads', MEMBER_SELECT).populate('members', MEMBER_SELECT);
     if (!dept) { res.status(404).json({ message: 'Department not found.' }); return; }
 
     await syncUserDepts(uid);
@@ -147,15 +146,13 @@ export const removeMember = async (req: Request, res: Response): Promise<void> =
       return;
     }
 
-    // Clear head if the removed user was the head
-    if (dept.head && dept.head.toString() === userIdStr) {
-      dept.head = undefined;
-    }
+    // Remove from heads array if the removed user was a head
+    dept.heads = dept.heads.filter((h) => h.toString() !== userIdStr) as typeof dept.heads;
 
     await dept.save();
 
     const populated = await Department.findById(dept._id)
-      .populate('head', MEMBER_SELECT)
+      .populate('heads', MEMBER_SELECT)
       .populate('members', MEMBER_SELECT);
 
     await syncUserDepts(userIdStr);
@@ -167,22 +164,45 @@ export const removeMember = async (req: Request, res: Response): Promise<void> =
   }
 };
 
-export const setHead = async (req: Request, res: Response): Promise<void> => {
+export const addHead = async (req: Request, res: Response): Promise<void> => {
   try {
     const { userId } = req.body;
+    if (!userId) { res.status(400).json({ message: 'userId is required.' }); return; }
+
     const dept = await Department.findById(req.params.id);
     if (!dept) { res.status(404).json({ message: 'Department not found.' }); return; }
 
     // userId must be a member
-    if (userId && !dept.members.map((m) => m.toString()).includes(userId)) {
+    if (!dept.members.map((m) => m.toString()).includes(userId)) {
       res.status(400).json({ message: 'User must be a member of this department to be set as head.' });
       return;
     }
-    dept.head = userId || null;
-    await dept.save();
-    await dept.populate('head', MEMBER_SELECT);
-    await dept.populate('members', MEMBER_SELECT);
-    res.json(dept);
+
+    const updated = await Department.findByIdAndUpdate(
+      req.params.id,
+      { $addToSet: { heads: new mongoose.Types.ObjectId(userId) } },
+      { new: true }
+    ).populate('heads', MEMBER_SELECT).populate('members', MEMBER_SELECT);
+
+    res.json(updated);
+  } catch {
+    res.status(500).json({ message: 'Server error.' });
+  }
+};
+
+export const removeHead = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { userId } = req.params;
+
+    const updated = await Department.findByIdAndUpdate(
+      req.params.id,
+      { $pull: { heads: new mongoose.Types.ObjectId(userId) } },
+      { new: true }
+    ).populate('heads', MEMBER_SELECT).populate('members', MEMBER_SELECT);
+
+    if (!updated) { res.status(404).json({ message: 'Department not found.' }); return; }
+
+    res.json(updated);
   } catch {
     res.status(500).json({ message: 'Server error.' });
   }

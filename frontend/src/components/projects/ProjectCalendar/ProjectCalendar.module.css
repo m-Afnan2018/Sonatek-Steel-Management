@@ -537,6 +537,32 @@
   color: var(--text-secondary);
 }
 
+.labelRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.clearTimeBtn {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.6875rem;
+  font-weight: 500;
+  color: var(--text-muted);
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  transition: color var(--transition);
+  line-height: 1;
+}
+
+.clearTimeBtn:hover {
+  color: var(--danger);
+}
+
 .required {
   color: #ef4444;
 }

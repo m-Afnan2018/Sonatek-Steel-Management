@@ -170,6 +170,22 @@ export const getMyAttendance = async (req: Request, res: Response): Promise<void
   }
 };
 
+export const getUserAttendance = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { userId } = req.params;
+    const { month, year } = req.query;
+    const m = month ? parseInt(month as string) - 1 : new Date().getMonth();
+    const y = year ? parseInt(year as string) : new Date().getFullYear();
+    const startDate = new Date(y, m, 1);
+    const endDate = new Date(y, m + 1, 0, 23, 59, 59);
+
+    const records = await Attendance.find({ user: userId, date: { $gte: startDate, $lte: endDate } }).sort({ date: 1 });
+    res.json(records);
+  } catch (error) {
+    res.status(500).json({ message: 'Server error.' });
+  }
+};
+
 export const getTeamAttendance = async (req: Request, res: Response): Promise<void> => {
   try {
     const { date, userId, status } = req.query;
@@ -183,6 +199,34 @@ export const getTeamAttendance = async (req: Request, res: Response): Promise<vo
       .populate('approvedBy', 'name')
       .sort({ createdAt: 1 });
     res.json(records);
+  } catch (error) {
+    res.status(500).json({ message: 'Server error.' });
+  }
+};
+
+export const getUserAttendanceStats = async (req: Request, res: Response): Promise<void> => {
+  try {
+    console.log("Here I am ")
+    const { userId } = req.params;
+    const { month, year } = req.query;
+    const m = month ? parseInt(month as string) - 1 : new Date().getMonth();
+    const y = year ? parseInt(year as string) : new Date().getFullYear();
+    const startDate = new Date(y, m, 1);
+    const endDate = new Date(y, m + 1, 0, 23, 59, 59);
+
+    const records = await Attendance.find({ user: userId, date: { $gte: startDate, $lte: endDate } });
+    const stats = {
+      totalDays: records.length,
+      present: records.filter((r) => r.status === 'present').length,
+      absent: records.filter((r) => r.status === 'absent').length,
+      halfDay: records.filter((r) => r.status === 'half_day').length,
+      remote: records.filter((r) => r.status === 'remote').length,
+      leave: records.filter((r) => r.status === 'leave').length,
+      late: records.filter((r) => r.isLate).length,
+      totalHours: Math.round(records.reduce((sum, r) => sum + r.hoursWorked, 0) * 100) / 100,
+      avgHours: records.length > 0 ? Math.round((records.reduce((sum, r) => sum + r.hoursWorked, 0) / records.length) * 100) / 100 : 0,
+    };
+    res.json(stats);
   } catch (error) {
     res.status(500).json({ message: 'Server error.' });
   }

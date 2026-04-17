@@ -47,10 +47,9 @@ export default function TasksPage() {
 
   // Departments this user heads (if any)
   const myHeadedDepts = useMemo(
-    () => departments.filter((d) => {
-      const headId = d.head?.id ?? (d.head as any)?._id;
-      return headId && headId === user?.id;
-    }),
+    () => departments.filter((d) =>
+      d.heads?.some((h) => (h.id ?? (h as any)._id) === user?.id)
+    ),
     [departments, user?.id],
   );
   const isDeptHead = !isAdminOrManager && myHeadedDepts.length > 0;

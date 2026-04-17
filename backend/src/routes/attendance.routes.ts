@@ -5,6 +5,8 @@ import {
   lunchStart,
   lunchStop,
   getMyAttendance,
+  getUserAttendance,
+  getUserAttendanceStats,
   getTeamAttendance,
   getTeamTimeline,
   getAttendanceStats,
@@ -24,6 +26,8 @@ router.post('/check-out', checkOut);
 router.post('/lunch-start', lunchStart);
 router.post('/lunch-stop', lunchStop);
 router.get('/my', getMyAttendance);
+router.get('/user/:userId', authorize('admin'), getUserAttendance);
+router.get('/user/:userId/stats', authorize('admin'), getUserAttendanceStats);
 router.get('/team', authorize('admin', 'manager'), getTeamAttendance);
 router.get('/team/timeline', authorize('admin', 'manager'), getTeamTimeline);
 router.get('/stats', getAttendanceStats);

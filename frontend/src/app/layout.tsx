@@ -2,8 +2,8 @@ import type { Metadata, Viewport } from 'next';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'GaneSyx PM — Project Management & Attendance',
-  description: 'Team Project Management & Attendance Web App by GaneSyx',
+  title: 'Ganesyx PM — Project Management & Attendance',
+  description: 'Team Project Management & Attendance Web App by Ganesyx',
   manifest: '/manifest.json',
   icons: {
     icon: '/icons/icon-192x192.svg',

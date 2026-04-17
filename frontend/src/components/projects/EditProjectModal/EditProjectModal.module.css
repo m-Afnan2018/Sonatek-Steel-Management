@@ -21,9 +21,7 @@
   gap: 0.375rem;
 }
 
-.req {
-  color: var(--danger);
-}
+.req { color: var(--danger); }
 
 .optional {
   font-size: 0.625rem;
@@ -33,10 +31,8 @@
   letter-spacing: 0;
 }
 
-/* ─── Thumbnail picker ───────────────────────────────────────────────── */
-.hiddenInput {
-  display: none;
-}
+/* ─── Thumbnail ──────────────────────────────────────────────────────── */
+.hiddenInput { display: none; }
 
 .thumbDrop {
   display: flex;
@@ -59,9 +55,7 @@
   background: var(--primary-light);
 }
 
-.thumbDropIcon {
-  color: var(--text-muted);
-}
+.thumbDropIcon { color: var(--text-muted); }
 
 .thumbDropText {
   font-size: 0.8125rem;
@@ -69,14 +63,8 @@
   font-weight: 500;
 }
 
-.thumbDropText u {
-  color: var(--primary);
-}
-
-.thumbDropSub {
-  font-size: 0.6875rem;
-  color: var(--text-muted);
-}
+.thumbDropText u { color: var(--primary); }
+.thumbDropSub { font-size: 0.6875rem; color: var(--text-muted); }
 
 .thumbPreview {
   position: relative;
@@ -93,31 +81,42 @@
   display: block;
 }
 
-.thumbRemove {
+.thumbActions {
   position: absolute;
   top: 0.5rem;
   right: 0.5rem;
-  background: rgba(0, 0, 0, 0.55);
-  border: none;
-  color: #fff;
-  border-radius: 50%;
-  width: 1.5rem;
-  height: 1.5rem;
   display: flex;
-  align-items: center;
-  justify-content: center;
+  gap: 0.375rem;
+}
+
+.thumbChange,
+.thumbRemove {
+  padding: 0.25rem 0.625rem;
+  border: none;
+  border-radius: var(--radius-sm);
+  font-size: 0.75rem;
+  font-weight: 600;
   cursor: pointer;
-  transition: background var(--transition);
+  transition: opacity var(--transition);
 }
 
-.thumbRemove:hover {
-  background: rgba(0, 0, 0, 0.8);
+.thumbChange {
+  background: rgba(0,0,0,0.55);
+  color: #fff;
 }
 
-/* ─── Row ────────────────────────────────────────────────────────────── */
+.thumbRemove {
+  background: rgba(220,38,38,0.8);
+  color: #fff;
+}
+
+.thumbChange:hover,
+.thumbRemove:hover { opacity: 0.85; }
+
+/* ─── Layout ─────────────────────────────────────────────────────────── */
 .row {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: 1fr 1fr;
   gap: 0.75rem;
 }
 
@@ -126,7 +125,7 @@
   display: flex;
   flex-direction: column;
   gap: 0.375rem;
-  max-height: 180px;
+  max-height: 160px;
   overflow-y: auto;
   padding: 0.5rem;
   background: var(--card);
@@ -143,9 +142,7 @@
   border-radius: var(--radius-sm);
 }
 
-.memberCheck:hover {
-  background: var(--surface);
-}
+.memberCheck:hover { background: var(--surface); }
 
 .memberCheck input[type="checkbox"] {
   width: 16px;
@@ -166,7 +163,7 @@
   padding: 0.25rem;
 }
 
-/* ─── Error / actions ────────────────────────────────────────────────── */
+/* ─── Actions ────────────────────────────────────────────────────────── */
 .error {
   font-size: 0.8125rem;
   color: var(--danger);
@@ -183,7 +180,7 @@
 .successOverlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background: rgba(0,0,0,0.5);
   backdrop-filter: blur(4px);
   z-index: 9999;
   display: flex;
@@ -208,8 +205,8 @@
   gap: 0.5rem;
   min-width: 260px;
   max-width: 340px;
-  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.25);
-  animation: popIn 0.22s cubic-bezier(0.34, 1.56, 0.64, 1);
+  box-shadow: 0 24px 60px rgba(0,0,0,0.25);
+  animation: popIn 0.22s cubic-bezier(0.34,1.56,0.64,1);
 }
 
 @keyframes popIn {
@@ -217,9 +214,7 @@
   to   { opacity: 1; transform: scale(1); }
 }
 
-.lottieWrap {
-  margin-bottom: 0.25rem;
-}
+.lottieWrap { margin-bottom: 0.25rem; }
 
 .successTitle {
   font-size: 1.25rem;
@@ -236,9 +231,6 @@
   line-height: 1.5;
 }
 
-/* ─── Responsive ─────────────────────────────────────────────────────── */
-@media (max-width: 768px) {
-  .row {
-    grid-template-columns: 1fr;
-  }
+@media (max-width: 480px) {
+  .row { grid-template-columns: 1fr; }
 }

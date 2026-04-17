@@ -14,23 +14,28 @@ import { useAuthStore } from '@/store/authStore';
 import styles from './attendance.module.css';
 
 export default function AttendancePage() {
-  const { records, stats, loading, fetchMyAttendance, fetchStats } = useAttendance();
+  const { records, stats, loading, fetchMyAttendance, fetchUserAttendance, fetchStats, fetchUserStats } = useAttendance();
   const { events, fetchEvents, createEvent, updateEvent, deleteEvent } = useCalendarEvents();
   const { members } = useTeam();
   const user = useAuthStore((s) => s.user);
-  const isAdminOrManager = user?.role === 'admin' || user?.role === 'manager';
+  const isAdmin = user?.role === 'admin';
 
   const [month, setMonth] = useState(new Date().getMonth() + 1);
   const [year, setYear] = useState(new Date().getFullYear());
   const [selectedDay, setSelectedDay] = useState<Date | null>(null);
 
-  // Admin: can view calendar of any user
+  // Admin only: can view calendar of any user
   const [viewUserId, setViewUserId] = useState<string>('');
 
   useEffect(() => {
-    fetchMyAttendance(month, year);
-    fetchStats(month, year);
-  }, [month, year, fetchMyAttendance, fetchStats]);
+    if (isAdmin && viewUserId) {
+      fetchUserAttendance(viewUserId, month, year);
+      fetchUserStats(viewUserId, month, year);
+    } else {
+      fetchMyAttendance(month, year);
+      fetchStats(month, year);
+    }
+  }, [month, year, viewUserId, isAdmin, fetchMyAttendance, fetchUserAttendance, fetchStats, fetchUserStats]);
 
   useEffect(() => {
     fetchEvents(month, year, viewUserId || undefined);
@@ -80,7 +85,7 @@ export default function AttendancePage() {
               </button>
             </div>
 
-            {isAdminOrManager && members.length > 0 && (
+            {isAdmin && members.length > 0 && (
               <div className={styles.viewSelector}>
                 <label className={styles.viewLabel}>Viewing calendar of:</label>
                 <select
@@ -125,7 +130,10 @@ export default function AttendancePage() {
           </div>
 
           <div className={styles.sidebar}>
-            <CheckInButton />
+            <CheckInButton
+              viewUserId={viewUserId || undefined}
+              viewUserName={members.find((m) => m.id === viewUserId)?.name}
+            />
             <AttendanceStats stats={stats} />
           </div>
         </div>

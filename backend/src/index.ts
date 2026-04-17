@@ -13,7 +13,7 @@ const start = async () => {
   await connectDB();
 
   app.listen(PORT, () => {
-    console.log(`GaneSyx PM Backend running on port ${PORT}`);
+    console.log(`Ganesyx PM Backend running on port ${PORT}`);
   });
 };
 

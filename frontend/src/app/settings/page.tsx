@@ -329,7 +329,7 @@ export default function SettingsPage() {
             ) : (
               <div className={styles.deptChips}>
                 {myDepartments.map((d) => {
-                  const isHead = (d.head as any)?.id === user?.id || (d.head as any)?._id === user?.id;
+                  const isHead = d.heads?.some((h) => (h as any)?.id === user?.id || (h as any)?._id === user?.id) ?? false;
                   return (
                     <Link key={d._id} href="/departments" className={styles.deptChip} style={{ '--dept-color': d.color } as React.CSSProperties}>
                       <span className={styles.deptDot} style={{ background: d.color }} />

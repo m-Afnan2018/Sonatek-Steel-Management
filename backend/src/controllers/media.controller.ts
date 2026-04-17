@@ -4,6 +4,7 @@ import fs from 'fs';
 import mongoose from 'mongoose';
 import MediaFile, { FileType } from '../models/MediaFile';
 import Task from '../models/Task';
+import Project from '../models/Project';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -138,7 +139,7 @@ export const getProjectMedia = async (req: Request, res: Response): Promise<void
       fileType:     FileType;
       uploadedBy:   { id: mongoose.Types.ObjectId; name: string } | null;
       task:         { id: mongoose.Types.ObjectId; title?: string } | null;
-      source:       'library' | 'task';
+      source:       'library' | 'task' | 'thumbnail';
       createdAt:    Date;
     }
 
@@ -193,7 +194,27 @@ export const getProjectMedia = async (req: Request, res: Response): Promise<void
       }
     }
 
-    const merged = [...libraryItems, ...taskItems].sort(
+    // Include project thumbnail if present and not already tracked
+    const project = await Project.findById(projectId).select('thumbnail createdAt').lean();
+    const thumbnailItems: MediaItem[] = [];
+    if (project?.thumbnail && !libraryUrls.has(project.thumbnail)) {
+      const thumbMime = extensionToMime(project.thumbnail);
+      thumbnailItems.push({
+        _id:          `thumb:${projectId}`,
+        name:         'Project Thumbnail',
+        originalName: 'Project Thumbnail',
+        url:          project.thumbnail,
+        mimeType:     thumbMime || 'image/jpeg',
+        size:         0,
+        fileType:     'image',
+        uploadedBy:   null,
+        task:         null,
+        source:       'thumbnail' as const,
+        createdAt:    (project as any).createdAt ?? new Date(0),
+      });
+    }
+
+    const merged = [...thumbnailItems, ...libraryItems, ...taskItems].sort(
       (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
     );
 

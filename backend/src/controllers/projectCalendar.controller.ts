@@ -181,8 +181,8 @@ export const updateProjectCalendarEvent = async (req: Request, res: Response): P
       description?: string;
       note?: string;
       type?: string;
-      startTime?: string;
-      endTime?: string;
+      startTime?: string | null;
+      endTime?: string | null;
       allDay?: boolean;
       color?: string;
       location?: string;
@@ -195,8 +195,8 @@ export const updateProjectCalendarEvent = async (req: Request, res: Response): P
     if (description !== undefined) event.description = description;
     if (note !== undefined) event.note = note;
     if (type !== undefined) event.type = type as ICalendarEventType;
-    if (startTime !== undefined) event.startTime = startTime;
-    if (endTime !== undefined) event.endTime = endTime;
+    if (startTime !== undefined) event.startTime = startTime ?? undefined;
+    if (endTime !== undefined) event.endTime = endTime ?? undefined;
     if (allDay !== undefined) event.allDay = allDay;
     if (color !== undefined) event.color = color;
     if (location !== undefined) event.location = location;

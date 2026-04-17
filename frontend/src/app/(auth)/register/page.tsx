@@ -9,7 +9,7 @@ export default function RegisterPage() {
       <div className={styles.card}>
         <div className={styles.logo}>
           <div className={styles.logoIcon}>GS</div>
-          <h1 className={styles.logoText}>GaneSyx PM</h1>
+          <h1 className={styles.logoText}>Ganesyx PM</h1>
           <p className={styles.logoSub}>Account registration</p>
         </div>
 

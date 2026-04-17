@@ -37,7 +37,7 @@ export function useDepartments(autoFetch = true) {
 
   const updateDepartment = useCallback(async (
     id: string,
-    payload: { name?: string; description?: string; color?: string; headId?: string }
+    payload: { name?: string; description?: string; color?: string }
   ): Promise<Department | null> => {
     try {
       const { data } = await api.put(`/departments/${id}`, payload);
@@ -84,9 +84,19 @@ export function useDepartments(autoFetch = true) {
     }
   }, []);
 
-  const setHead = useCallback(async (deptId: string, userId: string | null): Promise<Department | null> => {
+  const addHead = useCallback(async (deptId: string, userId: string): Promise<Department | null> => {
     try {
-      const { data } = await api.put(`/departments/${deptId}/head`, { userId });
+      const { data } = await api.post(`/departments/${deptId}/heads`, { userId });
+      setDepartments((prev) => prev.map((d) => (d._id === deptId ? data : d)));
+      return data;
+    } catch {
+      return null;
+    }
+  }, []);
+
+  const removeHead = useCallback(async (deptId: string, userId: string): Promise<Department | null> => {
+    try {
+      const { data } = await api.delete(`/departments/${deptId}/heads/${userId}`);
       setDepartments((prev) => prev.map((d) => (d._id === deptId ? data : d)));
       return data;
     } catch {
@@ -109,6 +119,7 @@ export function useDepartments(autoFetch = true) {
     deleteDepartment,
     addMember,
     removeMember,
-    setHead,
+    addHead,
+    removeHead,
   };
 }

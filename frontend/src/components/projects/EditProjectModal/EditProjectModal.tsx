@@ -1,12 +1,12 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import dynamic from 'next/dynamic';
 import Modal from '@/components/ui/Modal/Modal';
 import Button from '@/components/ui/Button/Button';
 import api from '@/lib/api';
-import type { User } from '@/types';
-import styles from './CreateProjectModal.module.css';
+import type { Project, User } from '@/types';
+import styles from './EditProjectModal.module.css';
 
 const DotLottieReact = dynamic(
   () => import('@lottiefiles/dotlottie-react').then((m) => m.DotLottieReact),
@@ -17,19 +17,12 @@ const STATIC_BASE = (
   process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api'
 ).replace(/\/api$/, '');
 
-interface CreateProjectModalProps {
+interface Props {
   isOpen: boolean;
-  onClose: () => void;
-  onSubmit: (data: {
-    title: string;
-    description: string;
-    priority: string;
-    startDate: string;
-    endDate: string;
-    members: { user: string; role: string }[];
-    tags: string[];
-  }) => Promise<{ _id: string } | undefined>;
+  project: Project;
   members: User[];
+  onClose: () => void;
+  onSaved: (updated: Project) => void;
 }
 
 /* ── Success overlay ──────────────────────────────────────────────────── */
@@ -45,39 +38,58 @@ function SuccessPopup({ onClose }: { onClose: () => void }) {
             style={{ width: 130, height: 130 }}
           />
         </div>
-        <h3 className={styles.successTitle}>Project Created!</h3>
-        <p className={styles.successMsg}>Your new project is ready to go.</p>
-        <Button size="sm" onClick={onClose}>Let's go</Button>
+        <h3 className={styles.successTitle}>Project Updated!</h3>
+        <p className={styles.successMsg}>Your changes have been saved.</p>
+        <Button size="sm" onClick={onClose}>Done</Button>
       </div>
     </div>
   );
 }
 
 /* ── Component ────────────────────────────────────────────────────────── */
-export default function CreateProjectModal({
-  isOpen,
-  onClose,
-  onSubmit,
-  members,
-}: CreateProjectModalProps) {
-  const [title, setTitle]               = useState('');
-  const [description, setDescription]   = useState('');
-  const [priority, setPriority]         = useState('medium');
-  const [startDate, setStartDate]       = useState('');
-  const [endDate, setEndDate]           = useState('');
+export default function EditProjectModal({ isOpen, project, members, onClose, onSaved }: Props) {
+  const [title, setTitle]             = useState('');
+  const [description, setDescription] = useState('');
+  const [status, setStatus]           = useState<Project['status']>('planning');
+  const [priority, setPriority]       = useState<Project['priority']>('medium');
+  const [startDate, setStartDate]     = useState('');
+  const [endDate, setEndDate]         = useState('');
+  const [tagsInput, setTagsInput]     = useState('');
   const [selectedMembers, setSelectedMembers] = useState<string[]>([]);
-  const [tagsInput, setTagsInput]       = useState('');
 
   /* Thumbnail */
-  const [thumbFile, setThumbFile]       = useState<File | null>(null);
-  const [thumbPreview, setThumbPreview] = useState<string>('');
-  const [isDragging, setIsDragging]     = useState(false);
+  const [existingThumb, setExistingThumb] = useState('');
+  const [thumbFile, setThumbFile]         = useState<File | null>(null);
+  const [thumbPreview, setThumbPreview]   = useState('');
+  const [isDragging, setIsDragging]       = useState(false);
   const thumbInputRef = useRef<HTMLInputElement>(null);
 
   /* Submission */
-  const [submitting, setSubmitting]     = useState(false);
-  const [error, setError]               = useState('');
-  const [showSuccess, setShowSuccess]   = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError]           = useState('');
+  const [showSuccess, setShowSuccess] = useState(false);
+
+  /* Populate fields when project prop changes */
+  useEffect(() => {
+    if (!project) return;
+    setTitle(project.title || '');
+    setDescription(project.description || '');
+    setStatus(project.status || 'planning');
+    setPriority(project.priority || 'medium');
+    setStartDate(project.startDate ? project.startDate.slice(0, 10) : '');
+    setEndDate(project.endDate ? project.endDate.slice(0, 10) : '');
+    setTagsInput(project.tags?.join(', ') || '');
+    setSelectedMembers(
+      project.members
+        ?.map((m) => m.user?.id || (m.user as any)?._id?.toString() || '')
+        .filter(Boolean) || []
+    );
+    setExistingThumb(project.thumbnail || '');
+    setThumbFile(null);
+    setThumbPreview('');
+    setError('');
+    setShowSuccess(false);
+  }, [project, isOpen]);
 
   /* ── Thumbnail helpers ───────────────────────────────────────────── */
   const pickThumb = (file: File) => {
@@ -86,12 +98,14 @@ export default function CreateProjectModal({
     const reader = new FileReader();
     reader.onload = (e) => setThumbPreview(e.target?.result as string);
     reader.readAsDataURL(file);
+    setExistingThumb('');
   };
 
   const removeThumb = (e: React.MouseEvent) => {
     e.stopPropagation();
     setThumbFile(null);
     setThumbPreview('');
+    setExistingThumb('');
     if (thumbInputRef.current) thumbInputRef.current.value = '';
   };
 
@@ -103,43 +117,43 @@ export default function CreateProjectModal({
     setSubmitting(true);
 
     try {
-      const project = await onSubmit({
+      const { data: updated } = await api.put<Project>(`/projects/${project._id}`, {
         title: title.trim(),
         description,
+        status,
         priority,
         startDate,
-        endDate,
-        members: selectedMembers.map((id) => ({ user: id, role: 'member' })),
+        endDate: endDate || null,
         tags: tagsInput.split(',').map((t) => t.trim()).filter(Boolean),
+        members: selectedMembers.map((id) => ({ user: id, role: 'member' })),
+        // Clear thumbnail if user removed it and didn't pick a new one
+        ...((!thumbFile && !existingThumb) ? { thumbnail: '' } : {}),
       });
 
-      /* Upload thumbnail if one was chosen */
-      if (thumbFile && project?._id) {
+      /* Upload new thumbnail if one was chosen */
+      let finalProject = updated;
+      if (thumbFile) {
         const form = new FormData();
         form.append('thumbnail', thumbFile);
-        await api.post(`/projects/${project._id}/thumbnail`, form, {
-          headers: { 'Content-Type': 'multipart/form-data' },
-        });
+        const { data: thumbData } = await api.post(
+          `/projects/${project._id}/thumbnail`,
+          form,
+          { headers: { 'Content-Type': 'multipart/form-data' } }
+        );
+        finalProject = thumbData.project ?? { ...updated, thumbnail: thumbData.thumbnail };
       }
 
-      /* Show success — reset happens on close */
+      onSaved(finalProject);
       setShowSuccess(true);
     } catch {
-      setError('Failed to create project. Please try again.');
+      setError('Failed to save changes. Please try again.');
     } finally {
       setSubmitting(false);
     }
   };
 
-  const reset = () => {
-    setTitle(''); setDescription(''); setPriority('medium');
-    setStartDate(''); setEndDate(''); setSelectedMembers([]);
-    setTagsInput(''); setThumbFile(null); setThumbPreview('');
-    setError(''); setShowSuccess(false);
-  };
-
   const handleClose = () => {
-    reset();
+    setShowSuccess(false);
     onClose();
   };
 
@@ -148,13 +162,15 @@ export default function CreateProjectModal({
       prev.includes(id) ? prev.filter((m) => m !== id) : [...prev, id]
     );
 
-  /* ── Render ──────────────────────────────────────────────────────── */
+  /* active preview: new pick > existing > nothing */
+  const previewSrc = thumbPreview || (existingThumb ? `${STATIC_BASE}${existingThumb}` : '');
+
   return (
     <>
-      <Modal isOpen={isOpen && !showSuccess} onClose={handleClose} title="Create Project" size="md">
+      <Modal isOpen={isOpen && !showSuccess} onClose={handleClose} title="Edit Project" size="md">
         <form onSubmit={handleSubmit} className={styles.form}>
 
-          {/* Thumbnail picker */}
+          {/* Thumbnail */}
           <div className={styles.field}>
             <label>
               Thumbnail
@@ -167,19 +183,25 @@ export default function CreateProjectModal({
               className={styles.hiddenInput}
               onChange={(e) => { if (e.target.files?.[0]) pickThumb(e.target.files[0]); }}
             />
-            {thumbPreview ? (
+            {previewSrc ? (
               <div className={styles.thumbPreview}>
-                <img src={thumbPreview} alt="Thumbnail preview" className={styles.thumbImg} />
-                <button
-                  type="button"
-                  className={styles.thumbRemove}
-                  onClick={removeThumb}
-                  title="Remove thumbnail"
-                >
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                    <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
-                  </svg>
-                </button>
+                <img src={previewSrc} alt="Thumbnail" className={styles.thumbImg} />
+                <div className={styles.thumbActions}>
+                  <button
+                    type="button"
+                    className={styles.thumbChange}
+                    onClick={() => thumbInputRef.current?.click()}
+                  >
+                    Change
+                  </button>
+                  <button
+                    type="button"
+                    className={styles.thumbRemove}
+                    onClick={removeThumb}
+                  >
+                    Remove
+                  </button>
+                </div>
               </div>
             ) : (
               <div
@@ -190,8 +212,7 @@ export default function CreateProjectModal({
                 onDrop={(e) => {
                   e.preventDefault();
                   setIsDragging(false);
-                  const file = e.dataTransfer.files[0];
-                  if (file) pickThumb(file);
+                  if (e.dataTransfer.files[0]) pickThumb(e.dataTransfer.files[0]);
                 }}
               >
                 <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className={styles.thumbDropIcon}>
@@ -199,9 +220,7 @@ export default function CreateProjectModal({
                   <circle cx="8.5" cy="8.5" r="1.5" />
                   <polyline points="21 15 16 10 5 21" />
                 </svg>
-                <span className={styles.thumbDropText}>
-                  <u>Click to upload</u> or drag &amp; drop
-                </span>
+                <span className={styles.thumbDropText}><u>Click to upload</u> or drag &amp; drop</span>
                 <span className={styles.thumbDropSub}>JPG, PNG, WEBP — max 5 MB</span>
               </div>
             )}
@@ -230,26 +249,37 @@ export default function CreateProjectModal({
             />
           </div>
 
-          {/* Priority + Dates */}
+          {/* Status + Priority */}
           <div className={styles.row}>
             <div className={styles.field}>
+              <label>Status</label>
+              <select value={status} onChange={(e) => setStatus(e.target.value as Project['status'])}>
+                <option value="planning">Planning</option>
+                <option value="active">Active</option>
+                <option value="on_hold">On Hold</option>
+                <option value="completed">Completed</option>
+                <option value="archived">Archived</option>
+              </select>
+            </div>
+            <div className={styles.field}>
               <label>Priority</label>
-              <select value={priority} onChange={(e) => setPriority(e.target.value)}>
+              <select value={priority} onChange={(e) => setPriority(e.target.value as Project['priority'])}>
                 <option value="low">Low</option>
                 <option value="medium">Medium</option>
                 <option value="high">High</option>
                 <option value="critical">Critical</option>
               </select>
             </div>
+          </div>
+
+          {/* Dates */}
+          <div className={styles.row}>
             <div className={styles.field}>
               <label>Start Date <span className={styles.req}>*</span></label>
               <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} required />
             </div>
             <div className={styles.field}>
-              <label>
-                End Date
-                <span className={styles.optional}>optional</span>
-              </label>
+              <label>End Date <span className={styles.optional}>optional</span></label>
               <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
             </div>
           </div>
@@ -279,26 +309,19 @@ export default function CreateProjectModal({
                   <span className={styles.memberRole}>{m.role}</span>
                 </label>
               ))}
-              {members.length === 0 && (
-                <p className={styles.noMembers}>No team members found.</p>
-              )}
+              {members.length === 0 && <p className={styles.noMembers}>No team members found.</p>}
             </div>
           </div>
 
           {error && <p className={styles.error}>{error}</p>}
 
           <div className={styles.actions}>
-            <Button variant="secondary" type="button" onClick={handleClose} disabled={submitting}>
-              Cancel
-            </Button>
-            <Button type="submit" loading={submitting} disabled={!title.trim() || !startDate}>
-              Create Project
-            </Button>
+            <Button variant="secondary" type="button" onClick={handleClose} disabled={submitting}>Cancel</Button>
+            <Button type="submit" loading={submitting} disabled={!title.trim() || !startDate}>Save Changes</Button>
           </div>
         </form>
       </Modal>
 
-      {/* Success overlay — rendered outside the modal */}
       {showSuccess && <SuccessPopup onClose={handleClose} />}
     </>
   );

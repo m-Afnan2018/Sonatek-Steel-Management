@@ -47,23 +47,21 @@ function ConfirmModal({
 
 // ── Department Form Modal ─────────────────────────────────────────
 function DeptFormModal({
-  isOpen, onClose, onSave, initial, allMembers,
+  isOpen, onClose, onSave, initial,
 }: {
   isOpen: boolean; onClose: () => void;
-  onSave: (v: { name: string; description: string; color: string; headId: string }) => Promise<void>;
-  initial?: { name: string; description: string; color: string; headId: string };
-  allMembers: User[];
+  onSave: (v: { name: string; description: string; color: string }) => Promise<void>;
+  initial?: { name: string; description: string; color: string };
 }) {
   const [name, setName] = useState(initial?.name ?? '');
   const [desc, setDesc] = useState(initial?.description ?? '');
   const [color, setColor] = useState(initial?.color ?? PALETTE[0]);
-  const [headId, setHeadId] = useState(initial?.headId ?? '');
   const [saving, setSaving] = useState(false);
 
   const handleSave = async () => {
     if (!name.trim()) return;
     setSaving(true);
-    await onSave({ name: name.trim(), description: desc.trim(), color, headId });
+    await onSave({ name: name.trim(), description: desc.trim(), color });
     setSaving(false);
     onClose();
   };
@@ -112,20 +110,6 @@ function DeptFormModal({
               />
             ))}
           </div>
-        </div>
-
-        <div className={styles.formField}>
-          <label className={styles.formLabel}>Department Head</label>
-          <select
-            className={styles.formSelect}
-            value={headId}
-            onChange={(e) => setHeadId(e.target.value)}
-          >
-            <option value="">— None —</option>
-            {allMembers.map((m) => (
-              <option key={uid(m)} value={uid(m)}>{m.name}</option>
-            ))}
-          </select>
         </div>
 
         <div className={styles.formActions}>
@@ -211,7 +195,7 @@ export default function DepartmentsPage() {
   const {
     departments, loading, error,
     createDepartment, updateDepartment, deleteDepartment,
-    addMember, removeMember, setHead,
+    addMember, removeMember, addHead, removeHead,
   } = useDepartments();
   const { members: allMembers } = useTeam();
   const user = useAuthStore((s) => s.user);
@@ -231,14 +215,14 @@ export default function DepartmentsPage() {
     ? departments.find((d) => d._id === selected._id) ?? selected
     : null;
 
-  const handleCreate = async (v: { name: string; description: string; color: string; headId: string }) => {
-    const dept = await createDepartment({ ...v, headId: v.headId || undefined });
+  const handleCreate = async (v: { name: string; description: string; color: string }) => {
+    const dept = await createDepartment(v);
     if (dept) setSelected(dept);
   };
 
-  const handleUpdate = async (v: { name: string; description: string; color: string; headId: string }) => {
+  const handleUpdate = async (v: { name: string; description: string; color: string }) => {
     if (!selectedDept) return;
-    await updateDepartment(selectedDept._id, { ...v, headId: v.headId || undefined });
+    await updateDepartment(selectedDept._id, v);
   };
 
   const handleDelete = async () => {
@@ -264,9 +248,14 @@ export default function DepartmentsPage() {
     else setActionError(removeError || 'Failed to remove member. Please try again.');
   };
 
-  const handleSetHead = async (userId: string) => {
+  const handleAddHead = async (userId: string) => {
     if (!selectedDept) return;
-    await setHead(selectedDept._id, userId || null);
+    await addHead(selectedDept._id, userId);
+  };
+
+  const handleRemoveHead = async (userId: string) => {
+    if (!selectedDept) return;
+    await removeHead(selectedDept._id, userId);
   };
 
   return (
@@ -370,12 +359,13 @@ export default function DepartmentsPage() {
                         </svg>
                         {selectedDept.members.length} {selectedDept.members.length === 1 ? 'member' : 'members'}
                       </span>
-                      {selectedDept.head && (
+                      {selectedDept.heads && selectedDept.heads.length > 0 && (
                         <span className={styles.detailMetaItem}>
                           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                             <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
                           </svg>
-                          Head: {selectedDept.head.name}
+                          {selectedDept.heads.length === 1 ? 'Head' : 'Heads'}:{' '}
+                          {selectedDept.heads.map((h) => h.name).join(', ')}
                         </span>
                       )}
                     </div>
@@ -439,7 +429,7 @@ export default function DepartmentsPage() {
                   <div className={styles.membersGrid}>
                     {selectedDept.members.map((m) => {
                       const memberId = uid(m);
-                      const isHead = uid(selectedDept.head) === memberId;
+                      const isHead = selectedDept.heads?.some((h) => uid(h) === memberId) ?? false;
                       return (
                         <div key={memberId} className={styles.memberCard}>
                           <div className={styles.memberCardTop}>
@@ -465,12 +455,24 @@ export default function DepartmentsPage() {
                                 <button
                                   className={styles.memberActionBtn}
                                   title="Set as head"
-                                  onClick={() => handleSetHead(memberId)}
+                                  onClick={() => handleAddHead(memberId)}
                                 >
                                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                                     <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
                                   </svg>
                                   Make Head
+                                </button>
+                              )}
+                              {isAdmin && isHead && (
+                                <button
+                                  className={`${styles.memberActionBtn} ${styles.memberActionBtnHead}`}
+                                  title="Remove as head"
+                                  onClick={() => handleRemoveHead(memberId)}
+                                >
+                                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                    <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+                                  </svg>
+                                  Remove as Head
                                 </button>
                               )}
                               <button
@@ -502,7 +504,6 @@ export default function DepartmentsPage() {
           isOpen
           onClose={() => setShowCreate(false)}
           onSave={handleCreate}
-          allMembers={allMembers}
         />
       )}
 
@@ -515,9 +516,7 @@ export default function DepartmentsPage() {
             name: selectedDept.name,
             description: selectedDept.description || '',
             color: selectedDept.color,
-            headId: selectedDept.head?.id || '',
           }}
-          allMembers={allMembers}
         />
       )}
 

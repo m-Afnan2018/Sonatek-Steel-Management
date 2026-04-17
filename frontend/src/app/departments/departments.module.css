@@ -444,6 +444,17 @@
   background: var(--danger-light);
 }
 
+.memberActionBtnHead {
+  border-color: var(--warning, #f59e0b);
+  color: var(--warning, #f59e0b);
+}
+
+.memberActionBtnHead:hover {
+  border-color: var(--danger);
+  color: var(--danger);
+  background: var(--danger-light);
+}
+
 /* ─── Form modal ─────────────────────────────────────────────────── */
 .formBody {
   display: flex;

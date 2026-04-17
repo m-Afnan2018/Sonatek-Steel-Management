@@ -8,15 +8,23 @@ import styles from './CheckInButton.module.css';
 
 type FlowState = 'idle' | 'checked_in' | 'on_lunch' | 'checked_out';
 
-export default function CheckInButton() {
+interface CheckInButtonProps {
+  viewUserId?: string;
+  viewUserName?: string;
+}
+
+export default function CheckInButton({ viewUserId, viewUserName }: CheckInButtonProps = {}) {
   const { checkIn, checkOut, lunchStart, lunchStop, loading, error } = useAttendance();
   const [flow, setFlow] = useState<FlowState>('idle');
   const [checkInTime, setCheckInTime] = useState<string | null>(null);
+  const [checkOutTime, setCheckOutTime] = useState<string | null>(null);
   const [lunchStartTime, setLunchStartTime] = useState<string | null>(null);
   const [workMode, setWorkMode] = useState<'office' | 'remote' | 'hybrid'>('office');
   const [isLate, setIsLate] = useState(false);
 
+  // Fetch own status
   useEffect(() => {
+    if (viewUserId) return; // skip when viewing another user
     const checkStatus = async () => {
       try {
         const { default: api } = await import('@/lib/api');
@@ -42,7 +50,28 @@ export default function CheckInButton() {
       }
     };
     checkStatus();
-  }, []);
+  }, [viewUserId]);
+
+  // Fetch selected user's today status (admin view)
+  const [viewedRecord, setViewedRecord] = useState<null | {
+    checkIn?: string; checkOut?: string; lunchStart?: string; lunchStop?: string;
+    status?: string; isLate?: boolean; hoursWorked?: number; workMode?: string;
+  }>(null);
+
+  useEffect(() => {
+    if (!viewUserId) { setViewedRecord(null); return; }
+    const fetch = async () => {
+      try {
+        const { default: api } = await import('@/lib/api');
+        const today = new Date().toISOString().split('T')[0];
+        const { data } = await api.get('/attendance/team', { params: { date: today, userId: viewUserId } });
+        setViewedRecord(data[0] ?? null);
+      } catch {
+        setViewedRecord(null);
+      }
+    };
+    fetch();
+  }, [viewUserId]);
 
   const handleCheckIn = async () => {
     const result = await checkIn(workMode);
@@ -75,6 +104,72 @@ export default function CheckInButton() {
       setFlow('checked_out');
     }
   };
+
+  // Read-only view when admin is viewing another user
+  if (viewUserId) {
+    const statusLabel: Record<string, string> = {
+      present: 'Present', remote: 'Remote', late: 'Late',
+      half_day: 'Half Day', absent: 'Absent', leave: 'On Leave',
+    };
+    const statusColor: Record<string, string> = {
+      present: 'var(--success)', remote: 'var(--primary)', late: 'var(--warning)',
+      half_day: 'var(--warning)', absent: 'var(--danger)', leave: 'var(--danger)',
+    };
+    return (
+      <div className={styles.card}>
+        <h3 className={styles.heading}>Today — {viewUserName || 'User'}</h3>
+        {!viewedRecord ? (
+          <p className={styles.noRecord}>No attendance record for today.</p>
+        ) : (
+          <div className={styles.viewedRecord}>
+            {viewedRecord.status && (
+              <div className={styles.status}>
+                <div className={styles.statusIcon} style={{ background: statusColor[viewedRecord.status] ?? 'var(--text-muted)' }} />
+                <div>
+                  <p className={styles.statusText} style={{ color: statusColor[viewedRecord.status] }}>
+                    {statusLabel[viewedRecord.status] ?? viewedRecord.status}
+                    {viewedRecord.isLate && <span className={styles.lateBadge}>Late</span>}
+                  </p>
+                  {viewedRecord.workMode && (
+                    <p className={styles.statusTime}>{viewedRecord.workMode}</p>
+                  )}
+                </div>
+              </div>
+            )}
+            <div className={styles.viewedTimes}>
+              {viewedRecord.checkIn && (
+                <div className={styles.viewedRow}>
+                  <span className={styles.viewedTimeLabel}>Check In</span>
+                  <span>{formatTime(viewedRecord.checkIn)}</span>
+                </div>
+              )}
+              {viewedRecord.lunchStart && (
+                <div className={styles.viewedRow}>
+                  <span className={styles.viewedTimeLabel}>Lunch</span>
+                  <span>
+                    {formatTime(viewedRecord.lunchStart)}
+                    {viewedRecord.lunchStop ? ` – ${formatTime(viewedRecord.lunchStop)}` : ' (ongoing)'}
+                  </span>
+                </div>
+              )}
+              {viewedRecord.checkOut && (
+                <div className={styles.viewedRow}>
+                  <span className={styles.viewedTimeLabel}>Check Out</span>
+                  <span>{formatTime(viewedRecord.checkOut)}</span>
+                </div>
+              )}
+              {viewedRecord.hoursWorked != null && viewedRecord.hoursWorked > 0 && (
+                <div className={styles.viewedRow}>
+                  <span className={styles.viewedTimeLabel}>Hours</span>
+                  <span>{viewedRecord.hoursWorked}h</span>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className={styles.card}>

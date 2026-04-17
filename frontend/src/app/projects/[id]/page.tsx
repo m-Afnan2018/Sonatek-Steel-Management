@@ -8,6 +8,7 @@ import ProjectListView from '@/components/projects/ProjectListView/ProjectListVi
 import TaskModal from '@/components/projects/TaskModal/TaskModal';
 import MediaLibrary from '@/components/projects/MediaLibrary/MediaLibrary';
 import ProjectCalendar from '@/components/projects/ProjectCalendar/ProjectCalendar';
+import EditProjectModal from '@/components/projects/EditProjectModal/EditProjectModal';
 import Modal from '@/components/ui/Modal/Modal';
 import Button from '@/components/ui/Button/Button';
 import Badge from '@/components/ui/Badge/Badge';
@@ -43,10 +44,9 @@ export default function ProjectDetailPage() {
 
   // Departments this user heads
   const myHeadedDepts = useMemo(
-    () => departments.filter((d) => {
-      const headId = d.head?.id ?? (d.head as any)?._id;
-      return headId && headId === user?.id;
-    }),
+    () => departments.filter((d) =>
+      d.heads?.some((h) => (h.id ?? (h as any)._id) === user?.id)
+    ),
     [departments, user?.id],
   );
   const isDeptHead = !isAdminOrManager && myHeadedDepts.length > 0;
@@ -67,6 +67,7 @@ export default function ProjectDetailPage() {
   const [project, setProject] = useState<Project | null>(null);
   const [localTasks, setLocalTasks] = useState<Task[]>([]);
   const [activeTab, setActiveTab] = useState<TabType>('board');
+  const [showEdit, setShowEdit] = useState(false);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [showTaskModal, setShowTaskModal] = useState(false);
   const [showCreateTask, setShowCreateTask] = useState(false);
@@ -256,11 +257,20 @@ export default function ProjectDetailPage() {
             </div>
             <p className={styles.desc}>{project.description}</p>
             <div className={styles.meta}>
-              <span>{formatDate(project.startDate)} - {formatDate(project.endDate)}</span>
+              <span>{formatDate(project.startDate)}{project.endDate ? ` – ${formatDate(project.endDate)}` : ''}</span>
               <span>{project.totalTasks || 0} tasks</span>
             </div>
             <ProgressBar value={project.progress} showLabel />
           </div>
+          {canManage && (
+            <button className={styles.editBtn} onClick={() => setShowEdit(true)} title="Edit project">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+              </svg>
+              Edit
+            </button>
+          )}
         </div>
 
         <div className={styles.tabs}>
@@ -368,6 +378,17 @@ export default function ProjectDetailPage() {
         members={members}
         patchTimer={patchTimer}
       />
+
+      {/* ── Edit Project Modal ── */}
+      {canManage && project && (
+        <EditProjectModal
+          isOpen={showEdit}
+          project={project}
+          members={members}
+          onClose={() => setShowEdit(false)}
+          onSaved={(updated) => { setProject(updated); setShowEdit(false); }}
+        />
+      )}
 
       {/* ── Create Task Modal ── */}
       <Modal

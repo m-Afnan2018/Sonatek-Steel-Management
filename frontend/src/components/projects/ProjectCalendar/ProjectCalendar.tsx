@@ -396,7 +396,7 @@ export default function ProjectCalendar({ projectId }: ProjectCalendarProps) {
         date: form.date,
         allDay: form.allDay,
         startTime: form.allDay ? undefined : form.startTime || undefined,
-        endTime: form.allDay ? undefined : form.endTime || undefined,
+        endTime: form.allDay ? undefined : form.endTime || null,
         location: form.location || undefined,
         description: form.description || undefined,
         recurrence: form.recurrence,
@@ -775,7 +775,22 @@ export default function ProjectCalendar({ projectId }: ProjectCalendarProps) {
                   />
                 </div>
                 <div className={styles.formGroup}>
-                  <label className={styles.label}>End Time</label>
+                  <div className={styles.labelRow}>
+                    <label className={styles.label}>End Time</label>
+                    {form.endTime && (
+                      <button
+                        type="button"
+                        className={styles.clearTimeBtn}
+                        onClick={() => setField('endTime', '')}
+                        title="Clear end time"
+                      >
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                          <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+                        </svg>
+                        Reset
+                      </button>
+                    )}
+                  </div>
                   <input
                     className={styles.input}
                     type="time"
@@ -975,7 +990,10 @@ interface EventDetailModalProps {
 function EventDetailModal({ event, canModify, onClose, onEdit, onDelete }: EventDetailModalProps) {
   const BASE = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api').replace(/\/api$/, '');
 
-  const dateStr = new Date(event.date + 'T00:00:00').toLocaleDateString('en-US', {
+  // const dateStr = new Date(event.date + 'T00:00:00').toLocaleDateString('en-US', {
+  //   weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
+  // });
+  const dateStr = new Date(event.date).toLocaleDateString('en-US', {
     weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
   });
   const timeLabel = event.allDay
@@ -984,6 +1002,8 @@ function EventDetailModal({ event, canModify, onClose, onEdit, onDelete }: Event
 
   // Viewer state for attachment lightbox
   const [lightbox, setLightbox] = useState<string | null>(null);
+
+  console.log(dateStr)
 
   return (
     <Modal isOpen onClose={onClose} title=" " size="md">

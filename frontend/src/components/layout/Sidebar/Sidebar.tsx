@@ -5,6 +5,8 @@ import Link from 'next/link';
 import { cn } from '@/lib/utils';
 import { useAuthStore } from '@/store/authStore';
 import styles from './Sidebar.module.css';
+import Image from 'next/image'
+import image from '@/assets/images/logo.png'
 
 const STATIC_BASE = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api').replace(/\/api$/, '');
 
@@ -46,7 +48,7 @@ const navItems = [
     ),
   },
   {
-    label: 'Team',
+    label: 'Team Workload',
     href: '/team',
     icon: (
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -111,9 +113,11 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
       {isOpen && <div className={styles.overlay} onClick={onClose} />}
       <aside className={cn(styles.sidebar, isOpen && styles.open)}>
         <div className={styles.logo}>
-          <div className={styles.logoIcon}>GS</div>
+          <div className={styles.logoIcon}>
+            <Image src={image.src} width={25} height={25} alt='logo'/>
+          </div>
           <div>
-            <h1 className={styles.logoText}>GaneSyx</h1>
+            <h1 className={styles.logoText}>Ganesyx</h1>
             <p className={styles.logoSub}>Project Manager</p>
           </div>
         </div>

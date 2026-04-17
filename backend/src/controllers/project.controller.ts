@@ -118,6 +118,32 @@ export const createProject = async (req: Request, res: Response): Promise<void> 
   }
 };
 
+export const uploadThumbnail = async (req: Request, res: Response): Promise<void> => {
+  try {
+    if (!req.file) {
+      res.status(400).json({ message: 'No file uploaded.' });
+      return;
+    }
+    const thumbnailUrl = `/uploads/projectThumbnails/${req.file.filename}`;
+    const project = await Project.findByIdAndUpdate(
+      req.params.id,
+      { thumbnail: thumbnailUrl },
+      { new: true }
+    )
+      .populate('owner', 'name email avatar')
+      .populate('members.user', 'name email avatar');
+
+    if (!project) {
+      res.status(404).json({ message: 'Project not found.' });
+      return;
+    }
+    res.json({ thumbnail: thumbnailUrl, project });
+  } catch (error) {
+    console.error('UploadThumbnail error:', error);
+    res.status(500).json({ message: 'Server error.' });
+  }
+};
+
 export const updateProject = async (req: Request, res: Response): Promise<void> => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {

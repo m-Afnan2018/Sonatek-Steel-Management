@@ -1,7 +1,7 @@
 {
   "name": "ganesyx-pm-backend",
   "version": "1.0.0",
-  "description": "GaneSyx PM Backend API",
+  "description": "Ganesyx PM Backend API",
   "main": "dist/index.js",
   "scripts": {
     "dev": "ts-node-dev --respawn --transpile-only src/index.ts",

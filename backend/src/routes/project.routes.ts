@@ -8,9 +8,16 @@ import {
   deleteProject,
   addMember,
   removeMember,
+  uploadThumbnail,
 } from '../controllers/project.controller';
 import { authenticate } from '../middleware/auth.middleware';
 import { authorize } from '../middleware/role.middleware';
+import { createUpload } from '../middleware/upload.middleware';
+
+const thumbnailUpload = createUpload('projectThumbnails', {
+  imageOnly: true,
+  maxSizeMB: 5,
+});
 
 const router = Router();
 
@@ -25,9 +32,15 @@ router.post(
   [
     body('title').trim().notEmpty().withMessage('Title is required'),
     body('startDate').isISO8601().withMessage('Valid start date is required'),
-    body('endDate').isISO8601().withMessage('Valid end date is required'),
   ],
   createProject
+);
+
+router.post(
+  '/:id/thumbnail',
+  authorize('admin', 'manager'),
+  thumbnailUpload.single('thumbnail'),
+  uploadThumbnail
 );
 
 router.put('/:id', authorize('admin', 'manager'), updateProject);

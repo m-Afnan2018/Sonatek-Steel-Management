@@ -7,7 +7,8 @@ import {
   deleteDepartment,
   addMember,
   removeMember,
-  setHead,
+  addHead,
+  removeHead,
 } from '../controllers/department.controller';
 import { authenticate } from '../middleware/auth.middleware';
 import { authorize } from '../middleware/role.middleware';
@@ -23,6 +24,7 @@ router.put('/:id', authorize('admin'), updateDepartment);
 router.delete('/:id', authorize('admin'), deleteDepartment);
 router.post('/:id/members', authorize('admin', 'manager'), addMember);
 router.delete('/:id/members/:userId', authorize('admin', 'manager'), removeMember);
-router.put('/:id/head', authorize('admin'), setHead);
+router.post('/:id/heads', authorize('admin'), addHead);
+router.delete('/:id/heads/:userId', authorize('admin'), removeHead);
 
 export default router;

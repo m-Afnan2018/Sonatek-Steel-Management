@@ -4,7 +4,7 @@ export interface IDepartment extends Document {
   name: string;
   description: string;
   color: string;
-  head?: Types.ObjectId;
+  heads: Types.ObjectId[];
   members: Types.ObjectId[];
   createdAt: Date;
   updatedAt: Date;
@@ -21,7 +21,7 @@ const departmentSchema = new Schema<IDepartment>(
     },
     description: { type: String, trim: true, default: '' },
     color: { type: String, default: '#6366f1' },
-    head: { type: Schema.Types.ObjectId, ref: 'User', default: null },
+    heads: [{ type: Schema.Types.ObjectId, ref: 'User' }],
     members: [{ type: Schema.Types.ObjectId, ref: 'User' }],
   },
   { timestamps: true }

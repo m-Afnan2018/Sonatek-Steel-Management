@@ -32,7 +32,7 @@ const projectSchema = new Schema<IProject>(
     },
     priority: { type: String, enum: ['low', 'medium', 'high', 'critical'], default: 'medium' },
     startDate: { type: Date, required: [true, 'Start date is required'] },
-    endDate: { type: Date, required: [true, 'End date is required'] },
+    endDate: { type: Date },
     owner: { type: Schema.Types.ObjectId, ref: 'User', required: true },
     members: [{
       user: { type: Schema.Types.ObjectId, ref: 'User' },

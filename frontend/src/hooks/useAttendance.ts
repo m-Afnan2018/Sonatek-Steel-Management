@@ -96,6 +96,18 @@ export function useAttendance() {
     }
   }, []);
 
+  const fetchUserAttendance = useCallback(async (userId: string, month?: number, year?: number) => {
+    setLoading(true);
+    try {
+      const { data } = await api.get(`/attendance/user/${userId}`, { params: { month, year } });
+      setRecords(data);
+    } catch {
+      setError('Failed to fetch attendance.');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
   const fetchTeamAttendance = useCallback(async (date?: string) => {
     setLoading(true);
     try {
@@ -117,9 +129,18 @@ export function useAttendance() {
     }
   }, []);
 
+  const fetchUserStats = useCallback(async (userId: string, month?: number, year?: number) => {
+    try {
+      const { data } = await api.get(`/attendance/user/${userId}/stats`, { params: { month, year } });
+      setStats(data);
+    } catch {
+      setError('Failed to fetch attendance stats.');
+    }
+  }, []);
+
   return {
     records, stats, teamRecords, loading, error,
     checkIn, checkOut, lunchStart, lunchStop, addNote, deleteNote,
-    fetchMyAttendance, fetchTeamAttendance, fetchStats,
+    fetchMyAttendance, fetchUserAttendance, fetchTeamAttendance, fetchStats, fetchUserStats,
   };
 }
