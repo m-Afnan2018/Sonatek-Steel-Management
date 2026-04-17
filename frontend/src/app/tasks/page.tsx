@@ -12,6 +12,7 @@ import TaskModal from '@/components/projects/TaskModal/TaskModal';
 import { useTasks } from '@/hooks/useTasks';
 import { useProjects } from '@/hooks/useProjects';
 import { useTeam } from '@/hooks/useTeam';
+import { useDepartments } from '@/hooks/useDepartments';
 import { useAuthStore } from '@/store/authStore';
 import { formatDate } from '@/lib/utils';
 import api, { uploadFile } from '@/lib/api';
@@ -40,8 +41,32 @@ export default function TasksPage() {
   const { tasks, loading, error, fetchTasks, fetchPersonalTasks, createTask, updateTaskStatus, deleteTask, patchTimer } = useTasks();
   const { projects } = useProjects();
   const { members } = useTeam();
+  const { departments } = useDepartments();
   const user = useAuthStore((s) => s.user);
   const isAdminOrManager = user?.role === 'admin' || user?.role === 'manager';
+
+  // Departments this user heads (if any)
+  const myHeadedDepts = useMemo(
+    () => departments.filter((d) => {
+      const headId = d.head?.id ?? (d.head as any)?._id;
+      return headId && headId === user?.id;
+    }),
+    [departments, user?.id],
+  );
+  const isDeptHead = !isAdminOrManager && myHeadedDepts.length > 0;
+
+  // Deduplicated members from all headed departments
+  const deptMembers = useMemo(() => {
+    const seen = new Set<string>();
+    const result: typeof members = [];
+    myHeadedDepts.forEach((d) =>
+      d.members.forEach((m) => {
+        const id = m.id ?? (m as any)._id;
+        if (id && !seen.has(id)) { seen.add(id); result.push(m as any); }
+      }),
+    );
+    return result;
+  }, [myHeadedDepts]);
 
   const [tab, setTab] = useState<'personal' | 'assigned'>('assigned');
   const [showCreate, setShowCreate] = useState(false);
@@ -497,8 +522,9 @@ export default function TasksPage() {
 
               {!form.isPersonal && (
                 <div className={styles.field}>
-                  <label>Assignees</label>
+                  <label>Assignee</label>
                   {isAdminOrManager ? (
+                    /* Admin / Manager — all team members */
                     <div className={styles.assigneeGrid}>
                       {members.map((m) => {
                         const checked = form.assignees.includes(m.id);
@@ -509,9 +535,7 @@ export default function TasksPage() {
                             className={`${styles.assigneeChip} ${checked ? styles.assigneeChipActive : ''}`}
                             onClick={() => setForm((f) => ({
                               ...f,
-                              assignees: checked
-                                ? f.assignees.filter((id) => id !== m.id)
-                                : [...f.assignees, m.id],
+                              assignees: checked ? [] : [m.id],
                             }))}
                           >
                             <span className={styles.assigneeInitial}>{m.name.charAt(0).toUpperCase()}</span>
@@ -525,14 +549,50 @@ export default function TasksPage() {
                         );
                       })}
                     </div>
+                  ) : isDeptHead ? (
+                    /* Department Head — only their department members */
+                    <>
+                      <p className={styles.deptAssigneeHint}>
+                        {myHeadedDepts.map((d) => d.name).join(', ')}
+                      </p>
+                      <div className={styles.assigneeGrid}>
+                        {deptMembers.map((m) => {
+                          const mid = m.id ?? (m as any)._id;
+                          const checked = form.assignees.includes(mid);
+                          return (
+                            <button
+                              key={mid}
+                              type="button"
+                              className={`${styles.assigneeChip} ${checked ? styles.assigneeChipActive : ''}`}
+                              onClick={() => setForm((f) => ({
+                                ...f,
+                                assignees: checked ? [] : [mid],
+                              }))}
+                            >
+                              <span className={styles.assigneeInitial}>{m.name.charAt(0).toUpperCase()}</span>
+                              <span>{m.name}</span>
+                              {checked && (
+                                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                                  <polyline points="20 6 9 17 4 12" />
+                                </svg>
+                              )}
+                            </button>
+                          );
+                        })}
+                        {deptMembers.length === 0 && (
+                          <span className={styles.noMembers}>No members in your department yet.</span>
+                        )}
+                      </div>
+                    </>
                   ) : (
+                    /* Regular member — assign to self only */
                     <button
                       type="button"
                       className={`${styles.assigneeChip} ${form.assignees.includes(user?.id ?? '') ? styles.assigneeChipActive : ''}`}
                       onClick={() => setForm((f) => {
                         const id = user?.id ?? '';
                         const already = f.assignees.includes(id);
-                        return { ...f, assignees: already ? f.assignees.filter((x) => x !== id) : [...f.assignees, id] };
+                        return { ...f, assignees: already ? [] : [id] };
                       })}
                     >
                       <span className={styles.assigneeInitial}>{(user?.name ?? '?').charAt(0).toUpperCase()}</span>

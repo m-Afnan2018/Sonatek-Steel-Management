@@ -70,6 +70,8 @@ function mediaKind(item: MediaItem): 'image' | 'video' | 'audio' | 'pdf' | 'text
   if (m.startsWith('audio/')) return 'audio';
   if (m === 'application/pdf') return 'pdf';
   if (m.startsWith('text/')) return 'text';
+  // Fallback for task attachments that may lack a recognised mimeType
+  if (item.fileType === 'image') return 'image';
   return 'other';
 }
 
@@ -600,7 +602,7 @@ export default function MediaLibrary({ projectId }: Props) {
                 <div className={styles.cardThumb}>
                   {item.fileType === 'image' ? (
                     <img src={`${STATIC_BASE}${item.url}`} alt={item.name} loading="lazy" />
-                  ) : item.mimeType?.startsWith('video/') ? (
+                  ) : mediaKind(item) === 'video' ? (
                     <div className={styles.cardVideoThumb}>
                       <span className={styles.cardIcon}>🎬</span>
                       <span className={styles.cardPlayBadge}>▶</span>

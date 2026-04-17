@@ -142,6 +142,68 @@ function formatDayHeading(dateStr: string): string {
   return d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
 }
 
+/* ── Recurrence expansion ───────────────────────────────────────────── */
+
+interface EventOccurrence {
+  event: CalendarEvent;
+  isOriginal: boolean; // true = the event's own start date; false = a recurrence hit
+}
+
+/**
+ * Builds a date→occurrences map, expanding recurring events across every
+ * cell that is visible in the grid (including leading/trailing days from
+ * adjacent months).
+ */
+function buildEventsByDate(
+  events: CalendarEvent[],
+  cells: Array<{ date: Date }>,
+): Record<string, EventOccurrence[]> {
+  const acc: Record<string, EventOccurrence[]> = {};
+
+  const push = (dateStr: string, event: CalendarEvent, isOriginal: boolean) => {
+    (acc[dateStr] ??= []).push({ event, isOriginal });
+  };
+
+  for (const ev of events) {
+    const originStr  = isoToDateStr(ev.date);
+    const originDate = new Date(ev.date.slice(0, 10) + 'T00:00:00');
+
+    // Always add the event's own date as the "original" occurrence
+    push(originStr, ev, true);
+
+    if (ev.recurrence === 'none') continue;
+
+    for (const cell of cells) {
+      const cellDate = new Date(
+        cell.date.getFullYear(),
+        cell.date.getMonth(),
+        cell.date.getDate(),
+      );
+      // Only generate occurrences strictly after the origin date
+      if (cellDate <= originDate) continue;
+
+      const cellStr = toDateStr(
+        cell.date.getFullYear(),
+        cell.date.getMonth(),
+        cell.date.getDate(),
+      );
+
+      let hits = false;
+      if (ev.recurrence === 'daily') {
+        hits = true;
+      } else if (ev.recurrence === 'weekly') {
+        hits = cellDate.getDay() === originDate.getDay();
+      } else if (ev.recurrence === 'monthly') {
+        hits = cellDate.getDate() === originDate.getDate();
+      }
+
+      if (hits) push(cellStr, ev, false);
+    }
+  }
+
+  return acc;
+}
+
 function fileTypeFromMime(mimeType: string): CalEventAttachment['fileType'] {
   if (mimeType.startsWith('image/')) return 'image';
   if (mimeType.startsWith('video/')) return 'video';
@@ -273,14 +335,14 @@ export default function ProjectCalendar({ projectId }: ProjectCalendarProps) {
   const cells = buildCalendarGrid(viewYear, viewMonth);
   const todayStr = toDateStr(today.getFullYear(), today.getMonth(), today.getDate());
 
-  const eventsByDate = events.reduce<Record<string, CalendarEvent[]>>((acc, ev) => {
-    const key = isoToDateStr(ev.date);
-    if (!acc[key]) acc[key] = [];
-    acc[key].push(ev);
-    return acc;
-  }, {});
+  const eventsByDate = buildEventsByDate(events, cells);
 
-  const selectedEvents = eventsByDate[selectedDate] ?? [];
+  // All occurrences (original + recurring) for the selected day
+  const selectedOccurrences = eventsByDate[selectedDate] ?? [];
+  // Deduplicate by event _id so a recurring event doesn't appear twice in the panel
+  const selectedEvents = selectedOccurrences
+    .filter((o, idx, arr) => arr.findIndex(x => x.event._id === o.event._id) === idx)
+    .map(o => o.event);
 
   /* ── Modal helpers ────────────────────────────────────────────────── */
 
@@ -492,7 +554,10 @@ export default function ProjectCalendar({ projectId }: ProjectCalendarProps) {
                 cell.date.getMonth(),
                 cell.date.getDate()
               );
-              const dayEvents = eventsByDate[cellStr] ?? [];
+              const dayOccurrences = eventsByDate[cellStr] ?? [];
+              // Originals → full pill; recurring hits → dot
+              const originals   = dayOccurrences.filter(o => o.isOriginal);
+              const recurrences = dayOccurrences.filter(o => !o.isOriginal);
               const isToday = cellStr === todayStr;
               const isSelected = cellStr === selectedDate;
               const isOtherMonth = !cell.isCurrentMonth;
@@ -511,8 +576,10 @@ export default function ProjectCalendar({ projectId }: ProjectCalendarProps) {
                   <span className={cn(styles.dayNumber, isToday && styles.dayNumberToday)}>
                     {cell.date.getDate()}
                   </span>
+
+                  {/* Original-date pills */}
                   <div className={styles.pillList}>
-                    {dayEvents.slice(0, 3).map(ev => (
+                    {originals.slice(0, 3).map(({ event: ev }) => (
                       <button
                         key={ev._id}
                         className={styles.eventPill}
@@ -524,15 +591,30 @@ export default function ProjectCalendar({ projectId }: ProjectCalendarProps) {
                         <span className={styles.pillTitle}>{ev.title}</span>
                       </button>
                     ))}
-                    {dayEvents.length > 3 && (
+                    {originals.length > 3 && (
                       <button
                         className={styles.moreLink}
                         onClick={e => { e.stopPropagation(); setSelectedDate(cellStr); }}
                       >
-                        +{dayEvents.length - 3} more
+                        +{originals.length - 3} more
                       </button>
                     )}
                   </div>
+
+                  {/* Recurring-occurrence dots */}
+                  {recurrences.length > 0 && (
+                    <div className={styles.recurringDots}>
+                      {recurrences.map(({ event: ev }) => (
+                        <button
+                          key={ev._id}
+                          className={styles.recurringDot}
+                          style={{ backgroundColor: ev.color }}
+                          title={`${ev.title} (repeats ${ev.recurrence})`}
+                          onClick={e => { e.stopPropagation(); setViewEvent(ev); }}
+                        />
+                      ))}
+                    </div>
+                  )}
                 </div>
               );
             })}

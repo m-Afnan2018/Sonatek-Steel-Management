@@ -907,6 +907,21 @@
   flex-shrink: 0;
 }
 
+.noMembers {
+  font-size: 0.8125rem;
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.deptAssigneeHint {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 0.375rem;
+}
+
 /* ─── Links (full items, Links tab) ─────────────────────────────── */
 .linkItemList {
   display: flex;

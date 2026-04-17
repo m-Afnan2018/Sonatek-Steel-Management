@@ -65,6 +65,35 @@ function decodeTaskAttachmentId(id: string): { taskId: string; url: string } | n
   }
 }
 
+/** Guess MIME type from a file URL by its extension */
+function extensionToMime(url: string): string {
+  const ext = path.extname(url).toLowerCase().slice(1);
+  const map: Record<string, string> = {
+    // images
+    jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png',
+    gif: 'image/gif', webp: 'image/webp', svg: 'image/svg+xml',
+    bmp: 'image/bmp', ico: 'image/x-icon',
+    // video
+    mp4: 'video/mp4', webm: 'video/webm', mov: 'video/quicktime',
+    avi: 'video/x-msvideo', mkv: 'video/x-matroska',
+    // audio
+    mp3: 'audio/mpeg', wav: 'audio/wav', ogg: 'audio/ogg',
+    flac: 'audio/flac', aac: 'audio/aac', m4a: 'audio/mp4',
+    // documents
+    pdf: 'application/pdf',
+    doc: 'application/msword',
+    docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    xls: 'application/vnd.ms-excel',
+    xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    ppt: 'application/vnd.ms-powerpoint',
+    pptx: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+    txt: 'text/plain', csv: 'text/csv', md: 'text/markdown',
+    // archives
+    zip: 'application/zip', tar: 'application/x-tar', gz: 'application/gzip',
+  };
+  return map[ext] || '';
+}
+
 /** Derive the absolute path on disk from a /uploads/... URL */
 function urlToPhysicalPath(fileUrl: string): string {
   // fileUrl examples:
@@ -142,7 +171,10 @@ export const getProjectMedia = async (req: Request, res: Response): Promise<void
         // Skip duplicates already in the library
         if (att.url && libraryUrls.has(att.url)) continue;
 
-        const fileType: FileType = att.type === 'image' ? 'image' : 'document';
+        const derivedMime = extensionToMime(att.url ?? '');
+        const fileType: FileType = derivedMime
+          ? mimeToFileType(derivedMime)
+          : att.type === 'image' ? 'image' : 'document';
 
         taskItems.push({
           // Stable ID encoding taskId + url so rename/delete can decode it
@@ -150,7 +182,7 @@ export const getProjectMedia = async (req: Request, res: Response): Promise<void
           name:         att.name ?? '',
           originalName: att.name ?? '',
           url:          att.url ?? '',
-          mimeType:     '',
+          mimeType:     derivedMime,
           size:         0,
           fileType,
           uploadedBy:   null,

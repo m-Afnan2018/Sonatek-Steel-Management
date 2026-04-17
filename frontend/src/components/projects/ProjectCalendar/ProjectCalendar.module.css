@@ -218,6 +218,32 @@
   font-weight: 500;
 }
 
+/* ─── Recurring-occurrence dots (Google Calendar style) ────────── */
+.recurringDots {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+  padding: 2px 3px 1px;
+  align-items: center;
+}
+
+.recurringDot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: transform 0.1s ease, opacity 0.1s ease;
+  opacity: 0.85;
+}
+
+.recurringDot:hover {
+  transform: scale(1.35);
+  opacity: 1;
+}
+
 .moreLink {
   font-size: 0.6875rem;
   color: var(--primary);

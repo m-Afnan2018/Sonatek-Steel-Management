@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback, useRef } from 'react';
+import { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import { useParams } from 'next/navigation';
 import AppShell from '@/components/layout/AppShell/AppShell';
 import KanbanBoard from '@/components/projects/KanbanBoard/KanbanBoard';
@@ -17,6 +17,7 @@ import Spinner from '@/components/ui/Spinner/Spinner';
 import { useProjects } from '@/hooks/useProjects';
 import { useTasks } from '@/hooks/useTasks';
 import { useTeam } from '@/hooks/useTeam';
+import { useDepartments } from '@/hooks/useDepartments';
 import { useAuthStore } from '@/store/authStore';
 import { formatDate, formatStatus } from '@/lib/utils';
 import api, { uploadFile } from '@/lib/api';
@@ -36,7 +37,32 @@ export default function ProjectDetailPage() {
   const { fetchProject } = useProjects(false);
   const { tasks, loading: tasksLoading, fetchTasks, createTask, updateTaskStatus, patchTimer } = useTasks();
   const { members } = useTeam();
+  const { departments } = useDepartments();
   const user = useAuthStore((s) => s.user);
+  const isAdminOrManager = user?.role === 'admin' || user?.role === 'manager';
+
+  // Departments this user heads
+  const myHeadedDepts = useMemo(
+    () => departments.filter((d) => {
+      const headId = d.head?.id ?? (d.head as any)?._id;
+      return headId && headId === user?.id;
+    }),
+    [departments, user?.id],
+  );
+  const isDeptHead = !isAdminOrManager && myHeadedDepts.length > 0;
+
+  // Deduplicated members from all headed departments
+  const deptMembers = useMemo(() => {
+    const seen = new Set<string>();
+    const result: typeof members = [];
+    myHeadedDepts.forEach((d) =>
+      d.members.forEach((m) => {
+        const id = m.id ?? (m as any)._id;
+        if (id && !seen.has(id)) { seen.add(id); result.push(m as any); }
+      }),
+    );
+    return result;
+  }, [myHeadedDepts]);
 
   const [project, setProject] = useState<Project | null>(null);
   const [localTasks, setLocalTasks] = useState<Task[]>([]);
@@ -143,7 +169,7 @@ export default function ProjectDetailPage() {
 
   const toggleAssignee = (userId: string) => {
     setNewTaskAssignees((prev) =>
-      prev.includes(userId) ? prev.filter((id) => id !== userId) : [...prev, userId]
+      prev.includes(userId) ? [] : [userId]
     );
   };
 
@@ -431,16 +457,22 @@ export default function ProjectDetailPage() {
               </div>
 
               <div className={createStyles.field}>
-                <label className={createStyles.label}>Assignees</label>
+                <label className={createStyles.label}>Assignee</label>
+                {isDeptHead && (
+                  <p className={createStyles.deptAssigneeHint}>
+                    {myHeadedDepts.map((d) => d.name).join(', ')}
+                  </p>
+                )}
                 <div className={createStyles.assigneeGrid}>
-                  {members.map((m) => {
-                    const checked = newTaskAssignees.includes(m.id);
+                  {(isAdminOrManager ? members : isDeptHead ? deptMembers : []).map((m) => {
+                    const mid = m.id ?? (m as any)._id;
+                    const checked = newTaskAssignees.includes(mid);
                     return (
                       <button
-                        key={m.id}
+                        key={mid}
                         type="button"
                         className={`${createStyles.assigneeChip} ${checked ? createStyles.assigneeChipActive : ''}`}
-                        onClick={() => toggleAssignee(m.id)}
+                        onClick={() => toggleAssignee(mid)}
                       >
                         <span className={createStyles.assigneeInitial}>{m.name.charAt(0).toUpperCase()}</span>
                         <span className={createStyles.assigneeName}>{m.name}</span>
@@ -452,7 +484,28 @@ export default function ProjectDetailPage() {
                       </button>
                     );
                   })}
-                  {members.length === 0 && <span className={createStyles.noMembers}>No members in this project yet.</span>}
+                  {!isAdminOrManager && !isDeptHead && (
+                    /* Regular member — assign to self only */
+                    <button
+                      type="button"
+                      className={`${createStyles.assigneeChip} ${newTaskAssignees.includes(user?.id ?? '') ? createStyles.assigneeChipActive : ''}`}
+                      onClick={() => toggleAssignee(user?.id ?? '')}
+                    >
+                      <span className={createStyles.assigneeInitial}>{(user?.name ?? '?').charAt(0).toUpperCase()}</span>
+                      <span className={createStyles.assigneeName}>Assign to me</span>
+                      {newTaskAssignees.includes(user?.id ?? '') && (
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                          <polyline points="20 6 9 17 4 12" />
+                        </svg>
+                      )}
+                    </button>
+                  )}
+                  {isAdminOrManager && members.length === 0 && (
+                    <span className={createStyles.noMembers}>No members in this project yet.</span>
+                  )}
+                  {isDeptHead && deptMembers.length === 0 && (
+                    <span className={createStyles.noMembers}>No members in your department yet.</span>
+                  )}
                 </div>
               </div>
             </div>
