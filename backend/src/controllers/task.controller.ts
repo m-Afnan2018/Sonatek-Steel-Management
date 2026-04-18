@@ -28,9 +28,10 @@ export const getTasks = async (req: Request, res: Response): Promise<void> => {
                 filter.assignees = userId;
             }
         } else {
-            // "Assigned to Me" view for members; "All Tasks" view for admin/manager
+            // "My Tasks" view for members: tasks assigned to them OR created by them (non-personal)
             if (!isAdminOrManager) {
-                filter.assignees = new mongoose.Types.ObjectId(userId);
+                const uid = new mongoose.Types.ObjectId(userId);
+                filter.$or = [{ assignees: uid }, { reporter: uid }];
                 filter.isPersonal = { $ne: true };
             }
         }

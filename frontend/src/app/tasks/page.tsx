@@ -735,6 +735,7 @@ export default function TasksPage() {
         isOpen={showTaskModal}
         onClose={() => { setShowTaskModal(false); setSelectedTask(null); }}
         onUpdate={handleTaskUpdate}
+        onDelete={(t) => { setShowTaskModal(false); setSelectedTask(null); setDeleteConfirm(t); }}
         members={members}
         patchTimer={patchTimer}
       />
@@ -799,7 +800,8 @@ function TaskRow({
     if (updated) onTimerUpdate(updated);
   };
 
-  const canDelete = isAdminOrManager || task.reporter?.id === currentUserId;
+  const reporterId = (task.reporter?.id || (task.reporter as any)?._id)?.toString() ?? '';
+  const canDelete = isAdminOrManager || (reporterId && reporterId === currentUserId);
   const accentClass = statusAccent[task.status] ?? '';
 
   return (

@@ -20,6 +20,7 @@ interface TaskModalProps {
   isOpen: boolean;
   onClose: () => void;
   onUpdate: (task: Task) => void;
+  onDelete?: (task: Task) => void;
   members: User[];
   patchTimer?: (id: string, action: 'start' | 'pause' | 'resume' | 'hold' | 'finish') => Promise<Task | null>;
 }
@@ -47,10 +48,12 @@ function uid(u: User | any): string {
   return (u?.id || u?._id)?.toString() ?? '';
 }
 
-export default function TaskModal({ task, isOpen, onClose, onUpdate, members, patchTimer }: TaskModalProps) {
+export default function TaskModal({ task, isOpen, onClose, onUpdate, onDelete, members, patchTimer }: TaskModalProps) {
   const { updateTask, addComment } = useTasks();
   const currentUser = useAuthStore((s) => s.user);
   const isAdminOrManager = currentUser?.role === 'admin' || currentUser?.role === 'manager';
+  const isReporter = task ? uid(task.reporter) === uid(currentUser) : false;
+  const canDelete = isAdminOrManager || isReporter;
 
   const [tab, setTab] = useState<Tab>('details');
   const [comments, setComments] = useState<Comment[]>([]);
@@ -777,6 +780,24 @@ export default function TaskModal({ task, isOpen, onClose, onUpdate, members, pa
 
           </aside>
         </div>
+
+        {canDelete && onDelete && (
+          <div className={styles.modalDeleteBar}>
+            <Button
+              variant="danger"
+              size="sm"
+              onClick={() => { onDelete(task!); onClose(); }}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ marginRight: 4 }}>
+                <polyline points="3 6 5 6 21 6" />
+                <path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6" />
+                <path d="M10 11v6M14 11v6" />
+                <path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2" />
+              </svg>
+              Delete Task
+            </Button>
+          </div>
+        )}
       </div>
     </Modal>
   );
