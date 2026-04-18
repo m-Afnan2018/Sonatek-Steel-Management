@@ -1,4 +1,4 @@
-# Ganesyx PM — Team Project Management & Attendance
+# Ganesyx — Team Project Management & Attendance
 
 A full-stack, production-ready project management and attendance tracking web application with a dark industrial-professional design.
 

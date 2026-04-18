@@ -1,0 +1,201 @@
+/* ── Overlay ──────────────────────────────────────────────────────── */
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.35);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+
+.overlayEnter {
+  animation: fadeIn 0.2s ease forwards;
+}
+
+.overlayExit {
+  animation: fadeOut 0.35s ease forwards;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes fadeOut {
+  from { opacity: 1; }
+  to   { opacity: 0; }
+}
+
+/* ── Card ─────────────────────────────────────────────────────────── */
+.card {
+  background: #ffffff;
+  border-radius: 24px;
+  padding: 2.5rem 3rem 2rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.25rem;
+  box-shadow:
+    0 0 0 1px rgba(0,0,0,0.06),
+    0 8px 24px rgba(0,0,0,0.12),
+    0 32px 64px rgba(0,0,0,0.14);
+  min-width: 300px;
+  max-width: 380px;
+  width: 90vw;
+  overflow: hidden;
+  position: relative;
+}
+
+.cardEnter {
+  animation: popIn 0.38s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+.cardExit {
+  animation: popOut 0.32s cubic-bezier(0.4, 0, 1, 1) forwards;
+}
+
+@keyframes popIn {
+  from { opacity: 0; transform: scale(0.72) translateY(16px); }
+  to   { opacity: 1; transform: scale(1)   translateY(0); }
+}
+
+@keyframes popOut {
+  from { opacity: 1; transform: scale(1)    translateY(0); }
+  to   { opacity: 0; transform: scale(0.88) translateY(-8px); }
+}
+
+/* ── SVG icon ─────────────────────────────────────────────────────── */
+.iconWrap {
+  position: relative;
+}
+
+.svg {
+  width: 88px;
+  height: 88px;
+  overflow: visible;
+}
+
+/* Glow pulse behind the circle */
+.glowRing {
+  fill: none;
+  stroke: #10b981;
+  stroke-width: 1;
+  opacity: 0;
+  transform-origin: center;
+  animation: glowPulse 1.8s ease 0.5s infinite;
+}
+
+@keyframes glowPulse {
+  0%   { opacity: 0.6; transform: scale(1); }
+  100% { opacity: 0;   transform: scale(1.25); }
+}
+
+/* Solid fill circle */
+.circleFill {
+  fill: #ecfdf5;
+  opacity: 0;
+  animation: fadeEl 0.15s ease 0.1s forwards;
+}
+
+/* Animated stroke ring drawing itself */
+.circleStroke {
+  fill: none;
+  stroke: #10b981;
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-dasharray: 214;
+  stroke-dashoffset: 214;
+  transform-origin: center;
+  transform: rotate(-90deg);
+  animation: drawRing 0.5s cubic-bezier(0.65, 0, 0.35, 1) 0.1s forwards;
+}
+
+@keyframes drawRing {
+  to { stroke-dashoffset: 0; }
+}
+
+/* Check polyline drawing itself */
+.check {
+  fill: none;
+  stroke: #10b981;
+  stroke-width: 4.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: 52;
+  stroke-dashoffset: 52;
+  animation: drawCheck 0.32s cubic-bezier(0.65, 0, 0.35, 1) 0.5s forwards;
+}
+
+@keyframes drawCheck {
+  to { stroke-dashoffset: 0; }
+}
+
+@keyframes fadeEl {
+  to { opacity: 1; }
+}
+
+/* ── Text ─────────────────────────────────────────────────────────── */
+.text {
+  text-align: center;
+  animation: textFade 0.3s ease 0.55s both;
+}
+
+@keyframes textFade {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0 0 0.3rem;
+  letter-spacing: -0.01em;
+}
+
+.subtitle {
+  font-size: 0.875rem;
+  color: #64748b;
+  margin: 0;
+}
+
+/* ── Progress bar ─────────────────────────────────────────────────── */
+.progressTrack {
+  width: 100%;
+  height: 3px;
+  background: #f1f5f9;
+  border-radius: 99px;
+  overflow: hidden;
+  animation: textFade 0.3s ease 0.55s both;
+}
+
+.progressBar {
+  height: 100%;
+  background: linear-gradient(90deg, #10b981, #34d399);
+  border-radius: 99px;
+  transform-origin: left;
+  animation: shrinkBar 2s linear 0.4s forwards;
+}
+
+@keyframes shrinkBar {
+  from { width: 100%; }
+  to   { width: 0%; }
+}
+
+/* ── Dark mode ────────────────────────────────────────────────────── */
+@media (prefers-color-scheme: dark) {
+  .card {
+    background: #1e293b;
+    box-shadow:
+      0 0 0 1px rgba(255,255,255,0.06),
+      0 8px 24px rgba(0,0,0,0.4),
+      0 32px 64px rgba(0,0,0,0.5);
+  }
+  .circleFill { fill: #064e3b; }
+  .title    { color: #f1f5f9; }
+  .subtitle { color: #94a3b8; }
+  .progressTrack { background: #334155; }
+}

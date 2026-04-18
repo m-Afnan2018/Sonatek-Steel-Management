@@ -5,6 +5,11 @@ export interface IProjectMember {
   role: 'lead' | 'member' | 'viewer';
 }
 
+export interface IProjectLink {
+  title: string;
+  url: string;
+}
+
 export interface IProject extends Document {
   title: string;
   description: string;
@@ -17,6 +22,7 @@ export interface IProject extends Document {
   tags: string[];
   progress: number;
   thumbnail?: string;
+  links: IProjectLink[];
   createdAt: Date;
   updatedAt: Date;
 }
@@ -41,6 +47,12 @@ const projectSchema = new Schema<IProject>(
     tags: [{ type: String, trim: true }],
     progress: { type: Number, default: 0, min: 0, max: 100 },
     thumbnail: { type: String, default: '' },
+    links: [
+      {
+        title: { type: String, required: true, trim: true },
+        url: { type: String, required: true, trim: true },
+      },
+    ],
   },
   { timestamps: true }
 );

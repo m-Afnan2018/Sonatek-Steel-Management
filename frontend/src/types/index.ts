@@ -25,6 +25,11 @@ export interface ProjectMember {
   role: 'lead' | 'member' | 'viewer';
 }
 
+export interface ProjectLink {
+  title: string;
+  url: string;
+}
+
 export interface Project {
   _id: string;
   title: string;
@@ -38,6 +43,7 @@ export interface Project {
   tags: string[];
   progress: number;
   thumbnail?: string;
+  links?: ProjectLink[];
   taskCounts?: Record<string, number>;
   totalTasks?: number;
   createdAt: string;
@@ -68,6 +74,7 @@ export interface Task {
   assignees: User[];
   reporter: User;
   dueDate?: string;
+  dueTime?: string;
   estimatedHours?: number;
   tags: string[];
   dependencies: Task[];
@@ -200,6 +207,7 @@ export interface CalendarEvent {
   endTime?: string;
   allDay: boolean;
   color: string;
+  links: string[];
   owner: User;
   createdBy: User;
   invitees: User[];

@@ -21,6 +21,7 @@ interface TaskModalProps {
   onClose: () => void;
   onUpdate: (task: Task) => void;
   onDelete?: (task: Task) => void;
+  onSaved?: () => void;
   members: User[];
   patchTimer?: (id: string, action: 'start' | 'pause' | 'resume' | 'hold' | 'finish') => Promise<Task | null>;
 }
@@ -48,7 +49,7 @@ function uid(u: User | any): string {
   return (u?.id || u?._id)?.toString() ?? '';
 }
 
-export default function TaskModal({ task, isOpen, onClose, onUpdate, onDelete, members, patchTimer }: TaskModalProps) {
+export default function TaskModal({ task, isOpen, onClose, onUpdate, onDelete, onSaved, members, patchTimer }: TaskModalProps) {
   const { updateTask, addComment } = useTasks();
   const currentUser = useAuthStore((s) => s.user);
   const isAdminOrManager = currentUser?.role === 'admin' || currentUser?.role === 'manager';
@@ -70,6 +71,7 @@ export default function TaskModal({ task, isOpen, onClose, onUpdate, onDelete, m
   const [editStatus, setEditStatus] = useState('');
   const [editPriority, setEditPriority] = useState('');
   const [editDue, setEditDue] = useState('');
+  const [editDueTime, setEditDueTime] = useState('');
   const [editEstHours, setEditEstHours] = useState('');
 
   // Links
@@ -107,6 +109,7 @@ export default function TaskModal({ task, isOpen, onClose, onUpdate, onDelete, m
       setEditStatus(task.status);
       setEditPriority(task.priority);
       setEditDue(task.dueDate ? task.dueDate.split('T')[0] : '');
+      setEditDueTime(task.dueTime || '');
       setComments(task.comments || []);
       setLinks(task.links || []);
       setAttachments(task.attachments || []);
@@ -121,6 +124,16 @@ export default function TaskModal({ task, isOpen, onClose, onUpdate, onDelete, m
 
   if (!task) return null;
 
+  // Dirty check — any main field changed from the task prop
+  const isDirty =
+    editTitle.trim() !== task.title ||
+    editDesc !== (task.description || '') ||
+    editStatus !== task.status ||
+    editPriority !== task.priority ||
+    editDue !== (task.dueDate ? task.dueDate.split('T')[0] : '') ||
+    editDueTime !== (task.dueTime || '') ||
+    editNotes !== (task.notes || '');
+
   // ── Helpers ──────────────────────────────────────────────────────
   const save = async (patch: Partial<Task>) => {
     setSaving(true);
@@ -130,25 +143,30 @@ export default function TaskModal({ task, isOpen, onClose, onUpdate, onDelete, m
     return updated;
   };
 
-  const handleTitleSave = async () => {
-    if (!editTitle.trim() || editTitle === task.title) { setEditingTitle(false); return; }
-    await save({ title: editTitle } as Partial<Task>);
+  // Main save — commits all editable fields, closes modal, fires onSaved
+  const handleSaveAll = async () => {
+    const updated = await save({
+      title: editTitle.trim() || task.title,
+      description: editDesc,
+      status: editStatus as Task['status'],
+      priority: editPriority as Task['priority'],
+      dueDate: editDue || undefined,
+      dueTime: editDueTime || undefined,
+      notes: editNotes,
+    } as Partial<Task>);
+    if (updated) {
+      onClose();
+      onSaved?.();
+    }
+  };
+
+  const handleTitleSave = () => {
+    if (!editTitle.trim()) setEditTitle(task.title);
     setEditingTitle(false);
   };
 
-  const handleDescSave = async () => {
-    await save({ description: editDesc } as Partial<Task>);
+  const handleDescSave = () => {
     setEditingDesc(false);
-  };
-
-  const handleMetaSave = async (field: string, value: string) => {
-    await save({ [field]: value } as Partial<Task>);
-  };
-
-  const handleNotesSave = async () => {
-    setSavingNotes(true);
-    await save({ notes: editNotes } as Partial<Task>);
-    setSavingNotes(false);
   };
 
   const handleAssigneesSave = async () => {
@@ -409,7 +427,7 @@ export default function TaskModal({ task, isOpen, onClose, onUpdate, onDelete, m
                       autoFocus
                     />
                     <div className={styles.editActions}>
-                      <Button size="sm" onClick={handleDescSave} loading={saving}>Save</Button>
+                      <Button size="sm" onClick={handleDescSave}>Done</Button>
                       <Button size="sm" variant="ghost" onClick={() => { setEditDesc(task.description || ''); setEditingDesc(false); }}>Cancel</Button>
                     </div>
                   </div>
@@ -492,7 +510,6 @@ export default function TaskModal({ task, isOpen, onClose, onUpdate, onDelete, m
               <div className={styles.section}>
                 <div className={styles.sectionHeader}>
                   <span className={styles.sectionLabel}>Notes</span>
-                  <Button size="sm" onClick={handleNotesSave} loading={savingNotes}>Save</Button>
                 </div>
                 <textarea
                   className={styles.notesTextarea}
@@ -713,7 +730,7 @@ export default function TaskModal({ task, isOpen, onClose, onUpdate, onDelete, m
               <div className={styles.metaRow}>
                 <span className={styles.sideLabel}>Status</span>
                 <select className={styles.metaSelect} value={editStatus}
-                  onChange={(e) => { setEditStatus(e.target.value); handleMetaSave('status', e.target.value); }}>
+                  onChange={(e) => setEditStatus(e.target.value)}>
                   <option value="backlog">Backlog</option>
                   <option value="todo">To Do</option>
                   <option value="in_progress">In Progress</option>
@@ -724,7 +741,7 @@ export default function TaskModal({ task, isOpen, onClose, onUpdate, onDelete, m
               <div className={styles.metaRow}>
                 <span className={styles.sideLabel}>Priority</span>
                 <select className={styles.metaSelect} value={editPriority}
-                  onChange={(e) => { setEditPriority(e.target.value); handleMetaSave('priority', e.target.value); }}>
+                  onChange={(e) => setEditPriority(e.target.value)}>
                   <option value="low">Low</option>
                   <option value="medium">Medium</option>
                   <option value="high">High</option>
@@ -734,34 +751,22 @@ export default function TaskModal({ task, isOpen, onClose, onUpdate, onDelete, m
               <div className={styles.metaRow}>
                 <span className={styles.sideLabel}>Due Date</span>
                 <input type="date" className={styles.metaDate} value={editDue}
-                  onChange={(e) => { setEditDue(e.target.value); handleMetaSave('dueDate', e.target.value); }} />
+                  onChange={(e) => setEditDue(e.target.value)} />
               </div>
               <div className={styles.metaRow}>
-                <span className={styles.sideLabel}>Est. Hours</span>
-                {isAdminOrManager ? (
-                  <input
-                    type="number"
-                    min="0"
-                    step="0.5"
-                    className={styles.metaDate}
-                    value={editEstHours}
-                    placeholder="0"
-                    onChange={(e) => setEditEstHours(e.target.value)}
-                    onBlur={() => {
-                      const val = editEstHours === '' ? null : parseFloat(editEstHours);
-                      if (val !== task.estimatedHours) {
-                        save({ estimatedHours: val ?? undefined } as Partial<Task>);
-                      }
-                    }}
-                  />
-                ) : (
-                  <span className={styles.metaValue}>
-                    {task.estimatedHours != null && task.estimatedHours > 0
-                      ? `${task.estimatedHours}h`
-                      : <span style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>—</span>
-                    }
-                  </span>
-                )}
+                <span className={styles.sideLabel}>Due Time</span>
+                <div className={styles.dueTimeWrap}>
+                  <input type="time" className={styles.metaDate} value={editDueTime}
+                    onChange={(e) => setEditDueTime(e.target.value)} />
+                  {editDueTime && (
+                    <button
+                      type="button"
+                      className={styles.clearTimeBtn}
+                      onClick={() => setEditDueTime('')}
+                      title="Clear due time"
+                    >✕</button>
+                  )}
+                </div>
               </div>
               <div className={styles.metaRow}>
                 <span className={styles.sideLabel}>Reporter</span>
@@ -781,8 +786,8 @@ export default function TaskModal({ task, isOpen, onClose, onUpdate, onDelete, m
           </aside>
         </div>
 
-        {canDelete && onDelete && (
-          <div className={styles.modalDeleteBar}>
+        <div className={styles.modalFooterBar}>
+          {canDelete && onDelete && (
             <Button
               variant="danger"
               size="sm"
@@ -796,8 +801,16 @@ export default function TaskModal({ task, isOpen, onClose, onUpdate, onDelete, m
               </svg>
               Delete Task
             </Button>
-          </div>
-        )}
+          )}
+          <Button
+            size="sm"
+            onClick={handleSaveAll}
+            loading={saving}
+            disabled={!isDirty || saving}
+          >
+            Save Changes
+          </Button>
+        </div>
       </div>
     </Modal>
   );

@@ -32,6 +32,21 @@
   color: var(--text-muted);
 }
 
+.dueOverdue {
+  color: var(--danger);
+  font-weight: 600;
+}
+
+.cardOverdue {
+  border-color: var(--danger) !important;
+  background: rgba(239, 68, 68, 0.05) !important;
+}
+
+.cardOverdue:hover {
+  border-color: var(--danger) !important;
+  box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.15), var(--shadow-sm);
+}
+
 .title {
   font-size: 0.8125rem;
   font-weight: 600;

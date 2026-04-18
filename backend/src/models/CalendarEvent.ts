@@ -17,6 +17,7 @@ export interface ICalendarEvent extends Document {
   endTime?: string;   // "HH:MM"
   allDay: boolean;
   color: string;
+  links: string[];
   project?: mongoose.Types.ObjectId;
   owner: mongoose.Types.ObjectId;      // the user this event belongs to
   createdBy: mongoose.Types.ObjectId;  // who created it (admin can create for others)
@@ -44,6 +45,7 @@ const calendarEventSchema = new Schema<ICalendarEvent>(
     createdBy: { type: Schema.Types.ObjectId, ref: 'User', required: true },
     invitees: [{ type: Schema.Types.ObjectId, ref: 'User' }],
     location: { type: String, trim: true },
+    links: [{ type: String }],
     recurrence: { type: String, enum: ['none', 'daily', 'weekly', 'monthly'], default: 'none' },
     attachments: [
       {

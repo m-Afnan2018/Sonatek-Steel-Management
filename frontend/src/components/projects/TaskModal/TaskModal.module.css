@@ -568,6 +568,34 @@
   color: var(--text-secondary);
 }
 
+.dueTimeWrap {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  flex: 1;
+}
+
+.dueTimeWrap .metaDate {
+  flex: 1;
+}
+
+.clearTimeBtn {
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  padding: 0.125rem 0.25rem;
+  border-radius: var(--radius-sm);
+  line-height: 1;
+  transition: color var(--transition);
+}
+
+.clearTimeBtn:hover {
+  color: var(--danger);
+}
+
 
 /* ─── Drop zone ──────────────────────────────────────────────────── */
 .dropZone {
@@ -762,13 +790,19 @@
   color: var(--text-primary);
 }
 
-/* ─── Delete bar ─────────────────────────────────────────────────── */
-.modalDeleteBar {
+/* ─── Footer bar (save + delete) ────────────────────────────────── */
+.modalFooterBar {
   display: flex;
-  justify-content: flex-end;
+  align-items: center;
+  justify-content: space-between;
   padding: 0.75rem 1.5rem;
   border-top: 1px solid var(--border);
   background: var(--surface);
+  gap: 0.75rem;
+}
+
+.modalFooterBar > :only-child {
+  margin-left: auto;
 }
 
 /* ─── Responsive ─────────────────────────────────────────────────── */

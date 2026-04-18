@@ -38,6 +38,7 @@ interface CalendarEvent {
   location?: string;
   recurrence: 'none' | 'daily' | 'weekly' | 'monthly';
   attachments: CalEventAttachment[];
+  links: string[];
   createdBy?: { id: string; name: string };
 }
 
@@ -65,6 +66,7 @@ interface EventFormState {
   recurrence: CalendarEvent['recurrence'];
   note: string;
   attachments: CalEventAttachment[];
+  links: string[];
 }
 
 /* ── Constants ──────────────────────────────────────────────────────── */
@@ -106,6 +108,7 @@ const EMPTY_FORM: EventFormState = {
   recurrence: 'none',
   note: '',
   attachments: [],
+  links: [],
 };
 
 /* ── Helpers ────────────────────────────────────────────────────────── */
@@ -289,6 +292,8 @@ export default function ProjectCalendar({ projectId }: ProjectCalendarProps) {
   const [mediaLoading, setMediaLoading] = useState(false);
   const [selectedMediaIds, setSelectedMediaIds] = useState<Set<string>>(new Set());
 
+  const [linkInput, setLinkInput] = useState('');
+
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   /* ── Fetch events ─────────────────────────────────────────────────── */
@@ -349,6 +354,7 @@ export default function ProjectCalendar({ projectId }: ProjectCalendarProps) {
   function openCreateModal() {
     setEditingEvent(null);
     setForm({ ...EMPTY_FORM, date: selectedDate });
+    setLinkInput('');
     setModalTab('details');
     setModalOpen(true);
   }
@@ -369,7 +375,9 @@ export default function ProjectCalendar({ projectId }: ProjectCalendarProps) {
       recurrence: ev.recurrence,
       note: ev.note ?? '',
       attachments: ev.attachments ?? [],
+      links: ev.links ?? [],
     });
+    setLinkInput('');
     setModalTab('details');
     setModalOpen(true);
   }
@@ -402,6 +410,7 @@ export default function ProjectCalendar({ projectId }: ProjectCalendarProps) {
         recurrence: form.recurrence,
         note: form.note || undefined,
         attachments: form.attachments,
+        links: form.links,
       };
       if (editingEvent) {
         await api.put(`/projects/${projectId}/calendar/${editingEvent._id}`, body);
@@ -461,6 +470,17 @@ export default function ProjectCalendar({ projectId }: ProjectCalendarProps) {
 
   function removeAttachment(idx: number) {
     setField('attachments', form.attachments.filter((_, i) => i !== idx));
+  }
+
+  function addLink() {
+    const val = linkInput.trim();
+    if (!val) return;
+    setField('links', [...form.links, val]);
+    setLinkInput('');
+  }
+
+  function removeLink(idx: number) {
+    setField('links', form.links.filter((_, i) => i !== idx));
   }
 
   /* ── Media picker ─────────────────────────────────────────────────── */
@@ -846,59 +866,103 @@ export default function ProjectCalendar({ projectId }: ProjectCalendarProps) {
         {/* ── Attachments tab ─────────────────────────────────────── */}
         {modalTab === 'attachments' && (
           <div className={styles.tabContent}>
-            <div className={styles.attachActions}>
-              <Button
-                variant="secondary"
-                size="sm"
-                onClick={() => fileInputRef.current?.click()}
-                loading={uploadingFile}
-                disabled={uploadingFile}
-              >
-                Upload File
-              </Button>
-              <Button variant="secondary" size="sm" onClick={openMediaPicker}>
-                Pick from Media Library
-              </Button>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*,video/*,application/pdf,.doc,.docx"
-                style={{ display: 'none' }}
-                onChange={handleFileSelect}
-              />
+            {/* File attachments */}
+            <div className={styles.attachSection}>
+              <p className={styles.attachSectionLabel}>Files</p>
+              <div className={styles.attachActions}>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => fileInputRef.current?.click()}
+                  loading={uploadingFile}
+                  disabled={uploadingFile}
+                >
+                  Upload File
+                </Button>
+                <Button variant="secondary" size="sm" onClick={openMediaPicker}>
+                  Pick from Media Library
+                </Button>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*,video/*,application/pdf,.doc,.docx"
+                  style={{ display: 'none' }}
+                  onChange={handleFileSelect}
+                />
+              </div>
+
+              {form.attachments.length === 0 ? (
+                <p className={styles.emptyAttach}>No file attachments yet.</p>
+              ) : (
+                <ul className={styles.attachList}>
+                  {form.attachments.map((att, idx) => (
+                    <li key={idx} className={styles.attachItem}>
+                      {att.fileType === 'image' ? (
+                        <img
+                          src={att.url.startsWith('http') ? att.url : `${STATIC_BASE}${att.url}`}
+                          alt={att.name}
+                          className={styles.attachThumb}
+                        />
+                      ) : (
+                        <span className={styles.attachIcon}>
+                          <AttachmentFileIcon fileType={att.fileType} />
+                        </span>
+                      )}
+                      <span className={styles.attachName}>{att.name}</span>
+                      <button
+                        className={styles.attachRemove}
+                        onClick={() => removeAttachment(idx)}
+                        aria-label="Remove attachment"
+                      >
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <path d="M18 6L6 18M6 6l12 12" />
+                        </svg>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
             </div>
 
-            {form.attachments.length === 0 ? (
-              <p className={styles.emptyAttach}>No attachments yet.</p>
-            ) : (
-              <ul className={styles.attachList}>
-                {form.attachments.map((att, idx) => (
-                  <li key={idx} className={styles.attachItem}>
-                    {att.fileType === 'image' ? (
-                      <img
-                        src={att.url.startsWith('http') ? att.url : `${STATIC_BASE}${att.url}`}
-                        alt={att.name}
-                        className={styles.attachThumb}
-                      />
-                    ) : (
-                      <span className={styles.attachIcon}>
-                        <AttachmentFileIcon fileType={att.fileType} />
-                      </span>
-                    )}
-                    <span className={styles.attachName}>{att.name}</span>
-                    <button
-                      className={styles.attachRemove}
-                      onClick={() => removeAttachment(idx)}
-                      aria-label="Remove attachment"
-                    >
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <path d="M18 6L6 18M6 6l12 12" />
+            {/* Links */}
+            <div className={styles.attachSection}>
+              <p className={styles.attachSectionLabel}>Links</p>
+              <div className={styles.linkInputRow}>
+                <input
+                  className={styles.linkInputField}
+                  type="text"
+                  placeholder="https://..."
+                  value={linkInput}
+                  onChange={e => setLinkInput(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), addLink())}
+                />
+                <button type="button" className={styles.linkAddBtn} onClick={addLink}>+</button>
+              </div>
+              {form.links.length === 0 ? (
+                <p className={styles.emptyAttach}>No links yet.</p>
+              ) : (
+                <ul className={styles.linkList}>
+                  {form.links.map((l, idx) => (
+                    <li key={idx} className={styles.linkItem}>
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className={styles.linkIcon}>
+                        <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
+                        <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
                       </svg>
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            )}
+                      <span className={styles.linkText}>{l.length > 55 ? l.substring(0, 55) + '…' : l}</span>
+                      <button
+                        className={styles.attachRemove}
+                        onClick={() => removeLink(idx)}
+                        aria-label="Remove link"
+                      >
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <path d="M18 6L6 18M6 6l12 12" />
+                        </svg>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
           </div>
         )}
 
@@ -1090,6 +1154,30 @@ function EventDetailModal({ event, canModify, onClose, onEdit, onDelete }: Event
                   </a>
                 );
               })}
+            </div>
+          </div>
+        )}
+
+        {/* Links */}
+        {event.links && event.links.length > 0 && (
+          <div className={styles.viewSection}>
+            <p className={styles.viewSectionLabel}>Links ({event.links.length})</p>
+            <div className={styles.viewLinkList}>
+              {event.links.map((l, i) => (
+                <a
+                  key={i}
+                  href={l.startsWith('http') ? l : `https://${l}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={styles.viewLink}
+                >
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
+                    <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
+                  </svg>
+                  <span>{l.length > 60 ? l.substring(0, 60) + '…' : l}</span>
+                </a>
+              ))}
             </div>
           </div>
         )}

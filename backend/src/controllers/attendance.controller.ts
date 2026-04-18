@@ -318,18 +318,90 @@ export const getTeamTimeline = async (req: Request, res: Response): Promise<void
 
 export const updateAttendance = async (req: Request, res: Response): Promise<void> => {
   try {
-    const attendance = await Attendance.findByIdAndUpdate(
-      req.params.id,
-      { $set: { ...req.body, approvedBy: req.user?.id } },
-      { new: true, runValidators: true }
-    ).populate('user', 'name email avatar');
-
-    if (!attendance) {
+    const existing = await Attendance.findById(req.params.id);
+    if (!existing) {
       res.status(404).json({ message: 'Attendance record not found.' });
       return;
     }
+
+    const body = req.body;
+    const updateData: Record<string, unknown> = { ...body, approvedBy: req.user?.id };
+
+    // Resolve times: use incoming value if provided, else fall back to what's stored
+    const checkIn    = body.checkIn    !== undefined ? (body.checkIn    ? new Date(body.checkIn)    : undefined) : existing.checkIn;
+    const checkOut   = body.checkOut   !== undefined ? (body.checkOut   ? new Date(body.checkOut)   : undefined) : existing.checkOut;
+    const lStart     = body.lunchStart !== undefined ? (body.lunchStart ? new Date(body.lunchStart) : undefined) : existing.lunchStart;
+    const lStop      = body.lunchStop  !== undefined ? (body.lunchStop  ? new Date(body.lunchStop)  : undefined) : existing.lunchStop;
+
+    // Recalculate lunch duration
+    if (lStart && lStop) {
+      updateData.lunchDuration = Math.round((lStop.getTime() - lStart.getTime()) / (1000 * 60));
+    }
+
+    // Recalculate hours worked
+    if (checkIn && checkOut) {
+      const totalMs  = checkOut.getTime() - checkIn.getTime();
+      const lunchMs  = ((updateData.lunchDuration as number) ?? existing.lunchDuration ?? 0) * 60 * 1000;
+      updateData.hoursWorked = Math.max(0, Math.round(((totalMs - lunchMs) / (1000 * 60 * 60)) * 100) / 100);
+    }
+
+    const attendance = await Attendance.findByIdAndUpdate(
+      req.params.id,
+      { $set: updateData },
+      { new: true, runValidators: true }
+    ).populate('user', 'name email avatar');
+
     res.json(attendance);
   } catch (error) {
+    console.error('UpdateAttendance error:', error);
+    res.status(500).json({ message: 'Server error.' });
+  }
+};
+
+export const adminCreateAttendance = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { userId, date, checkIn, checkOut, lunchStart, lunchStop, status, workMode, isLate } = req.body;
+    if (!userId || !date) {
+      res.status(400).json({ message: 'userId and date are required.' });
+      return;
+    }
+
+    const d = new Date(date);
+    const dateOnly = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+
+    const existing = await Attendance.findOne({ user: userId, date: dateOnly });
+    if (existing) {
+      res.status(400).json({ message: 'Record already exists for this date. Use update instead.' });
+      return;
+    }
+
+    const record = new Attendance({
+      user: userId,
+      date: dateOnly,
+      status: status || 'present',
+      workMode: workMode || 'office',
+      isLate: isLate || false,
+      approvedBy: req.user?.id,
+    });
+
+    if (checkIn)    record.checkIn    = new Date(checkIn);
+    if (checkOut)   record.checkOut   = new Date(checkOut);
+    if (lunchStart) record.lunchStart = new Date(lunchStart);
+    if (lunchStop)  record.lunchStop  = new Date(lunchStop);
+
+    if (record.lunchStart && record.lunchStop) {
+      record.lunchDuration = Math.round((record.lunchStop.getTime() - record.lunchStart.getTime()) / (1000 * 60));
+    }
+    if (record.checkIn && record.checkOut) {
+      const totalMs = record.checkOut.getTime() - record.checkIn.getTime();
+      const lunchMs = (record.lunchDuration || 0) * 60 * 1000;
+      record.hoursWorked = Math.max(0, Math.round(((totalMs - lunchMs) / (1000 * 60 * 60)) * 100) / 100);
+    }
+
+    await record.save();
+    res.status(201).json(record);
+  } catch (error) {
+    console.error('AdminCreateAttendance error:', error);
     res.status(500).json({ message: 'Server error.' });
   }
 };

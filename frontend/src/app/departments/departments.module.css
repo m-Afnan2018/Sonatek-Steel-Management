@@ -3,7 +3,7 @@
   display: grid;
   grid-template-columns: 260px 1fr;
   gap: 0;
-  height: calc(100vh - 60px); /* subtract topbar */
+  height: calc(100vh - 116px); /* subtract topbar */
   overflow: hidden;
 }
 

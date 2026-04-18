@@ -14,7 +14,7 @@ import { useAuthStore } from '@/store/authStore';
 import styles from './attendance.module.css';
 
 export default function AttendancePage() {
-  const { records, stats, loading, fetchMyAttendance, fetchUserAttendance, fetchStats, fetchUserStats } = useAttendance();
+  const { records, stats, loading, fetchMyAttendance, fetchUserAttendance, fetchStats, fetchUserStats, adminUpdateAttendance, adminCreateAttendance } = useAttendance();
   const { events, fetchEvents, createEvent, updateEvent, deleteEvent } = useCalendarEvents();
   const { members } = useTeam();
   const user = useAuthStore((s) => s.user);
@@ -108,25 +108,25 @@ export default function AttendancePage() {
                 records={records}
                 month={month}
                 year={year}
-                onRecordUpdate={() => fetchMyAttendance(month, year)}
+                onRecordUpdate={() => {
+                  if (isAdmin && viewUserId) {
+                    fetchUserAttendance(viewUserId, month, year);
+                    fetchUserStats(viewUserId, month, year);
+                  } else {
+                    fetchMyAttendance(month, year);
+                    fetchStats(month, year);
+                  }
+                }}
                 events={events}
                 onDaySelect={setSelectedDay}
                 selectedExternalDay={selectedDay}
+                isAdmin={isAdmin}
+                viewUserId={viewUserId || undefined}
+                onAdminUpdate={adminUpdateAttendance}
+                onAdminCreate={adminCreateAttendance}
               />
             )}
 
-            {selectedDay && (
-              <CalendarEventsPanel
-                selectedDay={selectedDay}
-                events={events}
-                currentUser={{ id: user?.id || '', role: user?.role || 'member' }}
-                members={teamMembers}
-                onClose={() => setSelectedDay(null)}
-                onCreate={(p) => createEvent(p as Record<string, unknown>)}
-                onUpdate={(id, p) => updateEvent(id, p as Record<string, unknown>)}
-                onDelete={deleteEvent}
-              />
-            )}
           </div>
 
           <div className={styles.sidebar}>
@@ -135,6 +135,16 @@ export default function AttendancePage() {
               viewUserName={members.find((m) => m.id === viewUserId)?.name}
             />
             <AttendanceStats stats={stats} />
+            <CalendarEventsPanel
+              selectedDay={selectedDay}
+              events={events}
+              currentUser={{ id: user?.id || '', role: user?.role || 'member' }}
+              members={teamMembers}
+              onClose={() => setSelectedDay(null)}
+              onCreate={(p) => createEvent(p as Record<string, unknown>)}
+              onUpdate={(id, p) => updateEvent(id, p as Record<string, unknown>)}
+              onDelete={deleteEvent}
+            />
           </div>
         </div>
       </div>

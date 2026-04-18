@@ -39,9 +39,14 @@ export default function TaskCard({
           }
         : undefined;
 
+    const isOverdue =
+        task.dueDate &&
+        task.status !== "done" &&
+        new Date(task.dueDate) < new Date();
+
     return (
         <div
-            className={styles.card}
+            className={`${styles.card} ${isOverdue ? styles.cardOverdue : ""}`}
             onClick={onClick}
             draggable
             onDragStart={onDragStart}
@@ -51,8 +56,8 @@ export default function TaskCard({
                     {task.priority}
                 </Badge>
                 {task.dueDate && (
-                    <span className={styles.due}>
-                        {formatDate(task.dueDate)}
+                    <span className={`${styles.due} ${isOverdue ? styles.dueOverdue : ""}`}>
+                        {isOverdue ? "⚠ " : ""}{formatDate(task.dueDate)}
                     </span>
                 )}
             </div>

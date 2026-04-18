@@ -6,6 +6,7 @@ import AppShell from '@/components/layout/AppShell/AppShell';
 import KanbanBoard from '@/components/projects/KanbanBoard/KanbanBoard';
 import ProjectListView from '@/components/projects/ProjectListView/ProjectListView';
 import TaskModal from '@/components/projects/TaskModal/TaskModal';
+import SuccessPopup from '@/components/ui/SuccessPopup/SuccessPopup';
 import MediaLibrary from '@/components/projects/MediaLibrary/MediaLibrary';
 import ProjectCalendar from '@/components/projects/ProjectCalendar/ProjectCalendar';
 import EditProjectModal from '@/components/projects/EditProjectModal/EditProjectModal';
@@ -30,12 +31,12 @@ const API_BASE = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api'
 
 type CreateTab = 'details' | 'notes' | 'links' | 'files';
 
-type TabType = 'board' | 'list' | 'members' | 'media' | 'calendar';
+type TabType = 'board' | 'list' | 'members' | 'media' | 'calendar' | 'links';
 
 export default function ProjectDetailPage() {
   const params = useParams();
   const projectId = params.id as string;
-  const { fetchProject } = useProjects(false);
+  const { fetchProject, updateProject } = useProjects(false);
   const { tasks, loading: tasksLoading, fetchTasks, createTask, updateTaskStatus, patchTimer } = useTasks();
   const { members } = useTeam();
   const { departments } = useDepartments();
@@ -87,6 +88,18 @@ export default function ProjectDetailPage() {
   const [newTaskAttachments, setNewTaskAttachments] = useState<Attachment[]>([]);
   const [createTab, setCreateTab] = useState<CreateTab>('details');
   const [createSubmitting, setCreateSubmitting] = useState(false);
+  const [successPopup, setSuccessPopup] = useState<{ visible: boolean; title: string; subtitle: string }>({ visible: false, title: '', subtitle: '' });
+
+  const showSuccess = (title: string, subtitle: string) => setSuccessPopup({ visible: true, title, subtitle });
+  const hideSuccess = () => setSuccessPopup((s) => ({ ...s, visible: false }));
+
+  // Links state
+  const [linkTitle, setLinkTitle] = useState('');
+  const [linkUrl, setLinkUrl] = useState('');
+  const [savingLinks, setSavingLinks] = useState(false);
+  const [editingLinkIdx, setEditingLinkIdx] = useState<number | null>(null);
+  const [editLinkTitle, setEditLinkTitle] = useState('');
+  const [editLinkUrl, setEditLinkUrl] = useState('');
   const [fileUploading, setFileUploading] = useState(false);
   const [fileUploadError, setFileUploadError] = useState('');
   const [isDragging, setIsDragging] = useState(false);
@@ -163,6 +176,7 @@ export default function ProjectDetailPage() {
       });
       resetCreateForm();
       setShowCreateTask(false);
+      showSuccess('Task Created!', 'Your new task has been added to the board.');
     } finally {
       setCreateSubmitting(false);
     }
@@ -226,6 +240,48 @@ export default function ProjectDetailPage() {
     } catch {
       // ignore
     }
+  };
+
+  const saveLinks = async (links: { title: string; url: string }[]) => {
+    setSavingLinks(true);
+    const updated = await updateProject(projectId, { links } as any);
+    if (updated) setProject(updated);
+    setSavingLinks(false);
+  };
+
+  const handleAddLink = async () => {
+    const t = linkTitle.trim();
+    const u = linkUrl.trim();
+    if (!t || !u) return;
+    const existing = project?.links || [];
+    await saveLinks([...existing, { title: t, url: u }]);
+    setLinkTitle('');
+    setLinkUrl('');
+  };
+
+  const handleDeleteLink = async (idx: number) => {
+    const updated = (project?.links || []).filter((_, i) => i !== idx);
+    await saveLinks(updated);
+  };
+
+  const handleEditLink = (idx: number) => {
+    const link = project?.links?.[idx];
+    if (!link) return;
+    setEditingLinkIdx(idx);
+    setEditLinkTitle(link.title);
+    setEditLinkUrl(link.url);
+  };
+
+  const handleSaveEditLink = async () => {
+    if (editingLinkIdx === null) return;
+    const t = editLinkTitle.trim();
+    const u = editLinkUrl.trim();
+    if (!t || !u) return;
+    const updated = (project?.links || []).map((l, i) =>
+      i === editingLinkIdx ? { title: t, url: u } : l
+    );
+    await saveLinks(updated);
+    setEditingLinkIdx(null);
   };
 
   const canManage = user?.role === 'admin' || user?.role === 'manager';
@@ -304,6 +360,12 @@ export default function ProjectDetailPage() {
           >
             Calendar
           </button>
+          <button
+            className={`${styles.tab} ${activeTab === 'links' ? styles.tabActive : ''}`}
+            onClick={() => setActiveTab('links')}
+          >
+            Links{project.links && project.links.length > 0 && <span className={styles.tabBadge}>{project.links.length}</span>}
+          </button>
 
           <div className={styles.tabActions}>
             <Button size="sm" onClick={() => setShowCreateTask(true)}>
@@ -368,6 +430,115 @@ export default function ProjectDetailPage() {
         {activeTab === 'calendar' && (
           <ProjectCalendar projectId={projectId} />
         )}
+
+        {activeTab === 'links' && (
+          <div className={styles.linksPanel}>
+            {/* Add link form — admins/managers only */}
+            {canManage && (
+              <div className={styles.linkAddCard}>
+                <h3 className={styles.linkAddTitle}>Add Link</h3>
+                <div className={styles.linkAddRow}>
+                  <input
+                    className={styles.linkInput}
+                    placeholder="Title (e.g. Figma Design)"
+                    value={linkTitle}
+                    onChange={(e) => setLinkTitle(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && handleAddLink()}
+                  />
+                  <input
+                    className={styles.linkInput}
+                    placeholder="https://..."
+                    value={linkUrl}
+                    onChange={(e) => setLinkUrl(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && handleAddLink()}
+                  />
+                  <button
+                    className={styles.linkAddBtn}
+                    onClick={handleAddLink}
+                    disabled={!linkTitle.trim() || !linkUrl.trim() || savingLinks}
+                  >
+                    {savingLinks ? '…' : '+ Add'}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Link list */}
+            {!project.links || project.links.length === 0 ? (
+              <div className={styles.linksEmpty}>
+                <span className={styles.linksEmptyIcon}>🔗</span>
+                <p>No links added yet.</p>
+                {canManage && <p className={styles.linksEmptySub}>Use the form above to add your first link.</p>}
+              </div>
+            ) : (
+              <div className={styles.linkList}>
+                {project.links.map((link, idx) => (
+                  <div key={idx} className={styles.linkItem}>
+                    {editingLinkIdx === idx ? (
+                      /* Inline edit row */
+                      <div className={styles.linkEditRow}>
+                        <input
+                          className={styles.linkInput}
+                          value={editLinkTitle}
+                          onChange={(e) => setEditLinkTitle(e.target.value)}
+                          placeholder="Title"
+                          autoFocus
+                        />
+                        <input
+                          className={styles.linkInput}
+                          value={editLinkUrl}
+                          onChange={(e) => setEditLinkUrl(e.target.value)}
+                          placeholder="https://..."
+                        />
+                        <button className={styles.linkSaveBtn} onClick={handleSaveEditLink} disabled={savingLinks}>Save</button>
+                        <button className={styles.linkCancelBtn} onClick={() => setEditingLinkIdx(null)}>Cancel</button>
+                      </div>
+                    ) : (
+                      <>
+                        <span className={styles.linkIcon}>
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/>
+                            <path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/>
+                          </svg>
+                        </span>
+                        <a
+                          href={link.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className={styles.linkTitle}
+                        >
+                          {link.title}
+                          <svg className={styles.linkExtIcon} width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/>
+                            <polyline points="15 3 21 3 21 9"/>
+                            <line x1="10" y1="14" x2="21" y2="3"/>
+                          </svg>
+                        </a>
+                        {canManage && (
+                          <div className={styles.linkActions}>
+                            <button className={styles.linkEditBtn} onClick={() => handleEditLink(idx)} title="Edit">
+                              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/>
+                                <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                              </svg>
+                            </button>
+                            <button className={styles.linkDeleteBtn} onClick={() => handleDeleteLink(idx)} title="Delete">
+                              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <polyline points="3 6 5 6 21 6"/>
+                                <path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/>
+                                <path d="M10 11v6M14 11v6"/>
+                              </svg>
+                            </button>
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       <TaskModal
@@ -375,8 +546,16 @@ export default function ProjectDetailPage() {
         isOpen={showTaskModal}
         onClose={() => { setShowTaskModal(false); setSelectedTask(null); }}
         onUpdate={handleTaskUpdate}
+        onSaved={() => { setShowTaskModal(false); setSelectedTask(null); showSuccess('Task Updated!', 'All changes have been saved.'); }}
         members={members}
         patchTimer={patchTimer}
+      />
+
+      <SuccessPopup
+        visible={successPopup.visible}
+        title={successPopup.title}
+        subtitle={successPopup.subtitle}
+        onDone={hideSuccess}
       />
 
       {/* ── Edit Project Modal ── */}

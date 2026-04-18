@@ -11,6 +11,7 @@ import {
   getTeamTimeline,
   getAttendanceStats,
   updateAttendance,
+  adminCreateAttendance,
   addNoteToDate,
   deleteNote,
 } from '../controllers/attendance.controller';
@@ -31,6 +32,7 @@ router.get('/user/:userId/stats', authorize('admin'), getUserAttendanceStats);
 router.get('/team', authorize('admin', 'manager'), getTeamAttendance);
 router.get('/team/timeline', authorize('admin', 'manager'), getTeamTimeline);
 router.get('/stats', getAttendanceStats);
+router.post('/admin', authorize('admin'), adminCreateAttendance);
 router.put('/:id', authorize('admin'), updateAttendance);
 router.post('/notes', addNoteToDate);
 router.delete('/:id/notes/:noteIndex', deleteNote);

@@ -9,6 +9,7 @@ import Avatar from '@/components/ui/Avatar/Avatar';
 import Spinner from '@/components/ui/Spinner/Spinner';
 import TaskTimer from '@/components/tasks/TaskTimer';
 import TaskModal from '@/components/projects/TaskModal/TaskModal';
+import SuccessPopup from '@/components/ui/SuccessPopup/SuccessPopup';
 import { useTasks } from '@/hooks/useTasks';
 import { useProjects } from '@/hooks/useProjects';
 import { useTeam } from '@/hooks/useTeam';
@@ -75,6 +76,10 @@ export default function TasksPage() {
   const [completedOpen, setCompletedOpen] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState<Task | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [successPopup, setSuccessPopup] = useState<{ visible: boolean; title: string; subtitle: string }>({ visible: false, title: '', subtitle: '' });
+
+  const showSuccess = (title: string, subtitle: string) => setSuccessPopup({ visible: true, title, subtitle });
+  const hideSuccess = () => setSuccessPopup((s) => ({ ...s, visible: false }));
 
   const [filterStatus, setFilterStatus] = useState('');
   const [filterPriority, setFilterPriority] = useState('');
@@ -152,6 +157,7 @@ export default function TasksPage() {
     setSaving(false);
     setShowCreate(false);
     resetCreateForm();
+    showSuccess('Task Created!', 'Your new task has been added.');
   };
 
   const addLink = () => {
@@ -736,8 +742,16 @@ export default function TasksPage() {
         onClose={() => { setShowTaskModal(false); setSelectedTask(null); }}
         onUpdate={handleTaskUpdate}
         onDelete={(t) => { setShowTaskModal(false); setSelectedTask(null); setDeleteConfirm(t); }}
+        onSaved={() => { setShowTaskModal(false); setSelectedTask(null); showSuccess('Task Updated!', 'All changes have been saved.'); }}
         members={members}
         patchTimer={patchTimer}
+      />
+
+      <SuccessPopup
+        visible={successPopup.visible}
+        title={successPopup.title}
+        subtitle={successPopup.subtitle}
+        onDone={hideSuccess}
       />
 
       {/* Delete confirm */}
@@ -806,7 +820,7 @@ function TaskRow({
 
   return (
     <div
-      className={`${styles.taskRow} ${accentClass} ${task.status === 'done' ? styles.taskDone : ''}`}
+      className={`${styles.taskRow} ${accentClass} ${task.status === 'done' ? styles.taskDone : ''} ${isOverdue ? styles.taskRowOverdue : ''}`}
       onClick={() => onClick(task)}
       role="button"
       tabIndex={0}

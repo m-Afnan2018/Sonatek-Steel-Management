@@ -18,6 +18,30 @@ const statusVariant: Record<string, 'success' | 'danger' | 'warning' | 'primary'
   leave: 'danger',
 };
 
+/** Returns hours worked as a display string.
+ *  - If checked out: use stored hoursWorked.
+ *  - If still checked in: (now − checkIn) − lunch taken so far. */
+function liveHours(r: Attendance): string {
+  if (!r.checkIn) return '-';
+
+  // Already checked out — use the stored value
+  if (r.checkOut) return `${r.hoursWorked.toFixed(1)}h`;
+
+  const now = Date.now();
+  const elapsedMs = now - new Date(r.checkIn).getTime();
+
+  // Lunch already finished
+  let lunchMs = (r.lunchDuration ?? 0) * 60 * 1000;
+
+  // Currently on lunch (lunchStart set, lunchStop not yet)
+  if (r.lunchStart && !r.lunchStop) {
+    lunchMs = now - new Date(r.lunchStart).getTime();
+  }
+
+  const hours = Math.max(0, (elapsedMs - lunchMs) / (1000 * 60 * 60));
+  return `${hours.toFixed(1)}h`;
+}
+
 export default function TeamAttendanceTable({ records }: TeamAttendanceTableProps) {
   return (
     <div className={styles.wrapper}>
@@ -68,7 +92,12 @@ export default function TeamAttendanceTable({ records }: TeamAttendanceTableProp
                 <td className={styles.lunch}>
                   {r.lunchDuration != null && r.lunchDuration > 0 ? `${r.lunchDuration}m` : '-'}
                 </td>
-                <td className={styles.hours}>{r.hoursWorked}h</td>
+                <td className={styles.hours}>
+                  {liveHours(r)}
+                  {r.checkIn && !r.checkOut && (
+                    <span className={styles.liveIndicator} title="Currently checked in" />
+                  )}
+                </td>
                 <td>
                   <span className={styles.mode}>{r.workMode}</span>
                 </td>

@@ -56,6 +56,7 @@ const emptyForm = {
   recurrence: 'none' as CalendarEvent['recurrence'],
   owner: '',
   invitees: [] as string[],
+  links: [] as string[],
 };
 
 export default function CalendarEventsPanel({
@@ -71,8 +72,12 @@ export default function CalendarEventsPanel({
   const [showForm, setShowForm] = useState(false);
   const [editingEvent, setEditingEvent] = useState<CalendarEvent | null>(null);
   const [form, setForm] = useState(emptyForm);
+  const [linkInput, setLinkInput] = useState('');
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState<string | null>(null);
+
+  // Detail popup state
+  const [viewingEvent, setViewingEvent] = useState<CalendarEvent | null>(null);
 
   const isAdminOrManager = currentUser.role === 'admin' || currentUser.role === 'manager';
 
@@ -83,6 +88,7 @@ export default function CalendarEventsPanel({
   const openCreate = () => {
     setEditingEvent(null);
     setForm({ ...emptyForm, owner: currentUser.id });
+    setLinkInput('');
     setShowForm(true);
   };
 
@@ -100,7 +106,10 @@ export default function CalendarEventsPanel({
       recurrence: ev.recurrence,
       owner: typeof ev.owner === 'object' ? ev.owner.id : ev.owner,
       invitees: ev.invitees.map((u) => (typeof u === 'object' ? u.id : u)),
+      links: ev.links || [],
     });
+    setLinkInput('');
+    setViewingEvent(null);
     setShowForm(true);
   };
 
@@ -121,18 +130,25 @@ export default function CalendarEventsPanel({
       recurrence: form.recurrence,
       owner: form.owner || currentUser.id,
       invitees: form.invitees,
+      links: form.links,
     };
 
+    let result: CalendarEvent | null = null;
     if (editingEvent) {
-      await onUpdate(editingEvent._id, payload);
+      result = await onUpdate(editingEvent._id, payload);
+      // Refresh the viewing event if it's the same one
+      if (result && viewingEvent?._id === editingEvent._id) {
+        setViewingEvent(result);
+      }
     } else {
-      await onCreate(payload);
+      result = await onCreate(payload);
     }
 
     setSaving(false);
     setShowForm(false);
     setEditingEvent(null);
     setForm({ ...emptyForm, owner: currentUser.id });
+    setLinkInput('');
   };
 
   const handleDelete = async (id: string) => {
@@ -140,6 +156,7 @@ export default function CalendarEventsPanel({
     setDeleting(id);
     await onDelete(id);
     setDeleting(null);
+    setViewingEvent(null);
   };
 
   const canEdit = (ev: CalendarEvent) => {
@@ -147,6 +164,17 @@ export default function CalendarEventsPanel({
     const ownerId = typeof ev.owner === 'object' ? ev.owner.id : ev.owner;
     const creatorId = typeof ev.createdBy === 'object' ? ev.createdBy.id : ev.createdBy;
     return ownerId === currentUser.id || creatorId === currentUser.id;
+  };
+
+  const addFormLink = () => {
+    const val = linkInput.trim();
+    if (!val) return;
+    setForm((f) => ({ ...f, links: [...f.links, val] }));
+    setLinkInput('');
+  };
+
+  const removeFormLink = (i: number) => {
+    setForm((f) => ({ ...f, links: f.links.filter((_, j) => j !== i) }));
   };
 
   if (!selectedDay) return null;
@@ -173,53 +201,132 @@ export default function CalendarEventsPanel({
       ) : (
         <div className={styles.eventList}>
           {dayEvents.map((ev) => (
-            <div key={ev._id} className={styles.eventCard} style={{ borderLeftColor: ev.color }}>
-              <div className={styles.eventTop}>
-                <div className={styles.eventTitleRow}>
-                  <span className={styles.eventIcon}>{TYPE_ICONS[ev.type]}</span>
-                  <span className={styles.eventTitle}>{ev.title}</span>
-                  <span className={styles.eventType}>{TYPE_LABELS[ev.type]}</span>
-                </div>
-                {canEdit(ev) && (
-                  <div className={styles.eventBtns}>
-                    <button className={styles.editBtn} onClick={() => openEdit(ev)}>Edit</button>
-                    <button
-                      className={styles.deleteBtn}
-                      onClick={() => handleDelete(ev._id)}
-                      disabled={deleting === ev._id}
-                    >
-                      {deleting === ev._id ? '...' : 'Delete'}
-                    </button>
-                  </div>
-                )}
+            <div
+              key={ev._id}
+              className={styles.eventCard}
+              style={{ borderLeftColor: ev.color }}
+              onClick={() => setViewingEvent(ev)}
+              title="Click for details"
+            >
+              <div className={styles.eventTitleRow}>
+                <span className={styles.eventIcon}>{TYPE_ICONS[ev.type]}</span>
+                <span className={styles.eventTitle}>{ev.title}</span>
+                <span className={styles.eventType}>{TYPE_LABELS[ev.type]}</span>
               </div>
-
               {(ev.startTime || ev.allDay) && (
                 <div className={styles.eventTime}>
                   {ev.allDay ? 'All day' : `${ev.startTime}${ev.endTime ? ` – ${ev.endTime}` : ''}`}
                 </div>
               )}
               {ev.location && <div className={styles.eventLocation}>📍 {ev.location}</div>}
-              {ev.description && <p className={styles.eventDesc}>{ev.description}</p>}
               {ev.invitees.length > 0 && (
                 <div className={styles.invitees}>
-                  {ev.invitees.slice(0, 5).map((u) => (
+                  {ev.invitees.slice(0, 4).map((u) => (
                     <Avatar key={typeof u === 'object' ? u.id : u} name={typeof u === 'object' ? u.name : ''} size="sm" />
                   ))}
-                  {ev.invitees.length > 5 && <span className={styles.moreInvitees}>+{ev.invitees.length - 5}</span>}
+                  {ev.invitees.length > 4 && <span className={styles.moreInvitees}>+{ev.invitees.length - 4}</span>}
                 </div>
-              )}
-              {ev.recurrence !== 'none' && (
-                <div className={styles.recurrence}>Repeats {ev.recurrence}</div>
               )}
             </div>
           ))}
         </div>
       )}
 
+      {/* ── Event Detail Modal ─────────────────────────────────────────── */}
+      <Modal
+        isOpen={!!viewingEvent}
+        onClose={() => setViewingEvent(null)}
+        title=""
+        size="sm"
+      >
+        {viewingEvent && (
+          <div className={styles.detailBody}>
+            <div className={styles.detailHeader} style={{ borderLeftColor: viewingEvent.color }}>
+              <span className={styles.detailIcon}>{TYPE_ICONS[viewingEvent.type]}</span>
+              <div className={styles.detailTitleWrap}>
+                <h3 className={styles.detailTitle}>{viewingEvent.title}</h3>
+                <span className={styles.detailTypeBadge}>{TYPE_LABELS[viewingEvent.type]}</span>
+              </div>
+            </div>
+
+            <div className={styles.detailMeta}>
+              {(viewingEvent.startTime || viewingEvent.allDay) && (
+                <div className={styles.detailRow}>
+                  <span className={styles.detailRowIcon}>🕐</span>
+                  <span>
+                    {viewingEvent.allDay
+                      ? 'All day'
+                      : `${viewingEvent.startTime}${viewingEvent.endTime ? ` – ${viewingEvent.endTime}` : ''}`}
+                  </span>
+                </div>
+              )}
+              {viewingEvent.location && (
+                <div className={styles.detailRow}>
+                  <span className={styles.detailRowIcon}>📍</span>
+                  <span>{viewingEvent.location}</span>
+                </div>
+              )}
+              {viewingEvent.recurrence !== 'none' && (
+                <div className={styles.detailRow}>
+                  <span className={styles.detailRowIcon}>🔁</span>
+                  <span>Repeats {viewingEvent.recurrence}</span>
+                </div>
+              )}
+            </div>
+
+            {viewingEvent.description && (
+              <p className={styles.detailDesc}>{viewingEvent.description}</p>
+            )}
+
+            {viewingEvent.invitees.length > 0 && (
+              <div className={styles.detailSection}>
+                <p className={styles.detailSectionLabel}>Invitees</p>
+                <div className={styles.detailInvitees}>
+                  {viewingEvent.invitees.map((u) => (
+                    <div key={typeof u === 'object' ? u.id : u} className={styles.detailInvitee}>
+                      <Avatar name={typeof u === 'object' ? u.name : ''} size="sm" />
+                      <span className={styles.detailInviteeName}>{typeof u === 'object' ? u.name : ''}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {viewingEvent.links && viewingEvent.links.length > 0 && (
+              <div className={styles.detailSection}>
+                <p className={styles.detailSectionLabel}>Links</p>
+                <div className={styles.detailLinks}>
+                  {viewingEvent.links.map((l, i) => (
+                    <a key={i} href={l.startsWith('http') ? l : `https://${l}`} target="_blank" rel="noopener noreferrer" className={styles.detailLink}>
+                      🔗 {l.length > 45 ? l.substring(0, 45) + '…' : l}
+                    </a>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {canEdit(viewingEvent) && (
+              <div className={styles.detailActions}>
+                <button className={styles.detailEditBtn} onClick={() => openEdit(viewingEvent)}>
+                  Edit
+                </button>
+                <button
+                  className={styles.detailDeleteBtn}
+                  onClick={() => handleDelete(viewingEvent._id)}
+                  disabled={deleting === viewingEvent._id}
+                >
+                  {deleting === viewingEvent._id ? 'Deleting…' : 'Delete'}
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+      </Modal>
+
+      {/* ── Create / Edit Form Modal ───────────────────────────────────── */}
       <Modal
         isOpen={showForm}
-        onClose={() => { setShowForm(false); setEditingEvent(null); }}
+        onClose={() => { setShowForm(false); setEditingEvent(null); setLinkInput(''); }}
         title={editingEvent ? 'Edit Event' : 'New Event'}
         size="md"
       >
@@ -309,6 +416,31 @@ export default function CalendarEventsPanel({
             />
           </div>
 
+          {/* Links */}
+          <div className={styles.field}>
+            <label>Links</label>
+            <div className={styles.linkRow}>
+              <input
+                value={linkInput}
+                onChange={(e) => setLinkInput(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addFormLink())}
+                placeholder="https://..."
+                className={styles.linkInput}
+              />
+              <button type="button" className={styles.addLinkBtn} onClick={addFormLink}>+</button>
+            </div>
+            {form.links.length > 0 && (
+              <div className={styles.linkChips}>
+                {form.links.map((l, i) => (
+                  <span key={i} className={styles.linkChip}>
+                    <span className={styles.linkChipText}>{l.length > 35 ? l.substring(0, 35) + '…' : l}</span>
+                    <button type="button" onClick={() => removeFormLink(i)}>×</button>
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
+
           <div className={styles.formRow}>
             <div className={styles.field}>
               <label>Recurrence</label>
@@ -336,22 +468,34 @@ export default function CalendarEventsPanel({
           {members.length > 0 && (
             <div className={styles.field}>
               <label>Invite Members</label>
-              <select
-                multiple
-                size={4}
-                value={form.invitees}
-                onChange={(e) => setForm({ ...form, invitees: Array.from(e.target.selectedOptions, (o) => o.value) })}
-              >
-                {members.filter((m) => m.id !== form.owner).map((m) => (
-                  <option key={m.id} value={m.id}>{m.name}</option>
-                ))}
-              </select>
-              <span className={styles.hint}>Hold Ctrl/Cmd to select multiple</span>
+              <div className={styles.inviteCheckList}>
+                {members.filter((m) => m.id !== form.owner).map((m) => {
+                  const checked = form.invitees.includes(m.id);
+                  return (
+                    <label key={m.id} className={styles.inviteCheckItem}>
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        onChange={() => {
+                          setForm((f) => ({
+                            ...f,
+                            invitees: checked
+                              ? f.invitees.filter((id) => id !== m.id)
+                              : [...f.invitees, m.id],
+                          }));
+                        }}
+                      />
+                      <Avatar name={m.name} size="sm" />
+                      <span>{m.name}</span>
+                    </label>
+                  );
+                })}
+              </div>
             </div>
           )}
 
           <div className={styles.formActions}>
-            <Button variant="secondary" onClick={() => { setShowForm(false); setEditingEvent(null); }}>Cancel</Button>
+            <Button variant="secondary" onClick={() => { setShowForm(false); setEditingEvent(null); setLinkInput(''); }}>Cancel</Button>
             <Button onClick={handleSave} loading={saving} disabled={!form.title.trim()}>
               {editingEvent ? 'Save Changes' : 'Create Event'}
             </Button>

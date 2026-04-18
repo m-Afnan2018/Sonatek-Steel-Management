@@ -88,6 +88,7 @@ export const createProjectCalendarEvent = async (req: Request, res: Response): P
       location,
       recurrence,
       attachments,
+      links,
     } = req.body as {
       title?: string;
       date?: string;
@@ -101,6 +102,7 @@ export const createProjectCalendarEvent = async (req: Request, res: Response): P
       location?: string;
       recurrence?: string;
       attachments?: Array<{ name?: string; url: string; mimeType?: string; fileType?: string }>;
+      links?: string[];
     };
 
     if (!title || !title.trim()) {
@@ -125,6 +127,7 @@ export const createProjectCalendarEvent = async (req: Request, res: Response): P
       location,
       recurrence,
       attachments: attachments ?? [],
+      links: links ?? [],
       project: new mongoose.Types.ObjectId(projectId),
       owner: new mongoose.Types.ObjectId(userId),
       createdBy: new mongoose.Types.ObjectId(userId),
@@ -175,6 +178,7 @@ export const updateProjectCalendarEvent = async (req: Request, res: Response): P
       location,
       recurrence,
       attachments,
+      links,
     } = req.body as {
       title?: string;
       date?: string;
@@ -188,6 +192,7 @@ export const updateProjectCalendarEvent = async (req: Request, res: Response): P
       location?: string;
       recurrence?: string;
       attachments?: Array<{ name?: string; url: string; mimeType?: string; fileType?: string }>;
+      links?: string[];
     };
 
     if (title !== undefined) event.title = title.trim();
@@ -202,6 +207,7 @@ export const updateProjectCalendarEvent = async (req: Request, res: Response): P
     if (location !== undefined) event.location = location;
     if (recurrence !== undefined) event.recurrence = recurrence as ICalendarEventRecurrence;
     if (attachments !== undefined) event.attachments = attachments as typeof event.attachments;
+    if (links !== undefined) event.links = links;
 
     await event.save();
     await event.populate('createdBy', 'name');

@@ -135,7 +135,6 @@ export default function SettingsPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   /* Password */
-  const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [pwError, setPwError] = useState('');
@@ -195,8 +194,8 @@ export default function SettingsPage() {
   /* ── Change password ─────────────────────────────────────────────── */
   const requestChangePassword = () => {
     setPwError('');
-    if (!currentPassword || !newPassword || !confirmPassword) {
-      setPwError('All fields are required.');
+    if (!newPassword || !confirmPassword) {
+      setPwError('Both fields are required.');
       return;
     }
     if (newPassword.length < 6) {
@@ -204,14 +203,13 @@ export default function SettingsPage() {
       return;
     }
     if (newPassword !== confirmPassword) {
-      setPwError('New passwords do not match.');
+      setPwError('Passwords do not match.');
       return;
     }
     setConfirmState({
       message: 'Change your password?',
       action: async () => {
-        await api.put('/auth/me/password', { currentPassword, newPassword });
-        setCurrentPassword('');
+        await api.put('/auth/me/password', { newPassword });
         setNewPassword('');
         setConfirmPassword('');
         setSuccessMessage('Password changed successfully.');
@@ -347,13 +345,6 @@ export default function SettingsPage() {
         <div className={styles.section}>
           <h2 className={styles.sectionTitle}>Change Password</h2>
           <div className={styles.form}>
-            <PasswordField
-              label="Current Password"
-              value={currentPassword}
-              onChange={(v) => { setCurrentPassword(v); setPwError(''); }}
-              placeholder="Enter current password"
-              autoComplete="current-password"
-            />
             <PasswordField
               label="New Password"
               value={newPassword}

@@ -6,6 +6,7 @@ dotenv.config(); // fallback: load .env from cwd if the above path didn't exist
 
 import app from './app';
 import connectDB from './config/db';
+import { startAutoCheckoutJob } from './jobs/autoCheckout';
 
 const PORT = process.env.PORT || 5000;
 
@@ -13,8 +14,10 @@ const start = async () => {
   await connectDB();
 
   app.listen(PORT, () => {
-    console.log(`Ganesyx PM Backend running on port ${PORT}`);
+    console.log(`Ganesyx Backend running on port ${PORT}`);
   });
+
+  startAutoCheckoutJob();
 };
 
 start().catch(console.error);

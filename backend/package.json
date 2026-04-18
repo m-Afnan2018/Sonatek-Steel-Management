@@ -1,7 +1,7 @@
 {
   "name": "ganesyx-pm-backend",
   "version": "1.0.0",
-  "description": "Ganesyx PM Backend API",
+  "description": "Ganesyx Backend API",
   "main": "dist/index.js",
   "scripts": {
     "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
@@ -10,6 +10,7 @@
     "seed": "ts-node-dev src/scripts/seed.ts"
   },
   "dependencies": {
+    "@types/node-cron": "^3.0.11",
     "bcryptjs": "^2.4.3",
     "cookie-parser": "^1.4.6",
     "cors": "^2.8.5",
@@ -19,6 +20,7 @@
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^8.1.1",
     "multer": "^2.1.1",
+    "node-cron": "^4.2.1",
     "nodemailer": "^8.0.5"
   },
   "devDependencies": {

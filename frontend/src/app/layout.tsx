@@ -2,12 +2,12 @@ import type { Metadata, Viewport } from 'next';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'Ganesyx PM — Project Management & Attendance',
+  title: 'Ganesyx — Project Management & Attendance',
   description: 'Team Project Management & Attendance Web App by Ganesyx',
   manifest: '/manifest.json',
   icons: {
-    icon: '/icons/icon-192x192.svg',
-    apple: '/icons/icon-512x512.svg',
+    icon: '/icons/icon-192x192.png',
+    apple: '/icons/icon-512x512.png',
   },
 };
 

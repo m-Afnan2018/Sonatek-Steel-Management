@@ -224,13 +224,10 @@ export const updateMe = async (req: Request, res: Response): Promise<void> => {
 
 export const changePassword = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { currentPassword, newPassword } = req.body as {
-      currentPassword?: string;
-      newPassword?: string;
-    };
+    const { newPassword } = req.body as { newPassword?: string };
 
-    if (!currentPassword || !newPassword) {
-      res.status(400).json({ message: 'Current password and new password are required.' });
+    if (!newPassword) {
+      res.status(400).json({ message: 'New password is required.' });
       return;
     }
 
@@ -242,12 +239,6 @@ export const changePassword = async (req: Request, res: Response): Promise<void>
     const user = await User.findById(req.user?.id).select('+password');
     if (!user) {
       res.status(404).json({ message: 'User not found.' });
-      return;
-    }
-
-    const isMatch = await user.comparePassword(currentPassword);
-    if (!isMatch) {
-      res.status(400).json({ message: 'Current password is incorrect.' });
       return;
     }
 

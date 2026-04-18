@@ -138,9 +138,30 @@ export function useAttendance() {
     }
   }, []);
 
+  const adminUpdateAttendance = useCallback(async (id: string, payload: Record<string, unknown>): Promise<Attendance | null> => {
+    try {
+      const { data } = await api.put(`/attendance/${id}`, payload);
+      setRecords((prev) => prev.map((r) => (r._id === id ? data : r)));
+      return data;
+    } catch (err) {
+      return handleError(err, 'Failed to update attendance.');
+    }
+  }, []);
+
+  const adminCreateAttendance = useCallback(async (payload: Record<string, unknown>): Promise<Attendance | null> => {
+    try {
+      const { data } = await api.post('/attendance/admin', payload);
+      setRecords((prev) => [...prev, data]);
+      return data;
+    } catch (err) {
+      return handleError(err, 'Failed to create attendance record.');
+    }
+  }, []);
+
   return {
     records, stats, teamRecords, loading, error,
     checkIn, checkOut, lunchStart, lunchStop, addNote, deleteNote,
     fetchMyAttendance, fetchUserAttendance, fetchTeamAttendance, fetchStats, fetchUserStats,
+    adminUpdateAttendance, adminCreateAttendance,
   };
 }

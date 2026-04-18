@@ -4,8 +4,8 @@
 
 .main {
   margin-left: var(--sidebar-width);
-  margin-top: var(--topbar-height);
   padding: 1.5rem;
+  padding-top: calc(1.5rem + var(--topbar-height));
   min-height: calc(100vh - var(--topbar-height));
   animation: fadeIn 0.3s ease;
 }

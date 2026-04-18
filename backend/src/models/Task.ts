@@ -23,6 +23,7 @@ export interface ITask extends Document {
     assignees: Types.ObjectId[];
     reporter: Types.ObjectId;
     dueDate?: Date;
+    dueTime?: string;
     estimatedHours?: number;
     tags: string[];
     dependencies: Types.ObjectId[];
@@ -88,9 +89,11 @@ const taskSchema = new Schema<ITask>(
         dueDate: {
             type: Date,
         },
+        dueTime: {
+            type: String,
+        },
         estimatedHours: {
             type: Number,
-            min: 0,
         },
         tags: [{ type: String, trim: true }],
         dependencies: [

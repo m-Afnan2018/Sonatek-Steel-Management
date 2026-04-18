@@ -1,5 +1,7 @@
 import { Request, Response } from 'express';
 import CalendarEvent from '../models/CalendarEvent';
+import Notification from '../models/Notification';
+import User from '../models/User';
 
 // GET /api/calendar-events?month=4&year=2026&userId=xxx
 export const getCalendarEvents = async (req: Request, res: Response): Promise<void> => {
@@ -47,7 +49,7 @@ export const getCalendarEvents = async (req: Request, res: Response): Promise<vo
 // POST /api/calendar-events
 export const createCalendarEvent = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { title, description, type, date, startTime, endTime, allDay, color, owner, invitees, location, recurrence } = req.body;
+    const { title, description, type, date, startTime, endTime, allDay, color, owner, invitees, location, recurrence, links } = req.body;
     const requesterId = req.user?.id;
     const role = req.user?.role;
     const isAdminOrManager = role === 'admin' || role === 'manager';
@@ -74,12 +76,30 @@ export const createCalendarEvent = async (req: Request, res: Response): Promise<
       invitees: invitees || [],
       location: location?.trim(),
       recurrence: recurrence || 'none',
+      links: links || [],
     });
 
     await event.save();
     await event.populate('owner', 'name avatar');
     await event.populate('createdBy', 'name avatar');
     await event.populate('invitees', 'name avatar');
+
+    // Notify invitees
+    const inviteeIds: string[] = invitees || [];
+    if (inviteeIds.length > 0 && requesterId) {
+      const creator = await User.findById(requesterId).select('name');
+      const senderName = creator?.name || 'Someone';
+      const eventDate = new Date(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      const notifications = inviteeIds.map((inviteeId) => ({
+        recipient: inviteeId,
+        sender: requesterId,
+        type: 'event_invite' as const,
+        title: 'You were invited to an event',
+        message: `${senderName} invited you to "${title.trim()}" on ${eventDate}`,
+        link: '/attendance',
+      }));
+      await Notification.insertMany(notifications);
+    }
 
     res.status(201).json(event);
   } catch (error) {
@@ -108,7 +128,10 @@ export const updateCalendarEvent = async (req: Request, res: Response): Promise<
       return;
     }
 
-    const { title, description, type, date, startTime, endTime, allDay, color, invitees, location, recurrence } = req.body;
+    const { title, description, type, date, startTime, endTime, allDay, color, invitees, location, recurrence, links } = req.body;
+
+    // Track old invitees to find newly added ones
+    const oldInviteeIds = event.invitees.map((id) => id.toString());
 
     if (title !== undefined) event.title = title.trim();
     if (description !== undefined) event.description = description?.trim();
@@ -121,11 +144,32 @@ export const updateCalendarEvent = async (req: Request, res: Response): Promise<
     if (invitees !== undefined) event.invitees = invitees;
     if (location !== undefined) event.location = location?.trim();
     if (recurrence !== undefined) event.recurrence = recurrence;
+    if (links !== undefined) event.links = links;
 
     await event.save();
     await event.populate('owner', 'name avatar');
     await event.populate('createdBy', 'name avatar');
     await event.populate('invitees', 'name avatar');
+
+    // Notify newly added invitees
+    if (invitees !== undefined && requesterId) {
+      const newInviteeIds: string[] = invitees;
+      const addedInvitees = newInviteeIds.filter((id) => !oldInviteeIds.includes(id));
+      if (addedInvitees.length > 0) {
+        const updater = await User.findById(requesterId).select('name');
+        const updaterName = updater?.name || 'Someone';
+        const eventDate = event.date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+        const notifications = addedInvitees.map((inviteeId) => ({
+          recipient: inviteeId,
+          sender: requesterId,
+          type: 'event_invite' as const,
+          title: 'You were invited to an event',
+          message: `${updaterName} invited you to "${event.title}" on ${eventDate}`,
+          link: '/attendance',
+        }));
+        await Notification.insertMany(notifications);
+      }
+    }
 
     res.json(event);
   } catch (error) {
