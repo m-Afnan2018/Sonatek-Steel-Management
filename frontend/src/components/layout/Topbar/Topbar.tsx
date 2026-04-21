@@ -4,9 +4,8 @@ import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/hooks/useAuth';
 import { useThemeStore } from '@/store/themeStore';
-import api from '@/lib/api';
+import { useNotifications } from '@/hooks/useNotifications';
 import { timeAgo } from '@/lib/utils';
-import type { Notification } from '@/types';
 import styles from './Topbar.module.css';
 
 interface TopbarProps {
@@ -17,26 +16,13 @@ interface TopbarProps {
 export default function Topbar({ onMenuToggle, title }: TopbarProps) {
   const { logout, user } = useAuth();
   const { theme, toggle } = useThemeStore();
-  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const { notifications, unreadCount, markAllRead } = useNotifications();
   const [showNotifications, setShowNotifications] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
   const notifRef = useRef<HTMLDivElement>(null);
   const userRef = useRef<HTMLDivElement>(null);
 
-  const unreadCount = notifications.filter((n) => !n.isRead).length;
   const isAdmin = user?.role === 'admin';
-
-  useEffect(() => {
-    const fetchNotifications = async () => {
-      try {
-        const { data } = await api.get('/notifications');
-        setNotifications(data);
-      } catch {
-        // ignore
-      }
-    };
-    fetchNotifications();
-  }, []);
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
@@ -54,15 +40,6 @@ export default function Topbar({ onMenuToggle, title }: TopbarProps) {
     document.addEventListener('mousedown', handleClick);
     return () => document.removeEventListener('mousedown', handleClick);
   }, []);
-
-  const markAllRead = async () => {
-    try {
-      await api.put('/notifications/read-all');
-      setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
-    } catch {
-      // ignore
-    }
-  };
 
   return (
     <header className={styles.topbar}>
@@ -116,18 +93,33 @@ export default function Topbar({ onMenuToggle, title }: TopbarProps) {
                 {notifications.length === 0 ? (
                   <p className={styles.empty}>No notifications</p>
                 ) : (
-                  notifications.map((n) => (
-                    <div
-                      key={n._id}
-                      className={`${styles.notifItem} ${!n.isRead ? styles.unread : ''}`}
-                    >
-                      <div className={styles.notifContent}>
-                        <p className={styles.notifTitle}>{n.title}</p>
-                        <p className={styles.notifMsg}>{n.message}</p>
-                        <span className={styles.notifTime}>{timeAgo(n.createdAt)}</span>
+                  notifications.map((n) =>
+                    n.link ? (
+                      <Link
+                        key={n._id}
+                        href={n.link}
+                        className={`${styles.notifItem} ${!n.isRead ? styles.unread : ''}`}
+                        onClick={() => setShowNotifications(false)}
+                      >
+                        <div className={styles.notifContent}>
+                          <p className={styles.notifTitle}>{n.title}</p>
+                          <p className={styles.notifMsg}>{n.message}</p>
+                          <span className={styles.notifTime}>{timeAgo(n.createdAt)}</span>
+                        </div>
+                      </Link>
+                    ) : (
+                      <div
+                        key={n._id}
+                        className={`${styles.notifItem} ${!n.isRead ? styles.unread : ''}`}
+                      >
+                        <div className={styles.notifContent}>
+                          <p className={styles.notifTitle}>{n.title}</p>
+                          <p className={styles.notifMsg}>{n.message}</p>
+                          <span className={styles.notifTime}>{timeAgo(n.createdAt)}</span>
+                        </div>
                       </div>
-                    </div>
-                  ))
+                    )
+                  )
                 )}
               </div>
             </div>

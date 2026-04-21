@@ -7,6 +7,7 @@ dotenv.config(); // fallback: load .env from cwd if the above path didn't exist
 import app from './app';
 import connectDB from './config/db';
 import { startAutoCheckoutJob } from './jobs/autoCheckout';
+import { startAutoAbsentJob } from './jobs/autoAbsent';
 
 const PORT = process.env.PORT || 5000;
 
@@ -18,6 +19,7 @@ const start = async () => {
   });
 
   startAutoCheckoutJob();
+  startAutoAbsentJob();
 };
 
 start().catch(console.error);

@@ -744,6 +744,7 @@ export default function TasksPage() {
         onDelete={(t) => { setShowTaskModal(false); setSelectedTask(null); setDeleteConfirm(t); }}
         onSaved={() => { setShowTaskModal(false); setSelectedTask(null); showSuccess('Task Updated!', 'All changes have been saved.'); }}
         members={members}
+        projects={projects}
         patchTimer={patchTimer}
       />
 

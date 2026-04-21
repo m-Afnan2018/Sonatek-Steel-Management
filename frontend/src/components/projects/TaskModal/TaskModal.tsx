@@ -23,6 +23,7 @@ interface TaskModalProps {
   onDelete?: (task: Task) => void;
   onSaved?: () => void;
   members: User[];
+  projects?: { _id: string; title: string }[];
   patchTimer?: (id: string, action: 'start' | 'pause' | 'resume' | 'hold' | 'finish') => Promise<Task | null>;
 }
 
@@ -49,7 +50,7 @@ function uid(u: User | any): string {
   return (u?.id || u?._id)?.toString() ?? '';
 }
 
-export default function TaskModal({ task, isOpen, onClose, onUpdate, onDelete, onSaved, members, patchTimer }: TaskModalProps) {
+export default function TaskModal({ task, isOpen, onClose, onUpdate, onDelete, onSaved, members, projects, patchTimer }: TaskModalProps) {
   const { updateTask, addComment } = useTasks();
   const currentUser = useAuthStore((s) => s.user);
   const isAdminOrManager = currentUser?.role === 'admin' || currentUser?.role === 'manager';
@@ -73,6 +74,7 @@ export default function TaskModal({ task, isOpen, onClose, onUpdate, onDelete, o
   const [editDue, setEditDue] = useState('');
   const [editDueTime, setEditDueTime] = useState('');
   const [editEstHours, setEditEstHours] = useState('');
+  const [editProject, setEditProject] = useState('');
 
   // Links
   const [newLink, setNewLink] = useState('');
@@ -115,6 +117,13 @@ export default function TaskModal({ task, isOpen, onClose, onUpdate, onDelete, o
       setAttachments(task.attachments || []);
       setAssigneeIds(task.assignees.filter(Boolean).map((a) => uid(a)));
       setEditEstHours(task.estimatedHours != null ? String(task.estimatedHours) : '');
+      setEditProject(
+        task.project
+          ? typeof task.project === 'object'
+            ? (task.project as any)._id
+            : task.project
+          : ''
+      );
       setTab('details');
       setEditingTitle(false);
       setEditingDesc(false);
@@ -125,6 +134,12 @@ export default function TaskModal({ task, isOpen, onClose, onUpdate, onDelete, o
   if (!task) return null;
 
   // Dirty check — any main field changed from the task prop
+  const taskProjectId = task.project
+    ? typeof task.project === 'object'
+      ? (task.project as any)._id
+      : task.project
+    : '';
+
   const isDirty =
     editTitle.trim() !== task.title ||
     editDesc !== (task.description || '') ||
@@ -132,7 +147,8 @@ export default function TaskModal({ task, isOpen, onClose, onUpdate, onDelete, o
     editPriority !== task.priority ||
     editDue !== (task.dueDate ? task.dueDate.split('T')[0] : '') ||
     editDueTime !== (task.dueTime || '') ||
-    editNotes !== (task.notes || '');
+    editNotes !== (task.notes || '') ||
+    editProject !== taskProjectId;
 
   // ── Helpers ──────────────────────────────────────────────────────
   const save = async (patch: Partial<Task>) => {
@@ -153,6 +169,7 @@ export default function TaskModal({ task, isOpen, onClose, onUpdate, onDelete, o
       dueDate: editDue || undefined,
       dueTime: editDueTime || undefined,
       notes: editNotes,
+      ...(editProject ? { project: editProject } : { project: null }),
     } as Partial<Task>);
     if (updated) {
       onClose();
@@ -767,6 +784,30 @@ export default function TaskModal({ task, isOpen, onClose, onUpdate, onDelete, o
                     >✕</button>
                   )}
                 </div>
+              </div>
+              <div className={styles.metaRow}>
+                <span className={styles.sideLabel}>Project</span>
+                {projects && projects.length > 0 ? (
+                  <select
+                    className={styles.metaSelect}
+                    value={editProject}
+                    onChange={(e) => setEditProject(e.target.value)}
+                  >
+                    <option value="">No project</option>
+                    {projects.map((p) => (
+                      <option key={p._id} value={p._id}>{p.title}</option>
+                    ))}
+                  </select>
+                ) : (
+                  <span className={styles.metaValue}>
+                    {task.project
+                      ? typeof task.project === 'object'
+                        ? (task.project as any).title
+                        : task.project
+                      : <span className={styles.placeholder}>—</span>
+                    }
+                  </span>
+                )}
               </div>
               <div className={styles.metaRow}>
                 <span className={styles.sideLabel}>Reporter</span>

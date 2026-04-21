@@ -47,7 +47,8 @@ export const checkIn = async (req: Request, res: Response): Promise<void> => {
 
     const user = await User.findById(userId);
     const checkInTime = new Date();
-    const isLate = user?.lateThreshold ? checkIsLate(checkInTime, user.lateThreshold) : false;
+    // Fall back to 09:30 if the user has no threshold stored in DB
+    const isLate = checkIsLate(checkInTime, user?.lateThreshold || '09:30');
 
     const attendance = existing || new Attendance({ user: userId, date: today });
     attendance.checkIn = checkInTime;

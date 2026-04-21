@@ -548,6 +548,7 @@ export default function ProjectDetailPage() {
         onUpdate={handleTaskUpdate}
         onSaved={() => { setShowTaskModal(false); setSelectedTask(null); showSuccess('Task Updated!', 'All changes have been saved.'); }}
         members={members}
+        projects={project ? [{ _id: project._id, title: project.title }] : []}
         patchTimer={patchTimer}
       />
 
