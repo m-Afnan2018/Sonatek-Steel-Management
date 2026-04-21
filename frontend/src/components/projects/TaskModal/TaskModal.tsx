@@ -55,6 +55,7 @@ export default function TaskModal({ task, isOpen, onClose, onUpdate, onDelete, o
   const currentUser = useAuthStore((s) => s.user);
   const isAdminOrManager = currentUser?.role === 'admin' || currentUser?.role === 'manager';
   const isReporter = task ? uid(task.reporter) === uid(currentUser) : false;
+  const canEdit = isAdminOrManager || isReporter;
   const canDelete = isAdminOrManager || isReporter;
 
   const [tab, setTab] = useState<Tab>('details');
@@ -378,7 +379,7 @@ export default function TaskModal({ task, isOpen, onClose, onUpdate, onDelete, o
         {/* ── Header ──────────────────────────────────────────── */}
         <div className={styles.modalHeader}>
           <div className={styles.titleRow}>
-            {editingTitle ? (
+            {editingTitle && canEdit ? (
               <input
                 ref={titleInputRef}
                 className={styles.titleInput}
@@ -392,9 +393,14 @@ export default function TaskModal({ task, isOpen, onClose, onUpdate, onDelete, o
                 autoFocus
               />
             ) : (
-              <h2 className={styles.titleDisplay} onClick={() => setEditingTitle(true)} title="Click to edit">
+              <h2
+                className={styles.titleDisplay}
+                onClick={() => canEdit && setEditingTitle(true)}
+                title={canEdit ? 'Click to edit' : undefined}
+                style={canEdit ? undefined : { cursor: 'default' }}
+              >
                 {task.title}
-                <span className={styles.editHint}>✎</span>
+                {canEdit && <span className={styles.editHint}>✎</span>}
               </h2>
             )}
             <div className={styles.headerBadges}>
@@ -429,11 +435,11 @@ export default function TaskModal({ task, isOpen, onClose, onUpdate, onDelete, o
               <div className={styles.section}>
                 <div className={styles.sectionHeader}>
                   <span className={styles.sectionLabel}>Description</span>
-                  {!editingDesc && (
+                  {canEdit && !editingDesc && (
                     <button className={styles.inlineEditBtn} onClick={() => setEditingDesc(true)}>Edit</button>
                   )}
                 </div>
-                {editingDesc ? (
+                {editingDesc && canEdit ? (
                   <div className={styles.editBlock}>
                     <textarea
                       className={styles.descTextarea}
@@ -449,8 +455,12 @@ export default function TaskModal({ task, isOpen, onClose, onUpdate, onDelete, o
                     </div>
                   </div>
                 ) : (
-                  <p className={styles.descText} onClick={() => setEditingDesc(true)}>
-                    {task.description || <span className={styles.placeholder}>Click to add description…</span>}
+                  <p
+                    className={styles.descText}
+                    onClick={() => canEdit && setEditingDesc(true)}
+                    style={canEdit ? undefined : { cursor: 'default' }}
+                  >
+                    {task.description || <span className={styles.placeholder}>{canEdit ? 'Click to add description…' : 'No description.'}</span>}
                   </p>
                 )}
 
@@ -532,8 +542,10 @@ export default function TaskModal({ task, isOpen, onClose, onUpdate, onDelete, o
                   className={styles.notesTextarea}
                   rows={14}
                   value={editNotes}
-                  onChange={(e) => setEditNotes(e.target.value)}
-                  placeholder="Write notes, checklists, or any context for this task…"
+                  onChange={(e) => canEdit && setEditNotes(e.target.value)}
+                  placeholder={canEdit ? 'Write notes, checklists, or any context for this task…' : 'No notes.'}
+                  readOnly={!canEdit}
+                  style={canEdit ? undefined : { cursor: 'default', opacity: 0.7 }}
                 />
               </div>
             )}
@@ -747,7 +759,8 @@ export default function TaskModal({ task, isOpen, onClose, onUpdate, onDelete, o
               <div className={styles.metaRow}>
                 <span className={styles.sideLabel}>Status</span>
                 <select className={styles.metaSelect} value={editStatus}
-                  onChange={(e) => setEditStatus(e.target.value)}>
+                  onChange={(e) => setEditStatus(e.target.value)}
+                  disabled={!canEdit}>
                   <option value="backlog">Backlog</option>
                   <option value="todo">To Do</option>
                   <option value="in_progress">In Progress</option>
@@ -758,7 +771,8 @@ export default function TaskModal({ task, isOpen, onClose, onUpdate, onDelete, o
               <div className={styles.metaRow}>
                 <span className={styles.sideLabel}>Priority</span>
                 <select className={styles.metaSelect} value={editPriority}
-                  onChange={(e) => setEditPriority(e.target.value)}>
+                  onChange={(e) => setEditPriority(e.target.value)}
+                  disabled={!canEdit}>
                   <option value="low">Low</option>
                   <option value="medium">Medium</option>
                   <option value="high">High</option>
@@ -768,14 +782,16 @@ export default function TaskModal({ task, isOpen, onClose, onUpdate, onDelete, o
               <div className={styles.metaRow}>
                 <span className={styles.sideLabel}>Due Date</span>
                 <input type="date" className={styles.metaDate} value={editDue}
-                  onChange={(e) => setEditDue(e.target.value)} />
+                  onChange={(e) => setEditDue(e.target.value)}
+                  disabled={!canEdit} />
               </div>
               <div className={styles.metaRow}>
                 <span className={styles.sideLabel}>Due Time</span>
                 <div className={styles.dueTimeWrap}>
                   <input type="time" className={styles.metaDate} value={editDueTime}
-                    onChange={(e) => setEditDueTime(e.target.value)} />
-                  {editDueTime && (
+                    onChange={(e) => setEditDueTime(e.target.value)}
+                    disabled={!canEdit} />
+                  {canEdit && editDueTime && (
                     <button
                       type="button"
                       className={styles.clearTimeBtn}
@@ -787,7 +803,7 @@ export default function TaskModal({ task, isOpen, onClose, onUpdate, onDelete, o
               </div>
               <div className={styles.metaRow}>
                 <span className={styles.sideLabel}>Project</span>
-                {projects && projects.length > 0 ? (
+                {canEdit && projects && projects.length > 0 ? (
                   <select
                     className={styles.metaSelect}
                     value={editProject}
@@ -843,14 +859,16 @@ export default function TaskModal({ task, isOpen, onClose, onUpdate, onDelete, o
               Delete Task
             </Button>
           )}
-          <Button
-            size="sm"
-            onClick={handleSaveAll}
-            loading={saving}
-            disabled={!isDirty || saving}
-          >
-            Save Changes
-          </Button>
+          {canEdit && (
+            <Button
+              size="sm"
+              onClick={handleSaveAll}
+              loading={saving}
+              disabled={!isDirty || saving}
+            >
+              Save Changes
+            </Button>
+          )}
         </div>
       </div>
     </Modal>
