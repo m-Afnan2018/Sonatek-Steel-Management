@@ -131,9 +131,17 @@ export function useTasks() {
       const { data } = await api.patch(`/tasks/${taskId}/timer`, { action });
       setTasks((prev) => prev.map((t) => {
         if (t._id === taskId) return data;
-        // When a task starts/resumes, the backend pauses all other running tasks
+        // Only pause other tasks that belong to the same user as the started task.
+        // The backend returns the single updated task; other users' tasks are untouched.
         if ((action === 'start' || action === 'resume') && t.timerStatus === 'running') {
-          return { ...t, timerStatus: 'paused', status: 'in_progress' };
+          const startedAssignees: string[] = (data.assignees || []).map(
+            (a: any) => (a?._id || a?.id || a)?.toString() ?? '',
+          );
+          const taskAssignees: string[] = (t.assignees || []).map(
+            (a: any) => (a?._id || a?.id || a)?.toString() ?? '',
+          );
+          const shared = taskAssignees.some((id) => startedAssignees.includes(id));
+          if (shared) return { ...t, timerStatus: 'paused' };
         }
         return t;
       }));
