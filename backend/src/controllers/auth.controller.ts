@@ -154,12 +154,17 @@ export const refreshAccessToken = async (req: Request, res: Response): Promise<v
 
     const tokenPayload = { id: String(user._id), email: user.email, role: user.role, name: user.name };
     const newAccessToken = generateAccessToken(tokenPayload);
-    const newRefreshToken = generateRefreshToken(tokenPayload);
+    // const newRefreshToken = generateRefreshToken(tokenPayload);
 
-    user.refreshToken = newRefreshToken;
-    await user.save();
+    // user.refreshToken = newRefreshToken;
+    // await user.save();
+    // Do NOT rotate the refresh token — reuse the existing one.
+    // Rotation causes race conditions when multiple tabs refresh simultaneously:
+    // the first tab rotates the token, invalidating the second tab's in-flight
+    // refresh request, which triggers a forced logout.
+    // The refresh token's 7-day JWT expiry is still enforced by verifyRefreshToken above.
 
-    res.cookie('refreshToken', newRefreshToken, {
+    res.cookie('refreshToken', refreshToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',

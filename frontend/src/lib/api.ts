@@ -137,9 +137,13 @@ api.interceptors.response.use(
 
       originalRequest.headers.Authorization = `Bearer ${newToken}`;
       return api(originalRequest);
-    } catch (refreshError) {
+    } catch (refreshError: any) {
       processQueue(refreshError, null);
-      forceLogout();
+      // Only force-logout on a definitive auth rejection (401).
+      // Network errors, timeouts, or 5xx should not log the user out.
+      if (refreshError?.response?.status === 401) {
+        forceLogout();
+      }
       return Promise.reject(refreshError);
     } finally {
       isRefreshing = false;
