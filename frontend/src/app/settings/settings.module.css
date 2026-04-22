@@ -129,6 +129,74 @@
   accent-color: var(--primary);
 }
 
+/* ── Notification master toggle row ─────────────────────────────────── */
+.notifMaster {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem 1.25rem;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+}
+
+.notifMasterInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.notifMasterLabel {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.notifMasterDesc {
+  font-size: 0.8125rem;
+  color: var(--text-muted);
+}
+
+/* ── Pill toggle switch ──────────────────────────────────────────────── */
+.pillToggle {
+  flex-shrink: 0;
+  position: relative;
+  width: 44px;
+  height: 24px;
+  border-radius: 999px;
+  background: var(--border);
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  transition: background 0.2s ease;
+}
+
+.pillToggle:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.pillToggleOn {
+  background: var(--primary);
+}
+
+.pillThumb {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+  transition: transform 0.2s ease;
+}
+
+.pillToggleOn .pillThumb {
+  transform: translateX(20px);
+}
+
 .dangerZone {
   background: var(--glass);
   backdrop-filter: blur(12px);

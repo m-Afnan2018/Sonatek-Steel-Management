@@ -5,7 +5,12 @@ import api from '@/lib/api';
 import type { Notification } from '@/types';
 
 const STORAGE_KEY = 'tracksy_notif_seen';
+export const BROWSER_NOTIF_KEY = 'tracksy_browser_notif_enabled';
 const POLL_MS = 30_000;
+
+export function isBrowserNotifEnabled(): boolean {
+  try { return localStorage.getItem(BROWSER_NOTIF_KEY) !== 'false'; } catch { return true; }
+}
 
 function getSeenIds(): Set<string> {
   try {
@@ -58,6 +63,7 @@ export function useNotifications() {
   const permAskedRef = useRef(false);
 
   const processFresh = useCallback(async (fresh: Notification[]) => {
+    if (!isBrowserNotifEnabled()) return;
     const seen = getSeenIds();
     const novel = fresh.filter((n) => !n.isRead && !seen.has(n._id));
     if (novel.length === 0) return;

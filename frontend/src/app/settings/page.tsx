@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useRef } from 'react';
+import { useState, useMemo, useRef, useEffect } from 'react';
 import Link from 'next/link';
 import dynamic from 'next/dynamic';
 import AppShell from '@/components/layout/AppShell/AppShell';
@@ -11,6 +11,7 @@ import Modal from '@/components/ui/Modal/Modal';
 import { useAuthStore } from '@/store/authStore';
 import { useAuth } from '@/hooks/useAuth';
 import { useDepartments } from '@/hooks/useDepartments';
+import { BROWSER_NOTIF_KEY, isBrowserNotifEnabled } from '@/hooks/useNotifications';
 import api from '@/lib/api';
 import styles from './settings.module.css';
 
@@ -238,13 +239,30 @@ export default function SettingsPage() {
     }
   };
 
-  /* ── Notification prefs (local only for now) ─────────────────────── */
-  const [notifPrefs, setNotifPrefs] = useState({
-    taskAssignments: true,
-    commentMentions: true,
-    deadlineReminders: true,
-    statusChanges: false,
-  });
+  /* ── Browser notifications master toggle ────────────────────────── */
+  const [browserNotifEnabled, setBrowserNotifEnabled] = useState(isBrowserNotifEnabled);
+  const [browserPermission, setBrowserPermission] = useState<NotificationPermission | 'unsupported'>('default');
+
+  useEffect(() => {
+    if (typeof window !== 'undefined' && 'Notification' in window) {
+      setBrowserPermission(window.Notification.permission);
+    } else {
+      setBrowserPermission('unsupported');
+    }
+  }, []);
+
+  const handleBrowserNotifToggle = async (enabled: boolean) => {
+    if (enabled && typeof window !== 'undefined' && 'Notification' in window) {
+      if (window.Notification.permission === 'denied') return; // can't re-request
+      if (window.Notification.permission !== 'granted') {
+        const result = await window.Notification.requestPermission();
+        setBrowserPermission(result);
+        if (result !== 'granted') return;
+      }
+    }
+    setBrowserNotifEnabled(enabled);
+    try { localStorage.setItem(BROWSER_NOTIF_KEY, String(enabled)); } catch { /* ignore */ }
+  };
 
   /* ─────────────────────────────────────────────────────────────────── */
 
@@ -369,23 +387,30 @@ export default function SettingsPage() {
         {/* ── Notifications ────────────────────────────────────────────── */}
         <div className={styles.section}>
           <h2 className={styles.sectionTitle}>Notifications</h2>
-          <div className={styles.notifSettings}>
-            <label className={styles.toggle}>
-              <input type="checkbox" checked={notifPrefs.taskAssignments} onChange={(e) => setNotifPrefs((p) => ({ ...p, taskAssignments: e.target.checked }))} />
-              <span>Task assignments</span>
-            </label>
-            <label className={styles.toggle}>
-              <input type="checkbox" checked={notifPrefs.commentMentions} onChange={(e) => setNotifPrefs((p) => ({ ...p, commentMentions: e.target.checked }))} />
-              <span>Comment mentions</span>
-            </label>
-            <label className={styles.toggle}>
-              <input type="checkbox" checked={notifPrefs.deadlineReminders} onChange={(e) => setNotifPrefs((p) => ({ ...p, deadlineReminders: e.target.checked }))} />
-              <span>Deadline reminders</span>
-            </label>
-            <label className={styles.toggle}>
-              <input type="checkbox" checked={notifPrefs.statusChanges} onChange={(e) => setNotifPrefs((p) => ({ ...p, statusChanges: e.target.checked }))} />
-              <span>Status changes</span>
-            </label>
+
+          {/* Master browser notification toggle */}
+          <div className={styles.notifMaster}>
+            <div className={styles.notifMasterInfo}>
+              <span className={styles.notifMasterLabel}>Browser Notifications</span>
+              <span className={styles.notifMasterDesc}>
+                {browserPermission === 'denied'
+                  ? 'Blocked by browser — enable in site settings to use this.'
+                  : browserPermission === 'unsupported'
+                  ? 'Not supported in this browser.'
+                  : 'Show desktop alerts for new notifications.'}
+              </span>
+            </div>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={browserNotifEnabled}
+              className={`${styles.pillToggle} ${browserNotifEnabled && browserPermission !== 'denied' ? styles.pillToggleOn : ''}`}
+              onClick={() => handleBrowserNotifToggle(!browserNotifEnabled)}
+              disabled={browserPermission === 'denied' || browserPermission === 'unsupported'}
+              title={browserPermission === 'denied' ? 'Blocked in browser settings' : undefined}
+            >
+              <span className={styles.pillThumb} />
+            </button>
           </div>
         </div>
 
