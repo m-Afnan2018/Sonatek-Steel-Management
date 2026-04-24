@@ -8,6 +8,7 @@ import app from './app';
 import connectDB from './config/db';
 import { startAutoCheckoutJob } from './jobs/autoCheckout';
 import { startAutoAbsentJob } from './jobs/autoAbsent';
+import { startSocialSchedulerJob } from './jobs/socialScheduler';
 
 const PORT = process.env.PORT || 5000;
 
@@ -20,6 +21,7 @@ const start = async () => {
 
   startAutoCheckoutJob();
   startAutoAbsentJob();
+  startSocialSchedulerJob();
 };
 
 start().catch(console.error);

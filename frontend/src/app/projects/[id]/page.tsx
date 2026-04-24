@@ -9,6 +9,7 @@ import TaskModal from '@/components/projects/TaskModal/TaskModal';
 import SuccessPopup from '@/components/ui/SuccessPopup/SuccessPopup';
 import MediaLibrary from '@/components/projects/MediaLibrary/MediaLibrary';
 import ProjectCalendar from '@/components/projects/ProjectCalendar/ProjectCalendar';
+import SocialTab from '@/components/projects/SocialTab/SocialTab';
 import EditProjectModal from '@/components/projects/EditProjectModal/EditProjectModal';
 import Modal from '@/components/ui/Modal/Modal';
 import Button from '@/components/ui/Button/Button';
@@ -31,7 +32,7 @@ const API_BASE = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api'
 
 type CreateTab = 'details' | 'notes' | 'links' | 'files';
 
-type TabType = 'board' | 'list' | 'members' | 'media' | 'calendar' | 'links';
+type TabType = 'board' | 'list' | 'members' | 'media' | 'calendar' | 'links' | 'social';
 
 export default function ProjectDetailPage() {
   const params = useParams();
@@ -366,6 +367,12 @@ export default function ProjectDetailPage() {
           >
             Links{project.links && project.links.length > 0 && <span className={styles.tabBadge}>{project.links.length}</span>}
           </button>
+          <button
+            className={`${styles.tab} ${activeTab === 'social' ? styles.tabActive : ''}`}
+            onClick={() => setActiveTab('social')}
+          >
+            Social
+          </button>
 
           <div className={styles.tabActions}>
             <Button size="sm" onClick={() => setShowCreateTask(true)}>
@@ -429,6 +436,10 @@ export default function ProjectDetailPage() {
 
         {activeTab === 'calendar' && (
           <ProjectCalendar projectId={projectId} />
+        )}
+
+        {activeTab === 'social' && (
+          <SocialTab projectId={projectId} />
         )}
 
         {activeTab === 'links' && (

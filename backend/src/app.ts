@@ -15,6 +15,7 @@ import calendarEventRoutes from './routes/calendarEvent.routes';
 import departmentRoutes from './routes/department.routes';
 import mediaRoutes from './routes/media.routes';
 import projectCalendarRoutes from './routes/projectCalendar.routes';
+import socialRoutes from './routes/social.routes';
 import { errorHandler, notFound } from './middleware/error.middleware';
 import { authenticate } from './middleware/auth.middleware';
 import { upload } from './middleware/upload.middleware';
@@ -69,6 +70,7 @@ app.use('/api/calendar-events', calendarEventRoutes);
 app.use('/api/departments', departmentRoutes);
 app.use('/api/projects/:id/media', mediaRoutes);
 app.use('/api/projects/:id/calendar', projectCalendarRoutes);
+app.use('/api/projects/:id/social', socialRoutes);
 
 // Notifications routes (inline)
 app.get('/api/notifications', authenticate, async (req, res) => {
