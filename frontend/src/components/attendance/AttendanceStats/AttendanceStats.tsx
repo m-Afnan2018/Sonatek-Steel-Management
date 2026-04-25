@@ -13,10 +13,10 @@ export default function AttendanceStats({ stats }: AttendanceStatsProps) {
   const items = [
     { label: 'Present', value: stats.present, color: 'var(--success)' },
     { label: 'Absent', value: stats.absent, color: 'var(--danger)' },
+    { label: 'Late', value: stats.late, color: 'var(--warning)' },
     { label: 'Half Day', value: stats.halfDay, color: 'var(--warning)' },
     { label: 'Remote', value: stats.remote, color: 'var(--primary)' },
     { label: 'Leave', value: stats.leave, color: 'var(--danger)' },
-    { label: 'Avg Hours', value: stats.avgHours, color: 'var(--text-primary)' },
   ];
 
   return (
@@ -33,6 +33,7 @@ export default function AttendanceStats({ stats }: AttendanceStatsProps) {
       <div className={styles.total}>
         <span>Total Hours</span>
         <strong>{stats.totalHours}h</strong>
+        <span className={styles.avgHours}>avg {stats.avgHours}h/day</span>
       </div>
     </div>
   );

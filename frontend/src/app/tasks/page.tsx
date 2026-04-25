@@ -217,27 +217,40 @@ export default function TasksPage() {
     setDeleteConfirm(null);
   };
 
-  const filtered = useMemo(() => {
+  // Shared predicate for everything except status (used by both sections)
+  const matchesNonStatusFilters = (t: (typeof localTasks)[0]) => {
+    if (filterPriority && t.priority !== filterPriority) return false;
+    if (filterAssignee && !t.assignees.filter(Boolean).some((a) => ((a as any)._id?.toString() || a.id) === filterAssignee)) return false;
+    if (filterProject) {
+      const projId = typeof t.project === 'object' ? t.project?._id : t.project;
+      if (projId !== filterProject) return false;
+    }
+    if (filterDateFrom && t.dueDate) {
+      if (new Date(t.dueDate) < new Date(filterDateFrom)) return false;
+    }
+    if (filterDateTo && t.dueDate) {
+      if (new Date(t.dueDate) > new Date(filterDateTo + 'T23:59:59')) return false;
+    }
+    return true;
+  };
+
+  // Active tasks respect the status filter pill
+  const activeTasks = useMemo(() => {
     return localTasks.filter((t) => {
+      if (t.status === 'done') return false;
       if (filterStatus && t.status !== filterStatus) return false;
-      if (filterPriority && t.priority !== filterPriority) return false;
-      if (filterAssignee && !t.assignees.filter(Boolean).some((a) => ((a as any)._id?.toString() || a.id) === filterAssignee)) return false;
-      if (filterProject) {
-        const projId = typeof t.project === 'object' ? t.project?._id : t.project;
-        if (projId !== filterProject) return false;
-      }
-      if (filterDateFrom && t.dueDate) {
-        if (new Date(t.dueDate) < new Date(filterDateFrom)) return false;
-      }
-      if (filterDateTo && t.dueDate) {
-        if (new Date(t.dueDate) > new Date(filterDateTo + 'T23:59:59')) return false;
-      }
-      return true;
+      return matchesNonStatusFilters(t);
     });
   }, [localTasks, filterStatus, filterPriority, filterAssignee, filterProject, filterDateFrom, filterDateTo]);
 
-  const activeTasks = filtered.filter((t) => t.status !== 'done');
-  const completedTasks = filtered.filter((t) => t.status === 'done');
+  // Completed tasks ignore the status filter (they're always "done") but apply everything else
+  const completedTasks = useMemo(() => {
+    return localTasks.filter((t) => {
+      if (t.status !== 'done') return false;
+      return matchesNonStatusFilters(t);
+    });
+  }, [localTasks, filterPriority, filterAssignee, filterProject, filterDateFrom, filterDateTo]);
+
   const hasFilters = filterStatus || filterPriority || filterAssignee || filterProject || filterDateFrom || filterDateTo;
 
   const clearFilters = () => {
@@ -374,7 +387,7 @@ export default function TasksPage() {
             <p className={styles.emptyTitle}>Something went wrong</p>
             <p className={styles.emptyText}>{error}</p>
           </div>
-        ) : filtered.length === 0 ? (
+        ) : activeTasks.length === 0 && completedTasks.length === 0 ? (
           <div className={styles.empty}>
             <span className={styles.emptyIcon}>{emptyMessage.icon}</span>
             <p className={styles.emptyTitle}>{emptyMessage.title}</p>

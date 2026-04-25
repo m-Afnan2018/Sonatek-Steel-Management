@@ -69,6 +69,7 @@ export default function ProjectDetailPage() {
   const [project, setProject] = useState<Project | null>(null);
   const [localTasks, setLocalTasks] = useState<Task[]>([]);
   const [activeTab, setActiveTab] = useState<TabType>('board');
+  const [taskFilter, setTaskFilter] = useState<'all' | 'assigned_to_me' | 'assigned_by_me'>('all');
   const [showEdit, setShowEdit] = useState(false);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [showTaskModal, setShowTaskModal] = useState(false);
@@ -120,6 +121,23 @@ export default function ProjectDetailPage() {
 
   // Keep local copy in sync; updated by timer actions without full reload
   useEffect(() => { setLocalTasks(tasks); }, [tasks]);
+
+  const filteredTasks = useMemo(() => {
+    if (taskFilter === 'all') return localTasks;
+    const uid = user?.id ?? '';
+    return localTasks.filter((t) => {
+      if (taskFilter === 'assigned_to_me') {
+        return t.assignees.filter(Boolean).some(
+          (a) => ((a as any)._id?.toString() || (a as any).id) === uid
+        );
+      }
+      if (taskFilter === 'assigned_by_me') {
+        const reporterId = (t.reporter as any)?._id?.toString() || (t.reporter as any)?.id;
+        return reporterId === uid;
+      }
+      return true;
+    });
+  }, [localTasks, taskFilter, user?.id]);
 
   const handleTaskTimerUpdate = (updated: Task) => {
     setLocalTasks((prev) => prev.map((t) => (t._id === updated._id ? updated : t)));
@@ -381,12 +399,41 @@ export default function ProjectDetailPage() {
           </div>
         </div>
 
+        {(activeTab === 'board' || activeTab === 'list') && (
+          <div className={styles.taskFilterBar}>
+            {([
+              { key: 'all',            label: 'All Tasks' },
+              { key: 'assigned_to_me', label: 'Assigned to me' },
+              { key: 'assigned_by_me', label: 'Assigned by me' },
+            ] as const).map(({ key, label }) => (
+              <button
+                key={key}
+                className={`${styles.taskFilterPill} ${taskFilter === key ? styles.taskFilterPillActive : ''}`}
+                onClick={() => setTaskFilter(key)}
+              >
+                {label}
+                {key !== 'all' && (
+                  <span className={styles.taskFilterCount}>
+                    {key === 'assigned_to_me'
+                      ? localTasks.filter((t) => t.assignees.filter(Boolean).some((a) => ((a as any)._id?.toString() || (a as any).id) === (user?.id ?? ''))).length
+                      : localTasks.filter((t) => {
+                          const rid = (t.reporter as any)?._id?.toString() || (t.reporter as any)?.id;
+                          return rid === (user?.id ?? '');
+                        }).length
+                    }
+                  </span>
+                )}
+              </button>
+            ))}
+          </div>
+        )}
+
         {activeTab === 'board' && (
           tasksLoading ? (
             <div className={styles.loading}><Spinner /></div>
           ) : (
             <KanbanBoard
-              tasks={localTasks}
+              tasks={filteredTasks}
               onTaskClick={handleTaskClick}
               onStatusChange={handleStatusChange}
               onTaskUpdate={handleTaskTimerUpdate}
@@ -397,7 +444,7 @@ export default function ProjectDetailPage() {
 
         {activeTab === 'list' && (
           <ProjectListView
-            tasks={localTasks}
+            tasks={filteredTasks}
             onTaskClick={handleTaskClick}
             onTaskUpdate={handleTaskTimerUpdate}
             patchTimer={patchTimer}

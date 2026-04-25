@@ -18,7 +18,7 @@ async function postInstagram(account: ISocialAccount, post: ISocialPost): Promis
   if (!account.igUserId) return { success: false, error: 'igUserId not configured' };
 
   const text = [post.caption, post.hashtags].filter(Boolean).join('\n\n');
-  const base = 'https://graph.facebook.com/v19.0';
+  const base = 'https://graph.facebook.com/v25.0';
 
   // Step 1: create media container
   const params = new URLSearchParams({ caption: text, access_token: account.accessToken });

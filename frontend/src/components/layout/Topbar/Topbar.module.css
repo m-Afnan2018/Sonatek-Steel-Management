@@ -139,6 +139,12 @@
   font-size: 0.875rem;
 }
 
+.notifHeaderActions {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+}
+
 .markRead {
   background: none;
   border: none;
@@ -146,6 +152,20 @@
   cursor: pointer;
   font-size: 0.75rem;
   font-weight: 500;
+}
+
+.clearAll {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 0.75rem;
+  font-weight: 500;
+  transition: color var(--transition);
+}
+
+.clearAll:hover {
+  color: var(--danger);
 }
 
 .dropdownList {
@@ -161,16 +181,62 @@
 }
 
 .notifItem {
-  display: block;
-  padding: 0.75rem 1rem;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.25rem;
   border-bottom: 1px solid var(--border);
   transition: background var(--transition);
-  text-decoration: none;
   color: inherit;
 }
 
 .notifItem:hover {
   background: var(--card);
+}
+
+.notifBody {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  flex: 1;
+  padding: 0.75rem 0 0.75rem 1rem;
+  text-decoration: none;
+  color: inherit;
+  cursor: pointer;
+  min-width: 0;
+}
+
+.unreadDot {
+  flex-shrink: 0;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--primary);
+  margin-top: 0.3rem;
+}
+
+.clearBtn {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  align-self: stretch;
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity var(--transition), color var(--transition), background var(--transition);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+}
+
+.notifItem:hover .clearBtn {
+  opacity: 1;
+}
+
+.clearBtn:hover {
+  color: var(--danger);
+  background: var(--danger-light);
 }
 
 .notifItem:last-child {

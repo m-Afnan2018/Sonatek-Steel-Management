@@ -4,32 +4,16 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import api from '@/lib/api';
 import type { Notification } from '@/types';
 
-const STORAGE_KEY = 'tracksy_notif_seen';
 export const BROWSER_NOTIF_KEY = 'tracksy_browser_notif_enabled';
+
+// How often to poll the server for new data (kept short for UI freshness)
 const POLL_MS = 30_000;
+
+// How long between repeat browser notifications for the same unread item
+const REPEAT_MS = 10 * 60 * 1000; // 10 minutes
 
 export function isBrowserNotifEnabled(): boolean {
   try { return localStorage.getItem(BROWSER_NOTIF_KEY) !== 'false'; } catch { return true; }
-}
-
-function getSeenIds(): Set<string> {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    return new Set(raw ? (JSON.parse(raw) as string[]) : []);
-  } catch {
-    return new Set();
-  }
-}
-
-function markSeen(id: string) {
-  try {
-    const seen = getSeenIds();
-    seen.add(id);
-    const arr = Array.from(seen).slice(-300);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(arr));
-  } catch {
-    // ignore
-  }
 }
 
 async function requestPermission(): Promise<boolean> {
@@ -47,7 +31,7 @@ function fireBrowserNotif(notif: Notification) {
   const n = new window.Notification(notif.title, {
     body: notif.message,
     icon: '/icon-192x192.png',
-    tag: notif._id,
+    tag: `${notif._id}-${Date.now()}`, // unique tag so repeats aren't silently replaced
     silent: false,
   });
 
@@ -60,23 +44,34 @@ function fireBrowserNotif(notif: Notification) {
 
 export function useNotifications() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
+
+  // Tracks when each notification ID was last fired as a browser notification.
+  // In-memory only — resets on page load so unread items always remind on first load.
+  const lastFiredAt = useRef<Map<string, number>>(new Map());
   const permAskedRef = useRef(false);
 
-  const processFresh = useCallback(async (fresh: Notification[]) => {
+  const processUnread = useCallback(async (all: Notification[]) => {
     if (!isBrowserNotifEnabled()) return;
-    const seen = getSeenIds();
-    const novel = fresh.filter((n) => !n.isRead && !seen.has(n._id));
-    if (novel.length === 0) return;
 
-    // Ask for permission once, lazily, on the first novel notification
+    const unread = all.filter((n) => !n.isRead);
+    if (unread.length === 0) return;
+
+    // Request permission once, lazily
     if (!permAskedRef.current) {
       permAskedRef.current = true;
-      await requestPermission();
+      const granted = await requestPermission();
+      if (!granted) return;
     }
+    if (window.Notification.permission !== 'granted') return;
 
-    for (const n of novel) {
-      fireBrowserNotif(n);
-      markSeen(n._id);
+    const now = Date.now();
+    for (const n of unread) {
+      const last = lastFiredAt.current.get(n._id);
+      // Fire if never fired, or if 10 minutes have passed since last fire
+      if (last === undefined || now - last >= REPEAT_MS) {
+        fireBrowserNotif(n);
+        lastFiredAt.current.set(n._id, now);
+      }
     }
   }, []);
 
@@ -84,11 +79,11 @@ export function useNotifications() {
     try {
       const { data } = await api.get<Notification[]>('/notifications');
       setNotifications(data);
-      await processFresh(data);
+      await processUnread(data);
     } catch {
       // ignore — network errors shouldn't break the UI
     }
-  }, [processFresh]);
+  }, [processUnread]);
 
   useEffect(() => {
     fetch();
@@ -100,6 +95,38 @@ export function useNotifications() {
     try {
       await api.put('/notifications/read-all');
       setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
+      // Clear fired-at tracking so if they somehow become unread again they'd re-fire
+      lastFiredAt.current.clear();
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  const markOneRead = useCallback(async (id: string) => {
+    try {
+      await api.put(`/notifications/${id}/read`);
+      setNotifications((prev) => prev.map((n) => (n._id === id ? { ...n, isRead: true } : n)));
+      lastFiredAt.current.delete(id);
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  const clearOne = useCallback(async (id: string) => {
+    try {
+      await api.delete(`/notifications/${id}`);
+      setNotifications((prev) => prev.filter((n) => n._id !== id));
+      lastFiredAt.current.delete(id);
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  const clearAll = useCallback(async () => {
+    try {
+      await api.delete('/notifications');
+      setNotifications([]);
+      lastFiredAt.current.clear();
     } catch {
       // ignore
     }
@@ -107,5 +134,5 @@ export function useNotifications() {
 
   const unreadCount = notifications.filter((n) => !n.isRead).length;
 
-  return { notifications, unreadCount, markAllRead, refetch: fetch };
+  return { notifications, unreadCount, markAllRead, markOneRead, clearOne, clearAll, refetch: fetch };
 }

@@ -103,6 +103,24 @@ app.put('/api/notifications/read-all', authenticate, async (req, res) => {
   }
 });
 
+app.delete('/api/notifications/:id', authenticate, async (req, res) => {
+  try {
+    await Notification.findOneAndDelete({ _id: req.params.id, recipient: req.user?.id });
+    res.json({ message: 'Notification deleted.' });
+  } catch {
+    res.status(500).json({ message: 'Server error.' });
+  }
+});
+
+app.delete('/api/notifications', authenticate, async (req, res) => {
+  try {
+    await Notification.deleteMany({ recipient: req.user?.id });
+    res.json({ message: 'All notifications cleared.' });
+  } catch {
+    res.status(500).json({ message: 'Server error.' });
+  }
+});
+
 // Error handling
 app.use(notFound);
 app.use(errorHandler);

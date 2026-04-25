@@ -9,6 +9,7 @@ import connectDB from './config/db';
 import { startAutoCheckoutJob } from './jobs/autoCheckout';
 import { startAutoAbsentJob } from './jobs/autoAbsent';
 import { startSocialSchedulerJob } from './jobs/socialScheduler';
+import { startLunchOvertimeJob } from './jobs/lunchOvertime';
 
 const PORT = process.env.PORT || 5000;
 

@@ -16,7 +16,7 @@ interface TopbarProps {
 export default function Topbar({ onMenuToggle, title }: TopbarProps) {
   const { logout, user } = useAuth();
   const { theme, toggle } = useThemeStore();
-  const { notifications, unreadCount, markAllRead } = useNotifications();
+  const { notifications, unreadCount, markAllRead, markOneRead, clearOne, clearAll } = useNotifications();
   const [showNotifications, setShowNotifications] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
   const notifRef = useRef<HTMLDivElement>(null);
@@ -83,11 +83,18 @@ export default function Topbar({ onMenuToggle, title }: TopbarProps) {
             <div className={styles.dropdown}>
               <div className={styles.dropdownHeader}>
                 <span>Notifications</span>
-                {unreadCount > 0 && (
-                  <button className={styles.markRead} onClick={markAllRead}>
-                    Mark all read
-                  </button>
-                )}
+                <div className={styles.notifHeaderActions}>
+                  {unreadCount > 0 && (
+                    <button className={styles.markRead} onClick={markAllRead}>
+                      Mark all read
+                    </button>
+                  )}
+                  {notifications.length > 0 && (
+                    <button className={styles.clearAll} onClick={clearAll} title="Clear all notifications">
+                      Clear all
+                    </button>
+                  )}
+                </div>
               </div>
               <div className={styles.dropdownList}>
                 {notifications.length === 0 ? (
@@ -95,28 +102,50 @@ export default function Topbar({ onMenuToggle, title }: TopbarProps) {
                 ) : (
                   notifications.map((n) =>
                     n.link ? (
-                      <Link
-                        key={n._id}
-                        href={n.link}
-                        className={`${styles.notifItem} ${!n.isRead ? styles.unread : ''}`}
-                        onClick={() => setShowNotifications(false)}
-                      >
-                        <div className={styles.notifContent}>
-                          <p className={styles.notifTitle}>{n.title}</p>
-                          <p className={styles.notifMsg}>{n.message}</p>
-                          <span className={styles.notifTime}>{timeAgo(n.createdAt)}</span>
-                        </div>
-                      </Link>
+                      <div key={n._id} className={`${styles.notifItem} ${!n.isRead ? styles.unread : ''}`}>
+                        <Link
+                          href={n.link}
+                          className={styles.notifBody}
+                          onClick={() => { markOneRead(n._id); setShowNotifications(false); }}
+                        >
+                          {!n.isRead && <span className={styles.unreadDot} />}
+                          <div className={styles.notifContent}>
+                            <p className={styles.notifTitle}>{n.title}</p>
+                            <p className={styles.notifMsg}>{n.message}</p>
+                            <span className={styles.notifTime}>{timeAgo(n.createdAt)}</span>
+                          </div>
+                        </Link>
+                        <button
+                          className={styles.clearBtn}
+                          onClick={(e) => { e.stopPropagation(); clearOne(n._id); }}
+                          title="Clear notification"
+                        >
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                        </button>
+                      </div>
                     ) : (
                       <div
                         key={n._id}
                         className={`${styles.notifItem} ${!n.isRead ? styles.unread : ''}`}
                       >
-                        <div className={styles.notifContent}>
-                          <p className={styles.notifTitle}>{n.title}</p>
-                          <p className={styles.notifMsg}>{n.message}</p>
-                          <span className={styles.notifTime}>{timeAgo(n.createdAt)}</span>
+                        <div
+                          className={styles.notifBody}
+                          onClick={() => { if (!n.isRead) markOneRead(n._id); }}
+                        >
+                          {!n.isRead && <span className={styles.unreadDot} />}
+                          <div className={styles.notifContent}>
+                            <p className={styles.notifTitle}>{n.title}</p>
+                            <p className={styles.notifMsg}>{n.message}</p>
+                            <span className={styles.notifTime}>{timeAgo(n.createdAt)}</span>
+                          </div>
                         </div>
+                        <button
+                          className={styles.clearBtn}
+                          onClick={() => clearOne(n._id)}
+                          title="Clear notification"
+                        >
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                        </button>
                       </div>
                     )
                   )
