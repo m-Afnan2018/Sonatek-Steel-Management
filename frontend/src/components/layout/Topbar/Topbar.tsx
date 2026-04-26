@@ -89,25 +89,28 @@ export default function Topbar({ onMenuToggle, title }: TopbarProps) {
                   <span
                     className={styles.pushStatusPill}
                     style={{
-                      background: pushStatus === 'subscribed'    ? 'var(--success-light)'  :
-                                  pushStatus === 'denied'        ? 'var(--danger-light)'   :
-                                  pushStatus === 'loading'       ? 'var(--border)'         :
-                                  pushStatus === 'unsupported'   ? 'var(--border)'         :
-                                                                   'var(--warning-light)',
-                      color:      pushStatus === 'subscribed'    ? 'var(--success)'        :
-                                  pushStatus === 'denied'        ? 'var(--danger)'         :
-                                  pushStatus === 'loading'       ? 'var(--text-muted)'     :
-                                  pushStatus === 'unsupported'   ? 'var(--text-muted)'     :
-                                                                   'var(--warning)',
+                      background: pushStatus === 'subscribed'     ? 'var(--success-light)' :
+                                  pushStatus === 'denied'         ? 'var(--danger-light)'  :
+                                  pushStatus === 'sw_unavailable' ? 'var(--danger-light)'  :
+                                  pushStatus === 'loading'        ? 'var(--border)'        :
+                                  pushStatus === 'unsupported'    ? 'var(--border)'        :
+                                                                    'var(--warning-light)',
+                      color:      pushStatus === 'subscribed'     ? 'var(--success)'       :
+                                  pushStatus === 'denied'         ? 'var(--danger)'        :
+                                  pushStatus === 'sw_unavailable' ? 'var(--danger)'        :
+                                  pushStatus === 'loading'        ? 'var(--text-muted)'    :
+                                  pushStatus === 'unsupported'    ? 'var(--text-muted)'    :
+                                                                    'var(--warning)',
                     }}
                     title={`Push: ${pushStatus}`}
                   >
-                    {pushStatus === 'subscribed'    && '● Push on'}
-                    {pushStatus === 'denied'        && '● Push blocked'}
-                    {pushStatus === 'not_granted'   && '○ Push off'}
-                    {pushStatus === 'not_subscribed'&& '○ Push off'}
-                    {pushStatus === 'loading'       && '· · ·'}
-                    {pushStatus === 'unsupported'   && '— Unsupported'}
+                    {pushStatus === 'subscribed'     && '● Push on'}
+                    {pushStatus === 'denied'         && '● Push blocked'}
+                    {pushStatus === 'sw_unavailable' && '● SW off'}
+                    {pushStatus === 'not_granted'    && '○ Push off'}
+                    {pushStatus === 'not_subscribed' && '○ Push off'}
+                    {pushStatus === 'loading'        && '· · ·'}
+                    {pushStatus === 'unsupported'    && '— Unsupported'}
                   </span>
                 </div>
                 <div className={styles.notifHeaderActions}>

@@ -124,12 +124,13 @@ function ConfirmDialog({
 
 /* ── Push Status Card ────────────────────────────────────────────────── */
 const PUSH_META: Record<PushStatus, { dot: string; label: string; desc: string }> = {
-  loading:        { dot: '#8888A0', label: 'Checking…',        desc: 'Detecting your push notification subscription status.' },
-  unsupported:    { dot: '#8888A0', label: 'Not supported',    desc: 'Your browser does not support Web Push notifications.' },
-  denied:         { dot: '#FF4757', label: 'Blocked',          desc: 'You blocked notifications for this site. Open browser site settings to allow them, then re-enable here.' },
-  not_granted:    { dot: '#FFD32A', label: 'Not enabled',      desc: 'Push notifications have not been set up yet. Click Enable to get desktop alerts.' },
-  not_subscribed: { dot: '#FFD32A', label: 'Not subscribed',   desc: 'Permission is granted but no active subscription exists on this device.' },
-  subscribed:     { dot: '#00D4AA', label: 'Active',           desc: 'Push notifications are enabled. You will receive alerts even when the app is closed.' },
+  loading:        { dot: '#8888A0', label: 'Checking…',          desc: 'Detecting push notification subscription status.' },
+  unsupported:    { dot: '#8888A0', label: 'Not supported',      desc: 'Your browser does not support Web Push notifications.' },
+  denied:         { dot: '#FF4757', label: 'Blocked',            desc: 'You blocked notifications for this site. Open browser site settings to allow them, then re-enable here.' },
+  not_granted:    { dot: '#FFD32A', label: 'Not enabled',        desc: 'Push notifications have not been set up yet. Click Enable to subscribe this device.' },
+  not_subscribed: { dot: '#FFD32A', label: 'Not subscribed',     desc: 'Permission is granted but this device is not subscribed yet. Click Enable to subscribe.' },
+  subscribed:     { dot: '#00D4AA', label: 'Active',             desc: 'Push notifications are active. You will receive alerts even when the app is closed.' },
+  sw_unavailable: { dot: '#FF4757', label: 'Service worker off', desc: 'Push requires a production build with an active service worker. Run the app in production mode (npm run build && npm start).' },
 };
 
 function PushStatusCard({
@@ -191,7 +192,7 @@ function PushStatusCard({
         </button>
       )}
 
-      {(status === 'unsupported' || status === 'denied' || status === 'loading') && (
+      {(status === 'unsupported' || status === 'denied' || status === 'loading' || status === 'sw_unavailable') && (
         <button
           type="button"
           className={styles.pillToggle}

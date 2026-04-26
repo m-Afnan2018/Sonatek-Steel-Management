@@ -8,11 +8,11 @@ export type PushStatus =
   | 'unsupported'    // browser has no SW / PushManager / Notification
   | 'denied'         // user blocked notifications in browser
   | 'subscribed'     // active push subscription on this device
-  | 'not_subscribed' // permission granted but no active SW subscription
-  | 'not_granted';   // Notification.permission === 'default' — never asked
+  | 'not_subscribed' // permission granted but no active push subscription
+  | 'not_granted'    // Notification.permission === 'default' — never asked
+  | 'sw_unavailable'; // SW not registered / not HTTPS — push impossible here
 
 const ENDPOINT_KEY = 'tracksy_push_endpoint';
-const SW_TIMEOUT_MS = 4_000;
 
 function urlBase64ToUint8Array(base64: string): ArrayBuffer {
   const padding = '='.repeat((4 - (base64.length % 4)) % 4);
@@ -23,24 +23,6 @@ function urlBase64ToUint8Array(base64: string): ArrayBuffer {
   return arr.buffer;
 }
 
-/** navigator.serviceWorker.ready races against a timeout so we never hang. */
-function swReady(): Promise<ServiceWorkerRegistration> {
-  return Promise.race([
-    navigator.serviceWorker.ready,
-    new Promise<never>((_, reject) =>
-      setTimeout(() => reject(new Error('sw-timeout')), SW_TIMEOUT_MS)
-    ),
-  ]);
-}
-
-/** Resolve the correct status from Notification.permission alone (SW fallback). */
-function permissionStatus(): PushStatus {
-  const p = Notification.permission;
-  if (p === 'denied')  return 'denied';
-  if (p === 'granted') return 'not_subscribed';
-  return 'not_granted';
-}
-
 async function getVapidKey(): Promise<string | null> {
   try {
     const { data } = await api.get<{ publicKey: string }>('/push/vapid-public-key');
@@ -48,6 +30,61 @@ async function getVapidKey(): Promise<string | null> {
   } catch {
     return null;
   }
+}
+
+/** Returns permission-derived status when SW isn't involved. */
+function permissionOnlyStatus(): PushStatus {
+  const p = Notification.permission;
+  if (p === 'denied')  return 'denied';
+  if (p === 'granted') return 'not_subscribed';
+  return 'not_granted';
+}
+
+/**
+ * Gets an active ServiceWorkerRegistration, registering /sw.js if needed.
+ * Waits up to `timeoutMs` for the SW to become active.
+ */
+async function getActiveRegistration(timeoutMs: number): Promise<ServiceWorkerRegistration> {
+  // Check for any existing registration first
+  let reg = await navigator.serviceWorker.getRegistration('/');
+
+  if (!reg) {
+    // No SW registered at all — try to register the production SW
+    reg = await navigator.serviceWorker.register('/sw.js', { scope: '/' });
+  }
+
+  // If already active, return immediately
+  if (reg.active) return reg;
+
+  // Wait for installing/waiting to become active
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(
+      () => reject(new Error('sw-activate-timeout')),
+      timeoutMs,
+    );
+
+    const checkActive = () => {
+      if (reg!.active) {
+        clearTimeout(timer);
+        resolve(reg!);
+        return;
+      }
+    };
+
+    const sw = reg!.installing || reg!.waiting;
+    if (!sw) {
+      clearTimeout(timer);
+      reject(new Error('sw-no-worker'));
+      return;
+    }
+
+    sw.addEventListener('statechange', function handler() {
+      checkActive();
+      if (reg!.active) sw.removeEventListener('statechange', handler);
+    });
+
+    checkActive();
+  });
 }
 
 export function usePushSubscription() {
@@ -60,7 +97,6 @@ export function usePushSubscription() {
     if (checked.current) return;
     checked.current = true;
 
-    // Guard: feature detection
     if (
       typeof window === 'undefined' ||
       !('serviceWorker' in navigator) ||
@@ -71,7 +107,6 @@ export function usePushSubscription() {
       return;
     }
 
-    // If already denied, no point waiting for SW
     if (Notification.permission === 'denied') {
       setStatus('denied');
       return;
@@ -79,11 +114,20 @@ export function usePushSubscription() {
 
     const check = async () => {
       try {
-        const reg = await swReady();                         // ← times out after 4 s in dev/no-SW
-        const sub = await reg.pushManager.getSubscription(); // null if not subscribed
+        // Quick check: is there any registration at all?
+        const reg = await navigator.serviceWorker.getRegistration('/');
+
+        if (!reg || !reg.active) {
+          // No active SW — can't check subscription, use permission as signal
+          localStorage.removeItem(ENDPOINT_KEY);
+          setStatus(permissionOnlyStatus());
+          return;
+        }
+
+        const sub = await reg.pushManager.getSubscription();
 
         if (sub) {
-          // Re-sync endpoint to backend if localStorage lost it
+          // Re-sync with backend if endpoint changed
           const cached = localStorage.getItem(ENDPOINT_KEY);
           if (cached !== sub.endpoint) {
             const j = sub.toJSON();
@@ -94,12 +138,11 @@ export function usePushSubscription() {
           setStatus('subscribed');
         } else {
           localStorage.removeItem(ENDPOINT_KEY);
-          setStatus(permissionStatus());
+          setStatus(permissionOnlyStatus());
         }
       } catch {
-        // SW not ready (dev mode, first load, timeout) — use permission as best signal
         localStorage.removeItem(ENDPOINT_KEY);
-        setStatus(permissionStatus());
+        setStatus(permissionOnlyStatus());
       }
     };
 
@@ -118,34 +161,68 @@ export function usePushSubscription() {
     }
 
     setLoading(true);
+
     try {
-      // 1. Request permission if needed
+      // 1. Request notification permission
       if (Notification.permission !== 'granted') {
         const result = await Notification.requestPermission();
-        if (result === 'denied') { setStatus('denied'); setLoading(false); return; }
-        if (result !== 'granted') { setLoading(false); return; }
+        if (result === 'denied') { setStatus('denied');       setLoading(false); return; }
+        if (result !== 'granted') {                           setLoading(false); return; }
       }
 
-      // 2. Fetch VAPID public key
+      // 2. Fetch VAPID public key from backend
       const vapidKey = await getVapidKey();
-      if (!vapidKey) { setStatus('not_subscribed'); setLoading(false); return; }
+      if (!vapidKey) {
+        console.error('[Push] VAPID public key missing — check VAPID_PUBLIC_KEY in backend .env');
+        setStatus('sw_unavailable');
+        setLoading(false);
+        return;
+      }
 
-      // 3. Subscribe via SW (with timeout)
-      const reg = await swReady();
-      const sub = await reg.pushManager.subscribe({
-        userVisibleOnly: true,
-        applicationServerKey: urlBase64ToUint8Array(vapidKey),
-      });
+      // 3. Get or register the service worker (wait up to 10 s)
+      let reg: ServiceWorkerRegistration;
+      try {
+        reg = await getActiveRegistration(10_000);
+      } catch (swErr) {
+        console.error('[Push] SW not available:', swErr);
+        setStatus('sw_unavailable');
+        setLoading(false);
+        return;
+      }
 
-      // 4. Save endpoint to backend
+      // 4. Subscribe to push via PushManager
+      let sub: PushSubscription;
+      try {
+        sub = await reg.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: urlBase64ToUint8Array(vapidKey),
+        });
+      } catch (subErr) {
+        console.error('[Push] pushManager.subscribe failed:', subErr);
+        // Already subscribed with different key? Unsubscribe first then retry
+        const existing = await reg.pushManager.getSubscription();
+        if (existing) {
+          await existing.unsubscribe();
+          sub = await reg.pushManager.subscribe({
+            userVisibleOnly: true,
+            applicationServerKey: urlBase64ToUint8Array(vapidKey),
+          });
+        } else {
+          throw subErr;
+        }
+      }
+
+      // 5. Save subscription to backend
       const j = sub.toJSON();
       await api.post('/push/subscribe', { endpoint: j.endpoint, keys: j.keys });
       localStorage.setItem(ENDPOINT_KEY, sub.endpoint!);
 
       setStatus('subscribed');
-    } catch {
-      setStatus(permissionStatus());
+    } catch (err) {
+      console.error('[Push] enable() failed:', err);
+      setStatus(permissionOnlyStatus());
     }
+
     setLoading(false);
   }, []);
 
@@ -153,17 +230,19 @@ export function usePushSubscription() {
   const disable = useCallback(async () => {
     setLoading(true);
     try {
-      const reg = await swReady();
-      const sub = await reg.pushManager.getSubscription();
-      if (sub) {
-        await api.post('/push/unsubscribe', { endpoint: sub.endpoint }).catch(() => {});
-        await sub.unsubscribe();
+      const reg = await navigator.serviceWorker.getRegistration('/');
+      if (reg) {
+        const sub = await reg.pushManager.getSubscription();
+        if (sub) {
+          await api.post('/push/unsubscribe', { endpoint: sub.endpoint }).catch(() => {});
+          await sub.unsubscribe();
+        }
       }
-    } catch {
-      // SW not available — still clear local state
+    } catch (err) {
+      console.error('[Push] disable() failed:', err);
     }
     localStorage.removeItem(ENDPOINT_KEY);
-    setStatus(permissionStatus()); // 'not_subscribed' since permission was granted
+    setStatus(permissionOnlyStatus());
     setLoading(false);
   }, []);
 
