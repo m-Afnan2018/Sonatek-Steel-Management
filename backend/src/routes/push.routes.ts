@@ -32,13 +32,31 @@ router.post('/subscribe', authenticate, async (req: Request, res: Response) => {
   res.status(201).json({ message: 'Subscribed.' });
 });
 
-// Remove a subscription (user unsubscribes on this device)
+// Remove a subscription (user fully unsubscribes on this device)
 router.post('/unsubscribe', authenticate, async (req: Request, res: Response) => {
   const { endpoint } = req.body;
   if (endpoint) {
     await PushSubscription.deleteOne({ endpoint, user: req.user!.id });
   }
   res.json({ message: 'Unsubscribed.' });
+});
+
+// Pause delivery for this device (subscription stays alive in the browser)
+router.post('/pause', authenticate, async (req: Request, res: Response) => {
+  const { endpoint } = req.body;
+  if (endpoint) {
+    await PushSubscription.updateOne({ endpoint, user: req.user!.id }, { paused: true });
+  }
+  res.json({ message: 'Paused.' });
+});
+
+// Resume delivery for this device
+router.post('/resume', authenticate, async (req: Request, res: Response) => {
+  const { endpoint } = req.body;
+  if (endpoint) {
+    await PushSubscription.updateOne({ endpoint, user: req.user!.id }, { paused: false });
+  }
+  res.json({ message: 'Resumed.' });
 });
 
 // Dev helper — send a test push to the current user

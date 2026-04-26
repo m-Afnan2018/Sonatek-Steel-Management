@@ -23,7 +23,7 @@ export async function sendPushToUser(
   userId: string | Types.ObjectId,
   payload: PushPayload,
 ): Promise<void> {
-  const subs = await PushSubscription.find({ user: userId });
+  const subs = await PushSubscription.find({ user: userId, paused: { $ne: true } });
   if (subs.length === 0) return;
 
   const data = JSON.stringify({

@@ -94,17 +94,20 @@ export default function Topbar({ onMenuToggle, title }: TopbarProps) {
                                   pushStatus === 'sw_unavailable' ? 'var(--danger-light)'  :
                                   pushStatus === 'loading'        ? 'var(--border)'        :
                                   pushStatus === 'unsupported'    ? 'var(--border)'        :
+                                  pushStatus === 'paused'         ? 'var(--border)'        :
                                                                     'var(--warning-light)',
                       color:      pushStatus === 'subscribed'     ? 'var(--success)'       :
                                   pushStatus === 'denied'         ? 'var(--danger)'        :
                                   pushStatus === 'sw_unavailable' ? 'var(--danger)'        :
                                   pushStatus === 'loading'        ? 'var(--text-muted)'    :
                                   pushStatus === 'unsupported'    ? 'var(--text-muted)'    :
+                                  pushStatus === 'paused'         ? 'var(--text-muted)'    :
                                                                     'var(--warning)',
                     }}
                     title={`Push: ${pushStatus}`}
                   >
                     {pushStatus === 'subscribed'     && '● Push on'}
+                    {pushStatus === 'paused'         && '○ Push paused'}
                     {pushStatus === 'denied'         && '● Push blocked'}
                     {pushStatus === 'sw_unavailable' && '● SW off'}
                     {pushStatus === 'not_granted'    && '○ Push off'}

@@ -128,80 +128,101 @@ const PUSH_META: Record<PushStatus, { dot: string; label: string; desc: string }
   unsupported:    { dot: '#8888A0', label: 'Not supported',      desc: 'Your browser does not support Web Push notifications.' },
   denied:         { dot: '#FF4757', label: 'Blocked',            desc: 'You blocked notifications for this site. Open browser site settings to allow them, then re-enable here.' },
   not_granted:    { dot: '#FFD32A', label: 'Not enabled',        desc: 'Push notifications have not been set up yet. Click Enable to subscribe this device.' },
-  not_subscribed: { dot: '#FFD32A', label: 'Not subscribed',     desc: 'Permission is granted but this device is not subscribed yet. Click Enable to subscribe.' },
-  subscribed:     { dot: '#00D4AA', label: 'Active',             desc: 'Push notifications are active. You will receive alerts even when the app is closed.' },
+  not_subscribed: { dot: '#FFD32A', label: 'Not subscribed',     desc: 'Permission is granted but no active subscription on this device. Click Enable to subscribe.' },
+  subscribed:     { dot: '#00D4AA', label: 'Active',             desc: 'Push notifications are active on this device. Toggle to pause delivery.' },
+  paused:         { dot: '#8888A0', label: 'Paused',             desc: 'Notifications are paused on this device. Toggle to resume.' },
   sw_unavailable: { dot: '#FF4757', label: 'Service worker off', desc: 'Push requires a production build with an active service worker. Run the app in production mode (npm run build && npm start).' },
 };
 
 function PushStatusCard({
-  status, loading, onEnable, onDisable,
+  status, loading, onEnable, onDisable, onReset,
 }: {
   status: PushStatus;
   loading: boolean;
   onEnable: () => void;
   onDisable: () => void;
+  onReset: () => void;
 }) {
   const meta = PUSH_META[status];
   const isOn = status === 'subscribed';
+  const isPaused = status === 'paused';
+  const canToggle = isOn || isPaused;
+  const showReset = canToggle;
 
   return (
-    <div className={styles.notifMaster}>
-      <div className={styles.notifMasterInfo}>
-        <div className={styles.notifMasterLabelRow}>
-          <span
-            className={styles.pushDot}
-            style={{ background: meta.dot, animation: status === 'loading' ? 'pulse 1.5s infinite' : 'none' }}
-          />
-          <span className={styles.notifMasterLabel}>Push Notifications — <span style={{ color: meta.dot }}>{meta.label}</span></span>
+    <div className={styles.notifMasterWrapper}>
+      <div className={styles.notifMaster}>
+        <div className={styles.notifMasterInfo}>
+          <div className={styles.notifMasterLabelRow}>
+            <span
+              className={styles.pushDot}
+              style={{ background: meta.dot, animation: status === 'loading' ? 'pulse 1.5s infinite' : 'none' }}
+            />
+            <span className={styles.notifMasterLabel}>Push Notifications — <span style={{ color: meta.dot }}>{meta.label}</span></span>
+          </div>
+          <span className={styles.notifMasterDesc}>{meta.desc}</span>
+          {status === 'denied' && (
+            <a
+              href="https://support.google.com/chrome/answer/3220216"
+              target="_blank"
+              rel="noopener noreferrer"
+              className={styles.pushHelpLink}
+            >
+              How to unblock notifications ↗
+            </a>
+          )}
         </div>
-        <span className={styles.notifMasterDesc}>{meta.desc}</span>
-        {status === 'denied' && (
-          <a
-            href="https://support.google.com/chrome/answer/3220216"
-            target="_blank"
-            rel="noopener noreferrer"
-            className={styles.pushHelpLink}
+
+        {(status === 'not_granted' || status === 'not_subscribed') && (
+          <button
+            type="button"
+            className={styles.pushEnableBtn}
+            onClick={onEnable}
+            disabled={loading}
           >
-            How to unblock notifications ↗
-          </a>
+            {loading ? 'Enabling…' : 'Enable'}
+          </button>
+        )}
+
+        {canToggle && (
+          <button
+            type="button"
+            className={`${styles.pillToggle} ${isOn ? styles.pillToggleOn : ''}`}
+            onClick={isOn ? onDisable : onEnable}
+            disabled={loading}
+            role="switch"
+            aria-checked={isOn}
+            title={isOn ? 'Pause notifications on this device' : 'Resume notifications on this device'}
+          >
+            <span className={styles.pillThumb} />
+          </button>
+        )}
+
+        {(status === 'unsupported' || status === 'denied' || status === 'loading' || status === 'sw_unavailable') && (
+          <button
+            type="button"
+            className={styles.pillToggle}
+            disabled
+            role="switch"
+            aria-checked={false}
+          >
+            <span className={styles.pillThumb} />
+          </button>
         )}
       </div>
 
-      {(status === 'not_granted' || status === 'not_subscribed') && (
-        <button
-          type="button"
-          className={styles.pushEnableBtn}
-          onClick={onEnable}
-          disabled={loading}
-        >
-          {loading ? 'Enabling…' : 'Enable'}
-        </button>
-      )}
-
-      {isOn && (
-        <button
-          type="button"
-          className={`${styles.pillToggle} ${styles.pillToggleOn}`}
-          onClick={onDisable}
-          disabled={loading}
-          role="switch"
-          aria-checked
-          title="Disable push notifications"
-        >
-          <span className={styles.pillThumb} />
-        </button>
-      )}
-
-      {(status === 'unsupported' || status === 'denied' || status === 'loading' || status === 'sw_unavailable') && (
-        <button
-          type="button"
-          className={styles.pillToggle}
-          disabled
-          role="switch"
-          aria-checked={false}
-        >
-          <span className={styles.pillThumb} />
-        </button>
+      {showReset && (
+        <div className={styles.pushResetRow}>
+          <button
+            type="button"
+            className={styles.pushResetBtn}
+            onClick={onReset}
+            disabled={loading}
+            title="Fully remove this device's push subscription"
+          >
+            Reset subscription
+          </button>
+        </div>
       )}
     </div>
   );
@@ -325,7 +346,7 @@ export default function SettingsPage() {
   };
 
   /* ── Push notification status ───────────────────────────────────── */
-  const { status: pushStatus, loading: pushLoading, enable: enablePush, disable: disablePush } = usePushSubscription();
+  const { status: pushStatus, loading: pushLoading, enable: enablePush, disable: disablePush, reset: resetPush } = usePushSubscription();
 
   /* ─────────────────────────────────────────────────────────────────── */
 
@@ -455,6 +476,7 @@ export default function SettingsPage() {
             loading={pushLoading}
             onEnable={enablePush}
             onDisable={disablePush}
+            onReset={resetPush}
           />
         </div>
 

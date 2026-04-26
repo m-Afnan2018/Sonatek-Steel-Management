@@ -7,12 +7,14 @@ export type PushStatus =
   | 'loading'        // checking real subscription state
   | 'unsupported'    // browser has no SW / PushManager / Notification
   | 'denied'         // user blocked notifications in browser
-  | 'subscribed'     // active push subscription on this device
+  | 'subscribed'     // active push subscription, delivery on
+  | 'paused'         // active push subscription, delivery paused on this device
   | 'not_subscribed' // permission granted but no active push subscription
   | 'not_granted'    // Notification.permission === 'default' — never asked
   | 'sw_unavailable'; // SW not registered / not HTTPS — push impossible here
 
 const ENDPOINT_KEY = 'tracksy_push_endpoint';
+const PAUSED_KEY   = 'tracksy_push_paused'; // stores the paused endpoint
 
 function urlBase64ToUint8Array(base64: string): ArrayBuffer {
   const padding = '='.repeat((4 - (base64.length % 4)) % 4);
@@ -32,7 +34,6 @@ async function getVapidKey(): Promise<string | null> {
   }
 }
 
-/** Returns permission-derived status when SW isn't involved. */
 function permissionOnlyStatus(): PushStatus {
   const p = Notification.permission;
   if (p === 'denied')  return 'denied';
@@ -40,14 +41,7 @@ function permissionOnlyStatus(): PushStatus {
   return 'not_granted';
 }
 
-/**
- * Waits for an active ServiceWorkerRegistration with a timeout.
- * Uses serviceWorker.ready (resolves once any SW is active/controlling)
- * then falls back to trying to register /sw.js.
- */
 async function getActiveRegistration(timeoutMs: number): Promise<ServiceWorkerRegistration> {
-  // serviceWorker.ready resolves as soon as a SW controls the page —
-  // in production (next-pwa) this is almost instant.
   const readyRace = Promise.race([
     navigator.serviceWorker.ready,
     new Promise<never>((_, reject) =>
@@ -58,28 +52,21 @@ async function getActiveRegistration(timeoutMs: number): Promise<ServiceWorkerRe
   try {
     return await readyRace;
   } catch {
-    // ready timed out — try explicit registration as last resort
     const reg = await navigator.serviceWorker.register('/sw.js', { scope: '/' });
     if (reg.active) return reg;
 
-    // Wait up to remaining time for it to activate
     return new Promise((resolve, reject) => {
-      const timer = setTimeout(
-        () => reject(new Error('sw-activate-timeout')),
-        5_000,
-      );
+      const timer = setTimeout(() => reject(new Error('sw-activate-timeout')), 5_000);
 
       const finish = () => {
         if (reg.active) { clearTimeout(timer); resolve(reg); }
       };
 
-      // Re-check immediately (handles race where it activated between register() and here)
       finish();
       if (reg.active) return;
 
       const sw = reg.installing || reg.waiting;
       if (!sw) {
-        // No worker at all — bail
         clearTimeout(timer);
         reject(new Error('sw-no-worker'));
         return;
@@ -120,11 +107,9 @@ export function usePushSubscription() {
 
     const check = async () => {
       try {
-        // Quick check: is there any registration at all?
         const reg = await navigator.serviceWorker.getRegistration('/');
 
         if (!reg || !reg.active) {
-          // No active SW — can't check subscription, use permission as signal
           localStorage.removeItem(ENDPOINT_KEY);
           setStatus(permissionOnlyStatus());
           return;
@@ -141,9 +126,12 @@ export function usePushSubscription() {
               .then(() => localStorage.setItem(ENDPOINT_KEY, sub.endpoint))
               .catch(() => {});
           }
-          setStatus('subscribed');
+          // Paused if this endpoint is stored in PAUSED_KEY
+          const paused = localStorage.getItem(PAUSED_KEY);
+          setStatus(paused === sub.endpoint ? 'paused' : 'subscribed');
         } else {
           localStorage.removeItem(ENDPOINT_KEY);
+          localStorage.removeItem(PAUSED_KEY);
           setStatus(permissionOnlyStatus());
         }
       } catch {
@@ -155,7 +143,7 @@ export function usePushSubscription() {
     check();
   }, []);
 
-  // ── Enable ────────────────────────────────────────────────────────────
+  // ── Enable / Resume ───────────────────────────────────────────────────
   const enable = useCallback(async () => {
     if (
       !('serviceWorker' in navigator) ||
@@ -169,14 +157,26 @@ export function usePushSubscription() {
     setLoading(true);
 
     try {
-      // 1. Request notification permission
+      // If paused, just resume — browser subscription is still alive
+      const reg0 = await navigator.serviceWorker.getRegistration('/');
+      if (reg0) {
+        const existingSub = await reg0.pushManager.getSubscription();
+        if (existingSub && localStorage.getItem(PAUSED_KEY) === existingSub.endpoint) {
+          await api.post('/push/resume', { endpoint: existingSub.endpoint });
+          localStorage.removeItem(PAUSED_KEY);
+          setStatus('subscribed');
+          setLoading(false);
+          return;
+        }
+      }
+
+      // Fresh subscribe flow
       if (Notification.permission !== 'granted') {
         const result = await Notification.requestPermission();
         if (result === 'denied') { setStatus('denied');       setLoading(false); return; }
         if (result !== 'granted') {                           setLoading(false); return; }
       }
 
-      // 2. Get or register the service worker (wait up to 12 s)
       let reg: ServiceWorkerRegistration;
       try {
         reg = await getActiveRegistration(12_000);
@@ -187,7 +187,6 @@ export function usePushSubscription() {
         return;
       }
 
-      // 3. Fetch VAPID public key from backend
       const vapidKey = await getVapidKey();
       if (!vapidKey) {
         console.error('[Push] VAPID public key missing — check VAPID_PUBLIC_KEY in backend .env');
@@ -196,7 +195,6 @@ export function usePushSubscription() {
         return;
       }
 
-      // 4. Subscribe to push via PushManager
       let sub: PushSubscription;
       try {
         sub = await reg.pushManager.subscribe({
@@ -205,7 +203,6 @@ export function usePushSubscription() {
         });
       } catch (subErr) {
         console.error('[Push] pushManager.subscribe failed:', subErr);
-        // Already subscribed with different key? Unsubscribe first then retry
         const existing = await reg.pushManager.getSubscription();
         if (existing) {
           await existing.unsubscribe();
@@ -218,10 +215,10 @@ export function usePushSubscription() {
         }
       }
 
-      // 5. Save subscription to backend
       const j = sub.toJSON();
       await api.post('/push/subscribe', { endpoint: j.endpoint, keys: j.keys });
       localStorage.setItem(ENDPOINT_KEY, sub.endpoint!);
+      localStorage.removeItem(PAUSED_KEY);
 
       setStatus('subscribed');
     } catch (err) {
@@ -232,8 +229,32 @@ export function usePushSubscription() {
     setLoading(false);
   }, []);
 
-  // ── Disable ───────────────────────────────────────────────────────────
+  // ── Disable = pause delivery (browser subscription stays alive) ───────
   const disable = useCallback(async () => {
+    setLoading(true);
+    try {
+      const reg = await navigator.serviceWorker.getRegistration('/');
+      if (reg) {
+        const sub = await reg.pushManager.getSubscription();
+        if (sub) {
+          await api.post('/push/pause', { endpoint: sub.endpoint }).catch(() => {});
+          localStorage.setItem(PAUSED_KEY, sub.endpoint);
+          setStatus('paused');
+          setLoading(false);
+          return;
+        }
+      }
+    } catch (err) {
+      console.error('[Push] pause() failed:', err);
+    }
+    // Fallback: no subscription found
+    localStorage.removeItem(PAUSED_KEY);
+    setStatus(permissionOnlyStatus());
+    setLoading(false);
+  }, []);
+
+  // ── Reset = full unsubscribe (browser + backend) ──────────────────────
+  const reset = useCallback(async () => {
     setLoading(true);
     try {
       const reg = await navigator.serviceWorker.getRegistration('/');
@@ -245,12 +266,13 @@ export function usePushSubscription() {
         }
       }
     } catch (err) {
-      console.error('[Push] disable() failed:', err);
+      console.error('[Push] reset() failed:', err);
     }
     localStorage.removeItem(ENDPOINT_KEY);
+    localStorage.removeItem(PAUSED_KEY);
     setStatus(permissionOnlyStatus());
     setLoading(false);
   }, []);
 
-  return { status, loading, enable, disable };
+  return { status, loading, enable, disable, reset };
 }

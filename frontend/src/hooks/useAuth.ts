@@ -42,14 +42,28 @@ export function useAuth() {
   };
 
   const logout = async () => {
+    // Unsubscribe push before clearing session
+    try {
+      if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
+        const reg = await navigator.serviceWorker.getRegistration('/');
+        if (reg) {
+          const sub = await reg.pushManager.getSubscription();
+          if (sub) {
+            await api.post('/push/unsubscribe', { endpoint: sub.endpoint }).catch(() => {});
+            await sub.unsubscribe();
+          }
+        }
+        localStorage.removeItem('tracksy_push_endpoint');
+        localStorage.removeItem('tracksy_push_paused');
+      }
+    } catch { /* ignore */ }
+
     try {
       await api.post('/auth/logout');
-    } catch {
-      // ignore logout errors
-    } finally {
-      clearAuth();
-      router.push('/login');
-    }
+    } catch { /* ignore */ }
+
+    clearAuth();
+    router.push('/login');
   };
 
   return { login, register, logout, loading, error, user, isAuthenticated };
