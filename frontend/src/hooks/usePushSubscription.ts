@@ -41,50 +41,56 @@ function permissionOnlyStatus(): PushStatus {
 }
 
 /**
- * Gets an active ServiceWorkerRegistration, registering /sw.js if needed.
- * Waits up to `timeoutMs` for the SW to become active.
+ * Waits for an active ServiceWorkerRegistration with a timeout.
+ * Uses serviceWorker.ready (resolves once any SW is active/controlling)
+ * then falls back to trying to register /sw.js.
  */
 async function getActiveRegistration(timeoutMs: number): Promise<ServiceWorkerRegistration> {
-  // Check for any existing registration first
-  let reg = await navigator.serviceWorker.getRegistration('/');
+  // serviceWorker.ready resolves as soon as a SW controls the page —
+  // in production (next-pwa) this is almost instant.
+  const readyRace = Promise.race([
+    navigator.serviceWorker.ready,
+    new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error('sw-ready-timeout')), timeoutMs),
+    ),
+  ]);
 
-  if (!reg) {
-    // No SW registered at all — try to register the production SW
-    reg = await navigator.serviceWorker.register('/sw.js', { scope: '/' });
-  }
+  try {
+    return await readyRace;
+  } catch {
+    // ready timed out — try explicit registration as last resort
+    const reg = await navigator.serviceWorker.register('/sw.js', { scope: '/' });
+    if (reg.active) return reg;
 
-  // If already active, return immediately
-  if (reg.active) return reg;
+    // Wait up to remaining time for it to activate
+    return new Promise((resolve, reject) => {
+      const timer = setTimeout(
+        () => reject(new Error('sw-activate-timeout')),
+        5_000,
+      );
 
-  // Wait for installing/waiting to become active
-  return new Promise((resolve, reject) => {
-    const timer = setTimeout(
-      () => reject(new Error('sw-activate-timeout')),
-      timeoutMs,
-    );
+      const finish = () => {
+        if (reg.active) { clearTimeout(timer); resolve(reg); }
+      };
 
-    const checkActive = () => {
-      if (reg!.active) {
+      // Re-check immediately (handles race where it activated between register() and here)
+      finish();
+      if (reg.active) return;
+
+      const sw = reg.installing || reg.waiting;
+      if (!sw) {
+        // No worker at all — bail
         clearTimeout(timer);
-        resolve(reg!);
+        reject(new Error('sw-no-worker'));
         return;
       }
-    };
 
-    const sw = reg!.installing || reg!.waiting;
-    if (!sw) {
-      clearTimeout(timer);
-      reject(new Error('sw-no-worker'));
-      return;
-    }
-
-    sw.addEventListener('statechange', function handler() {
-      checkActive();
-      if (reg!.active) sw.removeEventListener('statechange', handler);
+      sw.addEventListener('statechange', function handler() {
+        finish();
+        if (reg.active) sw.removeEventListener('statechange', handler);
+      });
     });
-
-    checkActive();
-  });
+  }
 }
 
 export function usePushSubscription() {
@@ -170,22 +176,22 @@ export function usePushSubscription() {
         if (result !== 'granted') {                           setLoading(false); return; }
       }
 
-      // 2. Fetch VAPID public key from backend
-      const vapidKey = await getVapidKey();
-      if (!vapidKey) {
-        console.error('[Push] VAPID public key missing — check VAPID_PUBLIC_KEY in backend .env');
+      // 2. Get or register the service worker (wait up to 12 s)
+      let reg: ServiceWorkerRegistration;
+      try {
+        reg = await getActiveRegistration(12_000);
+      } catch (swErr) {
+        console.error('[Push] SW not available:', swErr);
         setStatus('sw_unavailable');
         setLoading(false);
         return;
       }
 
-      // 3. Get or register the service worker (wait up to 10 s)
-      let reg: ServiceWorkerRegistration;
-      try {
-        reg = await getActiveRegistration(10_000);
-      } catch (swErr) {
-        console.error('[Push] SW not available:', swErr);
-        setStatus('sw_unavailable');
+      // 3. Fetch VAPID public key from backend
+      const vapidKey = await getVapidKey();
+      if (!vapidKey) {
+        console.error('[Push] VAPID public key missing — check VAPID_PUBLIC_KEY in backend .env');
+        setStatus(permissionOnlyStatus());
         setLoading(false);
         return;
       }
