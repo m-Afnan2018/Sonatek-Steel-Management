@@ -11,7 +11,7 @@ import Modal from '@/components/ui/Modal/Modal';
 import { useAuthStore } from '@/store/authStore';
 import { useAuth } from '@/hooks/useAuth';
 import { useDepartments } from '@/hooks/useDepartments';
-import { BROWSER_NOTIF_KEY, isBrowserNotifEnabled } from '@/hooks/useNotifications';
+import { usePushSubscription, type PushStatus } from '@/hooks/usePushSubscription';
 import api from '@/lib/api';
 import styles from './settings.module.css';
 
@@ -122,6 +122,90 @@ function ConfirmDialog({
   );
 }
 
+/* ── Push Status Card ────────────────────────────────────────────────── */
+const PUSH_META: Record<PushStatus, { dot: string; label: string; desc: string }> = {
+  loading:        { dot: '#8888A0', label: 'Checking…',        desc: 'Detecting your push notification subscription status.' },
+  unsupported:    { dot: '#8888A0', label: 'Not supported',    desc: 'Your browser does not support Web Push notifications.' },
+  denied:         { dot: '#FF4757', label: 'Blocked',          desc: 'You blocked notifications for this site. Open browser site settings to allow them, then re-enable here.' },
+  not_granted:    { dot: '#FFD32A', label: 'Not enabled',      desc: 'Push notifications have not been set up yet. Click Enable to get desktop alerts.' },
+  not_subscribed: { dot: '#FFD32A', label: 'Not subscribed',   desc: 'Permission is granted but no active subscription exists on this device.' },
+  subscribed:     { dot: '#00D4AA', label: 'Active',           desc: 'Push notifications are enabled. You will receive alerts even when the app is closed.' },
+};
+
+function PushStatusCard({
+  status, loading, onEnable, onDisable,
+}: {
+  status: PushStatus;
+  loading: boolean;
+  onEnable: () => void;
+  onDisable: () => void;
+}) {
+  const meta = PUSH_META[status];
+  const isOn = status === 'subscribed';
+
+  return (
+    <div className={styles.notifMaster}>
+      <div className={styles.notifMasterInfo}>
+        <div className={styles.notifMasterLabelRow}>
+          <span
+            className={styles.pushDot}
+            style={{ background: meta.dot, animation: status === 'loading' ? 'pulse 1.5s infinite' : 'none' }}
+          />
+          <span className={styles.notifMasterLabel}>Push Notifications — <span style={{ color: meta.dot }}>{meta.label}</span></span>
+        </div>
+        <span className={styles.notifMasterDesc}>{meta.desc}</span>
+        {status === 'denied' && (
+          <a
+            href="https://support.google.com/chrome/answer/3220216"
+            target="_blank"
+            rel="noopener noreferrer"
+            className={styles.pushHelpLink}
+          >
+            How to unblock notifications ↗
+          </a>
+        )}
+      </div>
+
+      {(status === 'not_granted' || status === 'not_subscribed') && (
+        <button
+          type="button"
+          className={styles.pushEnableBtn}
+          onClick={onEnable}
+          disabled={loading}
+        >
+          {loading ? 'Enabling…' : 'Enable'}
+        </button>
+      )}
+
+      {isOn && (
+        <button
+          type="button"
+          className={`${styles.pillToggle} ${styles.pillToggleOn}`}
+          onClick={onDisable}
+          disabled={loading}
+          role="switch"
+          aria-checked
+          title="Disable push notifications"
+        >
+          <span className={styles.pillThumb} />
+        </button>
+      )}
+
+      {(status === 'unsupported' || status === 'denied' || status === 'loading') && (
+        <button
+          type="button"
+          className={styles.pillToggle}
+          disabled
+          role="switch"
+          aria-checked={false}
+        >
+          <span className={styles.pillThumb} />
+        </button>
+      )}
+    </div>
+  );
+}
+
 /* ── Page ────────────────────────────────────────────────────────────── */
 export default function SettingsPage() {
   const user = useAuthStore((s) => s.user);
@@ -148,7 +232,7 @@ export default function SettingsPage() {
   const [confirming, setConfirming] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
 
-  const avatarSrc = user?.avatar ? `${STATIC_BASE}${user.avatar}` : undefined;
+  const avatarSrc = user?.avatar ? `${user.avatar}` : undefined;
 
   /* ── Departments ─────────────────────────────────────────────────── */
   const myDepartments = useMemo(
@@ -239,30 +323,8 @@ export default function SettingsPage() {
     }
   };
 
-  /* ── Browser notifications master toggle ────────────────────────── */
-  const [browserNotifEnabled, setBrowserNotifEnabled] = useState(isBrowserNotifEnabled);
-  const [browserPermission, setBrowserPermission] = useState<NotificationPermission | 'unsupported'>('default');
-
-  useEffect(() => {
-    if (typeof window !== 'undefined' && 'Notification' in window) {
-      setBrowserPermission(window.Notification.permission);
-    } else {
-      setBrowserPermission('unsupported');
-    }
-  }, []);
-
-  const handleBrowserNotifToggle = async (enabled: boolean) => {
-    if (enabled && typeof window !== 'undefined' && 'Notification' in window) {
-      if (window.Notification.permission === 'denied') return; // can't re-request
-      if (window.Notification.permission !== 'granted') {
-        const result = await window.Notification.requestPermission();
-        setBrowserPermission(result);
-        if (result !== 'granted') return;
-      }
-    }
-    setBrowserNotifEnabled(enabled);
-    try { localStorage.setItem(BROWSER_NOTIF_KEY, String(enabled)); } catch { /* ignore */ }
-  };
+  /* ── Push notification status ───────────────────────────────────── */
+  const { status: pushStatus, loading: pushLoading, enable: enablePush, disable: disablePush } = usePushSubscription();
 
   /* ─────────────────────────────────────────────────────────────────── */
 
@@ -387,31 +449,12 @@ export default function SettingsPage() {
         {/* ── Notifications ────────────────────────────────────────────── */}
         <div className={styles.section}>
           <h2 className={styles.sectionTitle}>Notifications</h2>
-
-          {/* Master browser notification toggle */}
-          <div className={styles.notifMaster}>
-            <div className={styles.notifMasterInfo}>
-              <span className={styles.notifMasterLabel}>Browser Notifications</span>
-              <span className={styles.notifMasterDesc}>
-                {browserPermission === 'denied'
-                  ? 'Blocked by browser — enable in site settings to use this.'
-                  : browserPermission === 'unsupported'
-                  ? 'Not supported in this browser.'
-                  : 'Show desktop alerts for new notifications.'}
-              </span>
-            </div>
-            <button
-              type="button"
-              role="switch"
-              aria-checked={browserNotifEnabled}
-              className={`${styles.pillToggle} ${browserNotifEnabled && browserPermission !== 'denied' ? styles.pillToggleOn : ''}`}
-              onClick={() => handleBrowserNotifToggle(!browserNotifEnabled)}
-              disabled={browserPermission === 'denied' || browserPermission === 'unsupported'}
-              title={browserPermission === 'denied' ? 'Blocked in browser settings' : undefined}
-            >
-              <span className={styles.pillThumb} />
-            </button>
-          </div>
+          <PushStatusCard
+            status={pushStatus}
+            loading={pushLoading}
+            onEnable={enablePush}
+            onDisable={disablePush}
+          />
         </div>
 
         {/* ── Danger Zone ──────────────────────────────────────────────── */}

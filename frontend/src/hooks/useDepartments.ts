@@ -25,6 +25,7 @@ export function useDepartments(autoFetch = true) {
     description?: string;
     color?: string;
     headId?: string;
+    canSocialMedia?: boolean;
   }): Promise<Department | null> => {
     try {
       const { data } = await api.post('/departments', payload);
@@ -37,7 +38,7 @@ export function useDepartments(autoFetch = true) {
 
   const updateDepartment = useCallback(async (
     id: string,
-    payload: { name?: string; description?: string; color?: string }
+    payload: { name?: string; description?: string; color?: string; canSocialMedia?: boolean }
   ): Promise<Department | null> => {
     try {
       const { data } = await api.put(`/departments/${id}`, payload);

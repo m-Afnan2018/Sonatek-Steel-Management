@@ -53,6 +53,10 @@ export default function ProjectDetailPage() {
   );
   const isDeptHead = !isAdminOrManager && myHeadedDepts.length > 0;
 
+  // Social tab is visible to admins/managers OR dept heads whose department has canSocialMedia enabled
+  const canSeeSocialTab = isAdminOrManager ||
+    myHeadedDepts.some((d) => (d as any).canSocialMedia === true);
+
   // Deduplicated members from all headed departments
   const deptMembers = useMemo(() => {
     const seen = new Set<string>();
@@ -385,12 +389,14 @@ export default function ProjectDetailPage() {
           >
             Links{project.links && project.links.length > 0 && <span className={styles.tabBadge}>{project.links.length}</span>}
           </button>
-          <button
-            className={`${styles.tab} ${activeTab === 'social' ? styles.tabActive : ''}`}
-            onClick={() => setActiveTab('social')}
-          >
-            Social
-          </button>
+          {canSeeSocialTab && (
+            <button
+              className={`${styles.tab} ${activeTab === 'social' ? styles.tabActive : ''}`}
+              onClick={() => setActiveTab('social')}
+            >
+              Social
+            </button>
+          )}
 
           <div className={styles.tabActions}>
             <Button size="sm" onClick={() => setShowCreateTask(true)}>
@@ -485,7 +491,7 @@ export default function ProjectDetailPage() {
           <ProjectCalendar projectId={projectId} />
         )}
 
-        {activeTab === 'social' && (
+        {activeTab === 'social' && canSeeSocialTab && (
           <SocialTab projectId={projectId} />
         )}
 

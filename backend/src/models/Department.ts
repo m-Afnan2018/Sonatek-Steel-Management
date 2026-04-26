@@ -6,6 +6,7 @@ export interface IDepartment extends Document {
   color: string;
   heads: Types.ObjectId[];
   members: Types.ObjectId[];
+  canSocialMedia: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -23,6 +24,7 @@ const departmentSchema = new Schema<IDepartment>(
     color: { type: String, default: '#6366f1' },
     heads: [{ type: Schema.Types.ObjectId, ref: 'User' }],
     members: [{ type: Schema.Types.ObjectId, ref: 'User' }],
+    canSocialMedia: { type: Boolean, default: false },
   },
   { timestamps: true }
 );

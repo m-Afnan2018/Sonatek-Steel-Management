@@ -5,6 +5,7 @@ export interface Department {
   color: string;
   heads: User[];
   members: User[];
+  canSocialMedia: boolean;
   createdAt: string;
   updatedAt: string;
 }

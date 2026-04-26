@@ -21,6 +21,7 @@ export default function CheckInButton({ viewUserId, viewUserName }: CheckInButto
   const [lunchStartTime, setLunchStartTime] = useState<string | null>(null);
   const [workMode, setWorkMode] = useState<'office' | 'remote' | 'hybrid'>('office');
   const [isLate, setIsLate] = useState(false);
+  const [lunchElapsedMins, setLunchElapsedMins] = useState(0);
 
   // Fetch own status
   useEffect(() => {
@@ -95,8 +96,23 @@ export default function CheckInButton({ viewUserId, viewUserName }: CheckInButto
     if (result) {
       setFlow('checked_in');
       setLunchStartTime(null);
+      setLunchElapsedMins(0);
     }
   };
+
+  // Live lunch timer — updates every minute while on lunch
+  useEffect(() => {
+    if (flow !== 'on_lunch' || !lunchStartTime) return;
+
+    const tick = () => {
+      const mins = Math.floor((Date.now() - new Date(lunchStartTime).getTime()) / 60_000);
+      setLunchElapsedMins(mins);
+    };
+
+    tick(); // run immediately
+    const id = setInterval(tick, 60_000);
+    return () => clearInterval(id);
+  }, [flow, lunchStartTime]);
 
   const handleCheckOut = async () => {
     const result = await checkOut();
@@ -225,9 +241,24 @@ export default function CheckInButton({ viewUserId, viewUserName }: CheckInButto
             <div className={`${styles.statusIcon} ${styles.lunch}`} />
             <div>
               <p className={styles.statusText}>On Lunch Break</p>
-              {lunchStartTime && <p className={styles.statusTime}>since {formatTime(lunchStartTime)}</p>}
+              {lunchStartTime && (
+                <p className={styles.statusTime}>
+                  since {formatTime(lunchStartTime)}
+                  {lunchElapsedMins > 0 && ` · ${lunchElapsedMins}m elapsed`}
+                </p>
+              )}
             </div>
           </div>
+
+          {lunchElapsedMins >= 60 && (
+            <div className={styles.overtimeBanner}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+              </svg>
+              <span>Lunch over {lunchElapsedMins - 60}m ago — did you forget to stop?</span>
+            </div>
+          )}
+
           <div className={styles.actionRow}>
             <Button variant="secondary" onClick={handleLunchStop} loading={loading} size="sm">
               🍽 Lunch Stop

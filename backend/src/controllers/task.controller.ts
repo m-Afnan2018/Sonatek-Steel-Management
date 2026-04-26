@@ -6,6 +6,7 @@ import Project from "../models/Project";
 import Notification from "../models/Notification";
 import mongoose from "mongoose";
 import { getElapsedSeconds } from "../utils/timerUtils";
+import { createNotifications } from "../utils/createNotification";
 
 export const getTasks = async (req: Request, res: Response): Promise<void> => {
     try {
@@ -157,14 +158,14 @@ export const createTask = async (
                 .filter((a) => a !== req.user?.id)
                 .map((assigneeId) => ({
                     recipient: assigneeId,
-                    sender: req.user?.id,
+                    sender: req.user?.id as string,
                     type: "task_assigned" as const,
                     title: "New Task Assigned",
                     message: `You have been assigned to "${title}"`,
                     link: project ? `/projects/${project}` : "/tasks",
                 }));
             if (notifications.length > 0)
-                await Notification.insertMany(notifications);
+                await createNotifications(notifications);
         }
 
         res.status(201).json(task);
@@ -328,13 +329,13 @@ export const addComment = async (
         if (mentions?.length > 0) {
             const notifications = (mentions as string[]).map((userId) => ({
                 recipient: userId,
-                sender: req.user?.id,
+                sender: req.user?.id as string,
                 type: "comment_mention" as const,
                 title: "Mentioned in Comment",
                 message: `${req.user?.name} mentioned you in a comment`,
                 link: `/tasks`,
             }));
-            await Notification.insertMany(notifications);
+            await createNotifications(notifications);
         }
 
         res.status(201).json(comment);

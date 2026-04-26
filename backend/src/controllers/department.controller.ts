@@ -51,6 +51,7 @@ export const createDepartment = async (req: Request, res: Response): Promise<voi
       color: color || '#6366f1',
       heads: headId ? [headId] : [],
       members: headId ? [headId] : [],
+      canSocialMedia: req.body.canSocialMedia ?? false,
     });
     if (headId) {
       await syncUserDepts(headId);
@@ -65,11 +66,12 @@ export const createDepartment = async (req: Request, res: Response): Promise<voi
 
 export const updateDepartment = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { name, description, color } = req.body;
+    const { name, description, color, canSocialMedia } = req.body;
     const patch: Record<string, unknown> = {};
     if (name !== undefined) patch.name = name.trim();
     if (description !== undefined) patch.description = description.trim();
     if (color !== undefined) patch.color = color;
+    if (canSocialMedia !== undefined) patch.canSocialMedia = canSocialMedia;
 
     const dept = await Department.findByIdAndUpdate(req.params.id, patch, { new: true })
       .populate('heads', MEMBER_SELECT)

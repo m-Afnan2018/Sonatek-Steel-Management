@@ -16,7 +16,7 @@ export default function Avatar({ name, src, size = 'md', className }: AvatarProp
   if (src) {
     return (
       <img
-        src={src}
+        src={`/api${src}`}
         alt={name}
         className={cn(styles.avatar, styles[size], className)}
       />

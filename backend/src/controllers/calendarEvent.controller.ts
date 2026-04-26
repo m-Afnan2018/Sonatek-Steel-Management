@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import CalendarEvent from '../models/CalendarEvent';
 import Notification from '../models/Notification';
 import User from '../models/User';
+import { createNotifications } from '../utils/createNotification';
 
 // GET /api/calendar-events?month=4&year=2026&userId=xxx
 export const getCalendarEvents = async (req: Request, res: Response): Promise<void> => {
@@ -98,7 +99,7 @@ export const createCalendarEvent = async (req: Request, res: Response): Promise<
         message: `${senderName} invited you to "${title.trim()}" on ${eventDate}`,
         link: '/attendance',
       }));
-      await Notification.insertMany(notifications);
+      await createNotifications(notifications);
     }
 
     res.status(201).json(event);
@@ -167,7 +168,7 @@ export const updateCalendarEvent = async (req: Request, res: Response): Promise<
           message: `${updaterName} invited you to "${event.title}" on ${eventDate}`,
           link: '/attendance',
         }));
-        await Notification.insertMany(notifications);
+        await createNotifications(notifications);
       }
     }
 

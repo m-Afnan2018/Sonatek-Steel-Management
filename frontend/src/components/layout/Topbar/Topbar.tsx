@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useAuth } from '@/hooks/useAuth';
 import { useThemeStore } from '@/store/themeStore';
 import { useNotifications } from '@/hooks/useNotifications';
+import { usePushSubscription } from '@/hooks/usePushSubscription';
 import { timeAgo } from '@/lib/utils';
 import styles from './Topbar.module.css';
 
@@ -17,6 +18,7 @@ export default function Topbar({ onMenuToggle, title }: TopbarProps) {
   const { logout, user } = useAuth();
   const { theme, toggle } = useThemeStore();
   const { notifications, unreadCount, markAllRead, markOneRead, clearOne, clearAll } = useNotifications();
+  const { status: pushStatus } = usePushSubscription();
   const [showNotifications, setShowNotifications] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
   const notifRef = useRef<HTMLDivElement>(null);
@@ -82,7 +84,32 @@ export default function Topbar({ onMenuToggle, title }: TopbarProps) {
           {showNotifications && (
             <div className={styles.dropdown}>
               <div className={styles.dropdownHeader}>
-                <span>Notifications</span>
+                <div className={styles.notifHeaderTitle}>
+                  <span>Notifications</span>
+                  <span
+                    className={styles.pushStatusPill}
+                    style={{
+                      background: pushStatus === 'subscribed'    ? 'var(--success-light)'  :
+                                  pushStatus === 'denied'        ? 'var(--danger-light)'   :
+                                  pushStatus === 'loading'       ? 'var(--border)'         :
+                                  pushStatus === 'unsupported'   ? 'var(--border)'         :
+                                                                   'var(--warning-light)',
+                      color:      pushStatus === 'subscribed'    ? 'var(--success)'        :
+                                  pushStatus === 'denied'        ? 'var(--danger)'         :
+                                  pushStatus === 'loading'       ? 'var(--text-muted)'     :
+                                  pushStatus === 'unsupported'   ? 'var(--text-muted)'     :
+                                                                   'var(--warning)',
+                    }}
+                    title={`Push: ${pushStatus}`}
+                  >
+                    {pushStatus === 'subscribed'    && '● Push on'}
+                    {pushStatus === 'denied'        && '● Push blocked'}
+                    {pushStatus === 'not_granted'   && '○ Push off'}
+                    {pushStatus === 'not_subscribed'&& '○ Push off'}
+                    {pushStatus === 'loading'       && '· · ·'}
+                    {pushStatus === 'unsupported'   && '— Unsupported'}
+                  </span>
+                </div>
                 <div className={styles.notifHeaderActions}>
                   {unreadCount > 0 && (
                     <button className={styles.markRead} onClick={markAllRead}>
@@ -100,15 +127,22 @@ export default function Topbar({ onMenuToggle, title }: TopbarProps) {
                 {notifications.length === 0 ? (
                   <p className={styles.empty}>No notifications</p>
                 ) : (
-                  notifications.map((n) =>
-                    n.link ? (
-                      <div key={n._id} className={`${styles.notifItem} ${!n.isRead ? styles.unread : ''}`}>
+                  notifications.map((n) => {
+                    const isLunchAlert = (n as any).type === 'lunch_overtime';
+                    const unreadClass = !n.isRead
+                      ? isLunchAlert ? styles.unreadLunch : styles.unread
+                      : '';
+                    return n.link ? (
+                      <div key={n._id} className={`${styles.notifItem} ${unreadClass}`}>
                         <Link
                           href={n.link}
                           className={styles.notifBody}
                           onClick={() => { markOneRead(n._id); setShowNotifications(false); }}
                         >
-                          {!n.isRead && <span className={styles.unreadDot} />}
+                          {!n.isRead && (
+                            <span className={styles.unreadDot}
+                              style={isLunchAlert ? { background: 'var(--warning)' } : undefined} />
+                          )}
                           <div className={styles.notifContent}>
                             <p className={styles.notifTitle}>{n.title}</p>
                             <p className={styles.notifMsg}>{n.message}</p>
@@ -126,13 +160,16 @@ export default function Topbar({ onMenuToggle, title }: TopbarProps) {
                     ) : (
                       <div
                         key={n._id}
-                        className={`${styles.notifItem} ${!n.isRead ? styles.unread : ''}`}
+                        className={`${styles.notifItem} ${unreadClass}`}
                       >
                         <div
                           className={styles.notifBody}
                           onClick={() => { if (!n.isRead) markOneRead(n._id); }}
                         >
-                          {!n.isRead && <span className={styles.unreadDot} />}
+                          {!n.isRead && (
+                            <span className={styles.unreadDot}
+                              style={isLunchAlert ? { background: 'var(--warning)' } : undefined} />
+                          )}
                           <div className={styles.notifContent}>
                             <p className={styles.notifTitle}>{n.title}</p>
                             <p className={styles.notifMsg}>{n.message}</p>
@@ -147,8 +184,8 @@ export default function Topbar({ onMenuToggle, title }: TopbarProps) {
                           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
                         </button>
                       </div>
-                    )
-                  )
+                    );
+                  })
                 )}
               </div>
             </div>

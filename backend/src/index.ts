@@ -23,6 +23,7 @@ const start = async () => {
   startAutoCheckoutJob();
   startAutoAbsentJob();
   startSocialSchedulerJob();
+  startLunchOvertimeJob();
 };
 
 start().catch(console.error);

@@ -1,6 +1,7 @@
 import cron from 'node-cron';
 import Attendance from '../models/Attendance';
 import Notification from '../models/Notification';
+import { createNotifications } from '../utils/createNotification';
 
 const LUNCH_LIMIT_MS = 60 * 60 * 1000; // 1 hour in ms
 
@@ -40,14 +41,13 @@ export function startLunchOvertimeJob(): void {
 
         const elapsed = Math.floor((now.getTime() - record.lunchStart!.getTime()) / (1000 * 60));
 
-        await Notification.create({
-          recipient: userId,
-          sender: userId, // self-generated system notification
+        await createNotifications({
+          recipient: userId.toString(),
+          sender: userId.toString(),
           type: 'lunch_overtime',
           title: '⏰ Long Lunch Break',
           message: `Your lunch break has been running for ${elapsed} minutes. Did you forget to click Lunch Stop?`,
           link: '/attendance',
-          isRead: false,
         });
 
         console.log(`[LunchOvertime] Notified user ${userId} — lunch open for ${elapsed} min`);
