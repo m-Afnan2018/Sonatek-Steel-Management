@@ -27,6 +27,8 @@
   --glass-border: rgba(255, 255, 255, 0.06);
   --transition: 200ms ease;
   --sidebar-width: 260px;
+  --sidebar-collapsed-width: 68px;
+  --current-sidebar-width: var(--sidebar-width); /* updated by JS on collapse toggle */
   --topbar-height: 64px;
   --font-heading: 'Sora', sans-serif;
   --font-body: 'DM Sans', sans-serif;

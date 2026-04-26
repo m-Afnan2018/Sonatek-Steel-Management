@@ -100,9 +100,11 @@ const navItems = [
 interface SidebarProps {
   isOpen: boolean;
   onClose: () => void;
+  collapsed: boolean;
+  onToggleCollapsed: () => void;
 }
 
-export default function Sidebar({ isOpen, onClose }: SidebarProps) {
+export default function Sidebar({ isOpen, onClose, collapsed, onToggleCollapsed }: SidebarProps) {
   const pathname = usePathname();
   const user = useAuthStore((s) => s.user);
   const isManagerOrAdmin = user?.role === 'admin' || user?.role === 'manager';
@@ -111,30 +113,34 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
   return (
     <>
       {isOpen && <div className={styles.overlay} onClick={onClose} />}
-      <aside className={cn(styles.sidebar, isOpen && styles.open)}>
+      <aside className={cn(styles.sidebar, isOpen && styles.open, collapsed && styles.collapsed)}>
+
+        {/* Logo */}
         <div className={styles.logo}>
           <div className={styles.logoIcon}>
-            <Image src={image.src} width={25} height={25} alt='logo'/>
+            <Image src={image.src} width={25} height={25} alt="logo" />
           </div>
-          <div>
-            <h1 className={styles.logoText}>Ganesyx</h1>
+          <div className={styles.logoText}>
+            <h1 className={styles.logoName}>Ganesyx</h1>
             <p className={styles.logoSub}>Project Manager</p>
           </div>
         </div>
 
+        {/* Nav */}
         <nav className={styles.nav}>
           {navItems.map((item) => (
             <Link
               key={item.href}
               href={item.href}
+              data-label={item.label}
               className={cn(
                 styles.navItem,
                 (pathname === item.href || (item.href !== '/tasks' && pathname.startsWith(item.href + '/'))) && styles.active
               )}
               onClick={onClose}
             >
-              {item.icon}
-              <span>{item.label}</span>
+              <span className={styles.navIcon}>{item.icon}</span>
+              <span className={styles.navLabel}>{item.label}</span>
             </Link>
           ))}
 
@@ -143,23 +149,29 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
               <div className={styles.navDivider} />
               <Link
                 href="/team/resources"
+                data-label="Resources"
                 className={cn(styles.navItem, pathname === '/team/resources' && styles.active)}
                 onClick={onClose}
               >
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <rect x="2" y="7" width="20" height="14" rx="2" /><path d="M16 7V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v2" />
-                </svg>
-                <span>Resources</span>
+                <span className={styles.navIcon}>
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="2" y="7" width="20" height="14" rx="2" /><path d="M16 7V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v2" />
+                  </svg>
+                </span>
+                <span className={styles.navLabel}>Resources</span>
               </Link>
               <Link
                 href="/attendance/team"
+                data-label="Team Attendance"
                 className={cn(styles.navItem, pathname === '/attendance/team' && styles.active)}
                 onClick={onClose}
               >
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M23 21v-2a4 4 0 00-3-3.87" /><path d="M16 3.13a4 4 0 010 7.75" />
-                </svg>
-                <span>Team Attendance</span>
+                <span className={styles.navIcon}>
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M23 21v-2a4 4 0 00-3-3.87" /><path d="M16 3.13a4 4 0 010 7.75" />
+                  </svg>
+                </span>
+                <span className={styles.navLabel}>Team Attendance</span>
               </Link>
             </>
           )}
@@ -169,43 +181,53 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
               <div className={styles.navDivider} />
               <Link
                 href="/team/timeline"
+                data-label="Users Timeline"
                 className={cn(styles.navItem, pathname === '/team/timeline' && styles.active)}
                 onClick={onClose}
               >
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <line x1="3" y1="6"  x2="21" y2="6"  />
-                  <line x1="3" y1="12" x2="21" y2="12" />
-                  <line x1="3" y1="18" x2="21" y2="18" />
-                  <circle cx="7"  cy="6"  r="2" fill="currentColor" stroke="none" />
-                  <circle cx="13" cy="12" r="2" fill="currentColor" stroke="none" />
-                  <circle cx="9"  cy="18" r="2" fill="currentColor" stroke="none" />
-                </svg>
-                <span>Users Timeline</span>
+                <span className={styles.navIcon}>
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <line x1="3" y1="6"  x2="21" y2="6"  />
+                    <line x1="3" y1="12" x2="21" y2="12" />
+                    <line x1="3" y1="18" x2="21" y2="18" />
+                    <circle cx="7"  cy="6"  r="2" fill="currentColor" stroke="none" />
+                    <circle cx="13" cy="12" r="2" fill="currentColor" stroke="none" />
+                    <circle cx="9"  cy="18" r="2" fill="currentColor" stroke="none" />
+                  </svg>
+                </span>
+                <span className={styles.navLabel}>Users Timeline</span>
               </Link>
               <Link
                 href="/tasks/timeline"
+                data-label="Task Timeline"
                 className={cn(styles.navItem, pathname === '/tasks/timeline' && styles.active)}
                 onClick={onClose}
               >
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <line x1="3" y1="12" x2="21" y2="12" /><line x1="3" y1="6" x2="21" y2="6" /><line x1="3" y1="18" x2="21" y2="18" />
-                </svg>
-                <span>Task Timeline</span>
+                <span className={styles.navIcon}>
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <line x1="3" y1="12" x2="21" y2="12" /><line x1="3" y1="6" x2="21" y2="6" /><line x1="3" y1="18" x2="21" y2="18" />
+                  </svg>
+                </span>
+                <span className={styles.navLabel}>Task Timeline</span>
               </Link>
               <Link
                 href="/admin/users"
+                data-label="Admin: Users"
                 className={cn(styles.navItem, pathname === '/admin/users' && styles.active)}
                 onClick={onClose}
               >
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" /><circle cx="9" cy="7" r="4" /><line x1="19" y1="8" x2="19" y2="14" /><line x1="16" y1="11" x2="22" y2="11" />
-                </svg>
-                <span>Admin: Users</span>
+                <span className={styles.navIcon}>
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" /><circle cx="9" cy="7" r="4" /><line x1="19" y1="8" x2="19" y2="14" /><line x1="16" y1="11" x2="22" y2="11" />
+                  </svg>
+                </span>
+                <span className={styles.navLabel}>Admin: Users</span>
               </Link>
             </>
           )}
         </nav>
 
+        {/* Footer: user info + collapse toggle */}
         <div className={styles.footer}>
           <div className={styles.userInfo}>
             {user?.avatar ? (
@@ -224,6 +246,28 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
               <span className={styles.userRole}>{user?.role || 'member'}</span>
             </div>
           </div>
+
+          {/* Desktop collapse toggle — hidden on mobile */}
+          <button
+            className={styles.collapseBtn}
+            onClick={onToggleCollapsed}
+            title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          >
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className={cn(styles.collapseBtnIcon, collapsed && styles.collapseBtnIconFlipped)}
+            >
+              <polyline points="15 18 9 12 15 6" />
+            </svg>
+          </button>
         </div>
       </aside>
     </>

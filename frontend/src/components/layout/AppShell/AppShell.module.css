@@ -3,11 +3,12 @@
 }
 
 .main {
-  margin-left: var(--sidebar-width);
+  margin-left: var(--current-sidebar-width);
   padding: 1.5rem;
   padding-top: calc(1.5rem + var(--topbar-height));
   min-height: calc(100vh - var(--topbar-height));
   animation: fadeIn 0.3s ease;
+  transition: margin-left 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 @keyframes fadeIn {
@@ -19,5 +20,7 @@
   .main {
     margin-left: 0;
     padding: 1rem;
+    padding-top: calc(1rem + var(--topbar-height));
+    transition: none;
   }
 }
