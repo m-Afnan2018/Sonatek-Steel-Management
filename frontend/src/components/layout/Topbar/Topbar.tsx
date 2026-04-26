@@ -12,9 +12,10 @@ import styles from './Topbar.module.css';
 interface TopbarProps {
   onMenuToggle: () => void;
   title?: string;
+  sidebarCollapsed?: boolean;
 }
 
-export default function Topbar({ onMenuToggle, title }: TopbarProps) {
+export default function Topbar({ onMenuToggle, title, sidebarCollapsed }: TopbarProps) {
   const { logout, user } = useAuth();
   const { theme, toggle } = useThemeStore();
   const { notifications, unreadCount, markAllRead, markOneRead, clearOne, clearAll } = useNotifications();
@@ -44,7 +45,7 @@ export default function Topbar({ onMenuToggle, title }: TopbarProps) {
   }, []);
 
   return (
-    <header className={styles.topbar}>
+    <header className={`${styles.topbar} ${sidebarCollapsed ? styles.topbarCollapsed : ''}`}>
       <div className={styles.left}>
         <button className={styles.menuBtn} onClick={onMenuToggle} aria-label="Toggle menu">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">

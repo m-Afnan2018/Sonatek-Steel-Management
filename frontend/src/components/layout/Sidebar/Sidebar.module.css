@@ -11,9 +11,11 @@
   flex-direction: column;
   z-index: 200;
   overflow: hidden;
+  /* width must match the transition duration on .main and .topbar exactly */
   transition:
-    transform var(--transition),
-    width 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    transform 0.2s ease,
+    width 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+  will-change: width;
 }
 
 /* ── Logo ──────────────────────────────────────────────────────────────── */
@@ -46,8 +48,9 @@
 .logoText {
   overflow: hidden;
   white-space: nowrap;
-  transition: opacity 0.2s, width 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: opacity 0.18s ease, max-width 0.28s cubic-bezier(0.4, 0, 0.2, 1);
   opacity: 1;
+  max-width: 200px;
 }
 
 .logoName {
@@ -113,7 +116,7 @@
 
 .navLabel {
   overflow: hidden;
-  transition: opacity 0.15s, max-width 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: opacity 0.18s ease, max-width 0.28s cubic-bezier(0.4, 0, 0.2, 1);
   opacity: 1;
   max-width: 200px;
 }
@@ -173,7 +176,7 @@
   flex-direction: column;
   overflow: hidden;
   white-space: nowrap;
-  transition: opacity 0.15s, max-width 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: opacity 0.18s ease, max-width 0.28s cubic-bezier(0.4, 0, 0.2, 1);
   opacity: 1;
   max-width: 200px;
 }
@@ -230,6 +233,7 @@
 .collapsed .logoText {
   opacity: 0;
   max-width: 0;
+  pointer-events: none;
 }
 
 .collapsed .navItem {
