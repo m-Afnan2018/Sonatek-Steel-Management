@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import Modal from '@/components/ui/Modal/Modal';
 import Button from '@/components/ui/Button/Button';
 import Badge from '@/components/ui/Badge/Badge';
@@ -8,6 +8,7 @@ import Avatar from '@/components/ui/Avatar/Avatar';
 import TaskTimer from '@/components/tasks/TaskTimer';
 import { formatDate, timeAgo } from '@/lib/utils';
 import { useTasks } from '@/hooks/useTasks';
+import { useDepartments } from '@/hooks/useDepartments';
 import { useAuthStore } from '@/store/authStore';
 import { uploadFile } from '@/lib/api';
 import type { Task, Comment, User, Attachment } from '@/types';
@@ -51,12 +52,37 @@ function uid(u: User | any): string {
 }
 
 export default function TaskModal({ task, isOpen, onClose, onUpdate, onDelete, onSaved, members, projects, patchTimer }: TaskModalProps) {
-  const { updateTask, addComment } = useTasks();
+  const { updateTask, addComment, delegateTask } = useTasks();
+  const { departments } = useDepartments();
   const currentUser = useAuthStore((s) => s.user);
   const isAdminOrManager = currentUser?.role === 'admin' || currentUser?.role === 'manager';
   const isReporter = task ? uid(task.reporter) === uid(currentUser) : false;
   const canEdit = isAdminOrManager || isReporter;
   const canDelete = isAdminOrManager || isReporter;
+
+  // Departments where current user is a head
+  const myHeadDepts = useMemo(
+    () => departments.filter((d) =>
+      d.heads.some((h) => uid(h) === uid(currentUser))
+    ),
+    [departments, currentUser]
+  );
+
+  // Members current user can delegate to
+  const delegatableMembers = useMemo(() => {
+    const seen = new Set<string>();
+    const result: { id: string; name: string }[] = [];
+    for (const d of myHeadDepts) {
+      for (const m of [...d.members, ...d.heads]) {
+        const id = uid(m);
+        if (id && id !== uid(currentUser) && !seen.has(id)) {
+          seen.add(id);
+          result.push({ id, name: m.name });
+        }
+      }
+    }
+    return result;
+  }, [myHeadDepts, currentUser]);
 
   const [tab, setTab] = useState<Tab>('details');
   const [comments, setComments] = useState<Comment[]>([]);
@@ -97,6 +123,13 @@ export default function TaskModal({ task, isOpen, onClose, onUpdate, onDelete, o
   const [assigneeIds, setAssigneeIds] = useState<string[]>([]);
   const [savingAssignees, setSavingAssignees] = useState(false);
 
+  // Delegation
+  const [showDelegate, setShowDelegate] = useState(false);
+  const [delegateTo, setDelegateTo] = useState('');
+  const [delegateNote, setDelegateNote] = useState('');
+  const [delegating, setDelegating] = useState(false);
+  const [delegateError, setDelegateError] = useState('');
+
   // Mentions
   const [mentionSearch, setMentionSearch] = useState('');
   const [showMentions, setShowMentions] = useState(false);
@@ -129,6 +162,10 @@ export default function TaskModal({ task, isOpen, onClose, onUpdate, onDelete, o
       setEditingTitle(false);
       setEditingDesc(false);
       setEditingAssignees(false);
+      setShowDelegate(false);
+      setDelegateTo('');
+      setDelegateNote('');
+      setDelegateError('');
     }
   }, [task]);
 
@@ -195,8 +232,23 @@ export default function TaskModal({ task, isOpen, onClose, onUpdate, onDelete, o
   };
 
   const toggleAssignee = (id: string) => {
-    // Single-assignee: selecting a new one replaces; clicking the same one deselects
     setAssigneeIds((prev) => (prev.includes(id) ? [] : [id]));
+  };
+
+  const handleDelegate = async () => {
+    if (!task || !delegateTo) return;
+    setDelegating(true);
+    setDelegateError('');
+    const result = await delegateTask(task._id, delegateTo, delegateNote);
+    if (result) {
+      onUpdate(result);
+      setShowDelegate(false);
+      setDelegateTo('');
+      setDelegateNote('');
+    } else {
+      setDelegateError('Could not delegate. Check you have permission.');
+    }
+    setDelegating(false);
   };
 
   // ── Links ─────────────────────────────────────────────────────────
@@ -527,6 +579,81 @@ export default function TaskModal({ task, isOpen, onClose, onUpdate, onDelete, o
                           </div>
                         ))
                     }
+
+                    {/* Delegate button — visible to assignees who are dept heads */}
+                    {(() => {
+                      const isAssignee = task.assignees.filter(Boolean).some(
+                        (a) => uid(a) === uid(currentUser)
+                      );
+                      const canDelegate = isAssignee && (myHeadDepts.length > 0 || isAdminOrManager);
+                      if (!canDelegate) return null;
+                      return (
+                        <button
+                          className={styles.delegateBtn}
+                          onClick={() => setShowDelegate((v) => !v)}
+                        >
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                            <polyline points="15 10 20 15 15 20"/><path d="M4 4v7a4 4 0 004 4h12"/>
+                          </svg>
+                          Delegate
+                        </button>
+                      );
+                    })()}
+                  </div>
+                )}
+
+                {/* Delegate panel */}
+                {showDelegate && (
+                  <div className={styles.delegatePanel}>
+                    <p className={styles.delegatePanelTitle}>Delegate to</p>
+                    <select
+                      className={styles.delegateSelect}
+                      value={delegateTo}
+                      onChange={(e) => setDelegateTo(e.target.value)}
+                    >
+                      <option value="">Select a team member…</option>
+                      {delegatableMembers.map((m) => (
+                        <option key={m.id} value={m.id}>{m.name}</option>
+                      ))}
+                    </select>
+                    <textarea
+                      className={styles.delegateNote}
+                      rows={2}
+                      placeholder="Note (optional)"
+                      value={delegateNote}
+                      onChange={(e) => setDelegateNote(e.target.value)}
+                    />
+                    {delegateError && (
+                      <p className={styles.delegateError}>{delegateError}</p>
+                    )}
+                    <div className={styles.delegateActions}>
+                      <Button variant="ghost" size="sm" onClick={() => { setShowDelegate(false); setDelegateError(''); }}>
+                        Cancel
+                      </Button>
+                      <Button size="sm" onClick={handleDelegate} loading={delegating} disabled={!delegateTo}>
+                        Confirm
+                      </Button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Delegation history */}
+                {(task.delegations ?? []).length > 0 && (
+                  <div className={styles.delegationHistory}>
+                    <span className={styles.sectionLabel} style={{ marginTop: '0.75rem', display: 'block' }}>Delegation history</span>
+                    {task.delegations.map((d) => (
+                      <div key={d._id} className={styles.delegationEntry}>
+                        <span className={styles.delegationLine}>
+                          <strong>{d.delegatedBy?.name}</strong>
+                          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" style={{ margin: '0 4px', flexShrink: 0 }}>
+                            <line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/>
+                          </svg>
+                          <strong>{d.delegatedTo?.name}</strong>
+                        </span>
+                        {d.note && <span className={styles.delegationNote}>"{d.note}"</span>}
+                        <span className={styles.delegationTime}>{timeAgo(d.delegatedAt)}</span>
+                      </div>
+                    ))}
                   </div>
                 )}
               </div>
