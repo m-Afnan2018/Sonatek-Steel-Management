@@ -92,7 +92,7 @@ export function createUpload(subDir: string, opts: UploadOptions = {}) {
   return multer({
     storage,
     fileFilter,
-    limits: { fileSize: (opts.maxSizeMB ?? 10) * 1024 * 1024 },
+    limits: { fileSize: (opts.maxSizeMB ?? 1024) * 1024 * 1024 },
   });
 }
 

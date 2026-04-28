@@ -12,6 +12,13 @@ export interface ITimerEvent {
     timestamp: Date;
 }
 
+export interface IDelegation {
+    delegatedBy: Types.ObjectId;
+    delegatedTo: Types.ObjectId;
+    note?: string;
+    delegatedAt: Date;
+}
+
 export interface ITask extends Document {
     title: string;
     description?: string;
@@ -35,6 +42,7 @@ export interface ITask extends Document {
     timerStatus: "idle" | "running" | "paused" | "on_hold" | "finished";
     timerEvents: ITimerEvent[];
     totalElapsedSeconds: number;
+    delegations: IDelegation[];
     createdAt: Date;
     updatedAt: Date;
 }
@@ -134,6 +142,14 @@ const taskSchema = new Schema<ITask>(
             },
         ],
         totalElapsedSeconds: { type: Number, default: 0 },
+        delegations: [
+            {
+                delegatedBy: { type: Schema.Types.ObjectId, ref: "User", required: true },
+                delegatedTo: { type: Schema.Types.ObjectId, ref: "User", required: true },
+                note:        { type: String, default: "" },
+                delegatedAt: { type: Date, default: Date.now },
+            },
+        ],
     },
     { timestamps: true },
 );

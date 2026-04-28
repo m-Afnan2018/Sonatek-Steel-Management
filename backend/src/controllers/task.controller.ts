@@ -3,6 +3,7 @@ import { validationResult } from "express-validator";
 import Task from "../models/Task";
 import Comment from "../models/Comment";
 import Project from "../models/Project";
+import Department from "../models/Department";
 import Notification from "../models/Notification";
 import mongoose from "mongoose";
 import { getElapsedSeconds } from "../utils/timerUtils";
@@ -465,6 +466,90 @@ export const patchTimer = async (
 
         res.json(task);
     } catch (error) {
+        res.status(500).json({ message: "Server error." });
+    }
+};
+
+export const delegateTask = async (
+    req: Request,
+    res: Response,
+): Promise<void> => {
+    try {
+        const { delegateTo, note } = req.body;
+        const userId = req.user?.id;
+        const userRole = req.user?.role;
+        const isAdminOrManager = userRole === "admin" || userRole === "manager";
+
+        if (!delegateTo) {
+            res.status(400).json({ message: "delegateTo is required." });
+            return;
+        }
+
+        const task = await Task.findById(req.params.id);
+        if (!task) {
+            res.status(404).json({ message: "Task not found." });
+            return;
+        }
+
+        const isAssignee = task.assignees.some((a) => a.toString() === userId);
+        if (!isAssignee && !isAdminOrManager) {
+            res.status(403).json({ message: "You must be assigned to this task to delegate it." });
+            return;
+        }
+
+        if (!isAdminOrManager) {
+            const myDepts = await Department.find({ heads: userId });
+            if (myDepts.length === 0) {
+                res.status(403).json({ message: "Only department heads can delegate tasks." });
+                return;
+            }
+            const allMyMemberIds = myDepts.flatMap((d) =>
+                [...d.members, ...d.heads].map((id) => id.toString()),
+            );
+            if (!allMyMemberIds.includes(delegateTo)) {
+                res.status(403).json({ message: "You can only delegate to members of your department." });
+                return;
+            }
+        }
+
+        if (delegateTo === userId) {
+            res.status(400).json({ message: "You cannot delegate a task to yourself." });
+            return;
+        }
+
+        const alreadyAssigned = task.assignees.some((a) => a.toString() === delegateTo);
+        if (!alreadyAssigned) {
+            task.assignees.push(new mongoose.Types.ObjectId(delegateTo));
+        }
+
+        (task.delegations as any[]).push({
+            delegatedBy: new mongoose.Types.ObjectId(userId),
+            delegatedTo: new mongoose.Types.ObjectId(delegateTo),
+            note:        note?.trim() || "",
+            delegatedAt: new Date(),
+        });
+
+        await task.save();
+        await task.populate("assignees", "name email avatar");
+        await task.populate("reporter", "name email avatar");
+        await task.populate("delegations.delegatedBy", "name email avatar");
+        await task.populate("delegations.delegatedTo", "name email avatar");
+        await task.populate("project", "title");
+
+        await createNotifications({
+            recipient: delegateTo,
+            sender:    userId as string,
+            type:      "task_delegated",
+            title:     "Task Delegated to You",
+            message:   `${req.user?.name} delegated "${task.title}" to you`,
+            link:      task.project
+                ? `/projects/${(task.project as any)._id ?? task.project}/tasks/${task._id}`
+                : "/tasks",
+        });
+
+        res.json(task);
+    } catch (error) {
+        console.error("DelegateTask error:", error);
         res.status(500).json({ message: "Server error." });
     }
 };

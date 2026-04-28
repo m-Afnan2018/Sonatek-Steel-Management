@@ -38,7 +38,7 @@ export default function ProjectDetailPage() {
   const params = useParams();
   const projectId = params.id as string;
   const { fetchProject, updateProject } = useProjects(false);
-  const { tasks, loading: tasksLoading, fetchTasks, createTask, updateTaskStatus, patchTimer } = useTasks();
+  const { tasks, loading: tasksLoading, fetchTasks, createTask, updateTaskStatus, deleteTask, patchTimer } = useTasks();
   const { members } = useTeam();
   const { departments } = useDepartments();
   const user = useAuthStore((s) => s.user);
@@ -233,7 +233,7 @@ export default function ProjectDetailPage() {
         }]);
       }
     } catch {
-      setFileUploadError('Upload failed. Check file type/size (max 10 MB).');
+      setFileUploadError('Upload failed. Check file type/size (max 1 GB).');
     } finally {
       setFileUploading(false);
     }
@@ -610,6 +610,7 @@ export default function ProjectDetailPage() {
         isOpen={showTaskModal}
         onClose={() => { setShowTaskModal(false); setSelectedTask(null); }}
         onUpdate={handleTaskUpdate}
+        onDelete={async (t) => { await deleteTask(t._id); setShowTaskModal(false); setSelectedTask(null); }}
         onSaved={() => { setShowTaskModal(false); setSelectedTask(null); showSuccess('Task Updated!', 'All changes have been saved.'); }}
         members={members}
         projects={project ? [{ _id: project._id, title: project.title }] : []}
@@ -874,7 +875,7 @@ export default function ProjectDetailPage() {
                 <span className={createStyles.dropZoneText}>
                   {fileUploading ? 'Uploading…' : <><u>Click to browse</u> or drag &amp; drop</>}
                 </span>
-                {!newTaskAttachments.length && <span className={createStyles.dropZoneSub}>Images, PDFs, docs — max 10 MB each</span>}
+                {!newTaskAttachments.length && <span className={createStyles.dropZoneSub}>Images, PDFs, docs — max 1 GB each</span>}
               </div>
               {fileUploadError && <p className={createStyles.uploadError}>{fileUploadError}</p>}
               {newTaskAttachments.length === 0 && !fileUploading && (

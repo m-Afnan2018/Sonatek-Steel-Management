@@ -162,7 +162,7 @@ function MediaPicker({
       // refresh gallery cache
       setGalleryLoaded(false);
     } catch {
-      setUploadError('Upload failed. Max 10 MB, images/video only.');
+      setUploadError('Upload failed. Max 1 GB, images/video only.');
     }
     setUploading(false);
   };
@@ -249,7 +249,7 @@ function MediaPicker({
                   <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
                 </svg>
                 <span className={styles.dropZoneText}><u>Click to browse</u> or drag &amp; drop</span>
-                <span className={styles.dropZoneSub}>Images &amp; videos — max 10 MB</span>
+                <span className={styles.dropZoneSub}>Images &amp; videos — max 1 GB</span>
               </>
             )}
           </div>

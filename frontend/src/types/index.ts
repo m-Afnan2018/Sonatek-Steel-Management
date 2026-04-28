@@ -63,6 +63,14 @@ export interface ITimerEvent {
   timestamp: string;
 }
 
+export interface Delegation {
+  _id: string;
+  delegatedBy: User;
+  delegatedTo: User;
+  note?: string;
+  delegatedAt: string;
+}
+
 export interface Task {
   _id: string;
   title: string;
@@ -88,6 +96,7 @@ export interface Task {
   timerStatus: 'idle' | 'running' | 'paused' | 'on_hold' | 'finished';
   timerEvents: ITimerEvent[];
   totalElapsedSeconds: number;
+  delegations: Delegation[];
   createdAt: string;
   updatedAt: string;
 }

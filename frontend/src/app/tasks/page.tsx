@@ -178,7 +178,7 @@ export default function TasksPage() {
         }]);
       }
     } catch {
-      setFileUploadError('Upload failed. Check file type/size (max 10 MB).');
+      setFileUploadError('Upload failed. Check file type/size (max 1 GB).');
     } finally {
       setFileUploading(false);
     }
@@ -729,7 +729,7 @@ export default function TasksPage() {
                 <span className={styles.dropZoneText}>
                   {fileUploading ? 'Uploading…' : <><u>Click to browse</u> or drag &amp; drop</>}
                 </span>
-                {!attachments.length && <span className={styles.dropZoneSub}>Images, PDFs, docs — max 10 MB each</span>}
+                {!attachments.length && <span className={styles.dropZoneSub}>Images, PDFs, docs — max 1 GB each</span>}
               </div>
               {fileUploadError && <p className={styles.uploadError}>{fileUploadError}</p>}
               {attachments.length === 0 && !fileUploading && (

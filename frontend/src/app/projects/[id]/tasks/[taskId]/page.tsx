@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import AppShell from '@/components/layout/AppShell/AppShell';
 import Button from '@/components/ui/Button/Button';
@@ -8,7 +8,7 @@ import Badge from '@/components/ui/Badge/Badge';
 import Avatar from '@/components/ui/Avatar/Avatar';
 import Spinner from '@/components/ui/Spinner/Spinner';
 import { useTasks } from '@/hooks/useTasks';
-import { useTeam } from '@/hooks/useTeam';
+import { useDepartments } from '@/hooks/useDepartments';
 import { useAuthStore } from '@/store/authStore';
 import { formatDate, formatStatus, timeAgo } from '@/lib/utils';
 import type { Task, Comment } from '@/types';
@@ -18,8 +18,8 @@ export default function TaskDetailPage() {
   const params = useParams();
   const router = useRouter();
   const taskId = params.taskId as string;
-  const { fetchTask, updateTask, addComment, logHours: logTaskHours, patchTimer } = useTasks();
-  const { members } = useTeam();
+  const { fetchTask, updateTask, addComment, logHours: logTaskHours, patchTimer, delegateTask } = useTasks();
+  const { departments } = useDepartments();
   const currentUser = useAuthStore((s) => s.user);
 
   const [task, setTask] = useState<Task | null>(null);
@@ -29,6 +29,43 @@ export default function TaskDetailPage() {
   const [editing, setEditing] = useState(false);
   const [editStatus, setEditStatus] = useState('');
   const [editPriority, setEditPriority] = useState('');
+
+  // Delegation state
+  const [showDelegate, setShowDelegate] = useState(false);
+  const [delegateTo, setDelegateTo] = useState('');
+  const [delegateNote, setDelegateNote] = useState('');
+  const [delegating, setDelegating] = useState(false);
+  const [delegateError, setDelegateError] = useState('');
+
+  // Departments where current user is a head
+  const myHeadDepts = useMemo(
+    () => departments.filter((d) =>
+      d.heads.some((h) => h.id === currentUser?.id || (h as any)._id === currentUser?.id)
+    ),
+    [departments, currentUser?.id]
+  );
+
+  // Members the current user can delegate to (dept members, excluding self)
+  const delegatableMembers = useMemo(() => {
+    const seen = new Set<string>();
+    const result: { id: string; name: string }[] = [];
+    for (const d of myHeadDepts) {
+      for (const m of [...d.members, ...d.heads]) {
+        const id = (m as any)._id || m.id;
+        if (id && id !== currentUser?.id && !seen.has(id)) {
+          seen.add(id);
+          result.push({ id, name: m.name });
+        }
+      }
+    }
+    return result;
+  }, [myHeadDepts, currentUser?.id]);
+
+  const isAssignee = task?.assignees.some(
+    (a) => a.id === currentUser?.id || (a as any)._id === currentUser?.id
+  ) ?? false;
+  const isAdminOrManager = currentUser?.role === 'admin' || currentUser?.role === 'manager';
+  const canDelegate = isAssignee && (myHeadDepts.length > 0 || isAdminOrManager);
 
   useEffect(() => {
     const load = async () => {
@@ -74,6 +111,22 @@ export default function TaskDetailPage() {
     if (!task) return;
     const result = await patchTimer(task._id, action);
     if (result) setTask(result);
+  };
+
+  const handleDelegate = async () => {
+    if (!task || !delegateTo) return;
+    setDelegating(true);
+    setDelegateError('');
+    const result = await delegateTask(task._id, delegateTo, delegateNote);
+    if (result) {
+      setTask(result);
+      setShowDelegate(false);
+      setDelegateTo('');
+      setDelegateNote('');
+    } else {
+      setDelegateError('Failed to delegate. Check you have permission.');
+    }
+    setDelegating(false);
   };
 
   if (loading) {
@@ -207,12 +260,36 @@ export default function TaskDetailPage() {
             <div className={styles.sideSection}>
               <h4>Assignees</h4>
               {task.assignees.map((a) => (
-                <div key={a.id || a.email} className={styles.person}>
+                <div key={(a as any)._id || a.id || a.email} className={styles.person}>
                   <Avatar name={a.name} size="sm" />
                   <span>{a.name}</span>
                 </div>
               ))}
+              {canDelegate && (
+                <button className={styles.delegateBtn} onClick={() => setShowDelegate(true)}>
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="15 10 20 15 15 20"/><path d="M4 4v7a4 4 0 004 4h12"/>
+                  </svg>
+                  Delegate
+                </button>
+              )}
             </div>
+
+            {/* Delegation history */}
+            {(task.delegations ?? []).length > 0 && (
+              <div className={styles.sideSection}>
+                <h4>Delegations</h4>
+                {task.delegations.map((d) => (
+                  <div key={d._id} className={styles.delegationEntry}>
+                    <span className={styles.delegationLine}>
+                      <strong>{d.delegatedBy?.name}</strong> → <strong>{d.delegatedTo?.name}</strong>
+                    </span>
+                    {d.note && <span className={styles.delegationNote}>"{d.note}"</span>}
+                    <span className={styles.delegationTime}>{timeAgo(d.delegatedAt)}</span>
+                  </div>
+                ))}
+              </div>
+            )}
             <div className={styles.sideSection}>
               <h4>Reporter</h4>
               <div className={styles.person}>
@@ -233,6 +310,47 @@ export default function TaskDetailPage() {
           </div>
         </div>
       </div>
+      {/* Delegate modal */}
+      {showDelegate && (
+        <div className={styles.modalOverlay} onClick={(e) => { if (e.target === e.currentTarget) setShowDelegate(false); }}>
+          <div className={styles.modalCard}>
+            <h3 className={styles.modalTitle}>Delegate Task</h3>
+
+            <div className={styles.modalField}>
+              <label>Delegate to</label>
+              <select value={delegateTo} onChange={(e) => setDelegateTo(e.target.value)}>
+                <option value="">Select a team member…</option>
+                {delegatableMembers.map((m) => (
+                  <option key={m.id} value={m.id}>{m.name}</option>
+                ))}
+              </select>
+            </div>
+
+            <div className={styles.modalField}>
+              <label>Note (optional)</label>
+              <textarea
+                rows={3}
+                placeholder="Add a note about this delegation…"
+                value={delegateNote}
+                onChange={(e) => setDelegateNote(e.target.value)}
+              />
+            </div>
+
+            {delegateError && (
+              <p style={{ fontSize: '0.8125rem', color: 'var(--danger)' }}>{delegateError}</p>
+            )}
+
+            <div className={styles.modalActions}>
+              <Button variant="ghost" size="sm" onClick={() => { setShowDelegate(false); setDelegateError(''); }}>
+                Cancel
+              </Button>
+              <Button size="sm" onClick={handleDelegate} loading={delegating} disabled={!delegateTo}>
+                Delegate
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </AppShell>
   );
 }

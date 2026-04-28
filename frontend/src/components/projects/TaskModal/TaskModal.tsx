@@ -607,7 +607,7 @@ export default function TaskModal({ task, isOpen, onClose, onUpdate, onDelete, o
                     <>
                       <span className={styles.dropZoneIcon}>📁</span>
                       <span className={styles.dropZoneText}>Drop files here or <u>browse</u></span>
-                      <span className={styles.dropZoneSub}>Images, PDFs, Docs, Spreadsheets — max 10 MB each</span>
+                      <span className={styles.dropZoneSub}>Images, PDFs, Docs, Spreadsheets — max 1 GB each</span>
                     </>
                   )}
                 </div>

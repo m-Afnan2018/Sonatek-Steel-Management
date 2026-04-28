@@ -3,7 +3,7 @@ import mongoose, { Document, Schema, Model, Types } from 'mongoose';
 export interface INotification extends Document {
   recipient: Types.ObjectId;
   sender: Types.ObjectId;
-  type: 'task_assigned' | 'comment_mention' | 'deadline_reminder' | 'status_change' | 'project_invite' | 'event_invite' | 'lunch_overtime';
+  type: 'task_assigned' | 'comment_mention' | 'deadline_reminder' | 'status_change' | 'project_invite' | 'event_invite' | 'lunch_overtime' | 'task_delegated';
   title: string;
   message: string;
   link?: string;
@@ -26,7 +26,7 @@ const notificationSchema = new Schema<INotification>(
     },
     type: {
       type: String,
-      enum: ['task_assigned', 'comment_mention', 'deadline_reminder', 'status_change', 'project_invite', 'event_invite', 'lunch_overtime'],
+      enum: ['task_assigned', 'comment_mention', 'deadline_reminder', 'status_change', 'project_invite', 'event_invite', 'lunch_overtime', 'task_delegated'],
       required: true,
     },
     title: {

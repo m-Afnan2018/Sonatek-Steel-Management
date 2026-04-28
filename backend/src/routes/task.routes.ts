@@ -11,6 +11,7 @@ import {
   logHours,
   getAllUserTasks,
   patchTimer,
+  delegateTask,
 } from '../controllers/task.controller';
 import { authenticate } from '../middleware/auth.middleware';
 import { authorize } from '../middleware/role.middleware';
@@ -41,5 +42,6 @@ router.post(
 
 router.post('/:id/log-hours', logHours);
 router.patch('/:id/timer', patchTimer);
+router.post('/:id/delegate', delegateTask);
 
 export default router;

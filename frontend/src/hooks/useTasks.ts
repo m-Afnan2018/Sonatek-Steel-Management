@@ -155,10 +155,25 @@ export function useTasks() {
     }
   }, []);
 
+  const delegateTask = useCallback(async (
+    taskId: string,
+    delegateTo: string,
+    note?: string,
+  ): Promise<Task | null> => {
+    try {
+      const { data } = await api.post(`/tasks/${taskId}/delegate`, { delegateTo, note });
+      setTasks((prev) => prev.map((t) => (t._id === taskId ? data : t)));
+      return data;
+    } catch (err: any) {
+      setError(err?.response?.data?.message || 'Failed to delegate task.');
+      return null;
+    }
+  }, []);
+
   return {
     tasks, allUserTasks, loading, error,
     fetchTasks, fetchPersonalTasks, fetchAllUserTasks, fetchTask,
     createTask, updateTask, updateTaskStatus, deleteTask,
-    addComment, logHours, patchTimer,
+    addComment, logHours, patchTimer, delegateTask,
   };
 }
