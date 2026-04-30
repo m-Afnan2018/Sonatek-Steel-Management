@@ -39,7 +39,7 @@ const statusAccent: Record<string, string> = {
 };
 
 export default function TasksPage() {
-  const { tasks, loading, error, fetchTasks, fetchPersonalTasks, createTask, updateTaskStatus, deleteTask, patchTimer } = useTasks();
+  const { tasks, loading, error, fetchTasks, fetchPersonalTasks, createTask, updateTaskStatus, deleteTask, patchTimer, delegateTask } = useTasks();
   const { projects } = useProjects();
   const { members } = useTeam();
   const { departments } = useDepartments();
@@ -68,6 +68,35 @@ export default function TasksPage() {
     return result;
   }, [myHeadedDepts]);
 
+  // Members the current user (as dept head) can delegate to
+  const delegatableMembers = useMemo(() => {
+    const seen = new Set<string>();
+    const result: { id: string; name: string }[] = [];
+    for (const d of myHeadedDepts) {
+      for (const m of [...d.members, ...d.heads]) {
+        const id = (m.id ?? (m as any)._id)?.toString();
+        if (id && id !== user?.id && !seen.has(id)) {
+          seen.add(id);
+          result.push({ id, name: m.name });
+        }
+      }
+    }
+    return result;
+  }, [myHeadedDepts, user?.id]);
+
+  const handleDelegateSubmit = async () => {
+    if (!delegateModal?.delegateTo) return;
+    setDelegating(true);
+    const result = await delegateTask(delegateModal.task._id, delegateModal.delegateTo, delegateModal.note);
+    if (result) {
+      setLocalTasks((prev) => prev.map((t) => (t._id === result._id ? result : t)));
+      setDelegateModal(null);
+    } else {
+      setDelegateModal((m) => m ? { ...m, error: 'Could not delegate. Check you have permission.' } : null);
+    }
+    setDelegating(false);
+  };
+
   const [tab, setTab] = useState<'personal' | 'assigned'>('assigned');
   const [showCreate, setShowCreate] = useState(false);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
@@ -76,6 +105,8 @@ export default function TasksPage() {
   const [completedOpen, setCompletedOpen] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState<Task | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [delegateModal, setDelegateModal] = useState<{ task: Task; delegateTo: string; note: string; error: string } | null>(null);
+  const [delegating, setDelegating] = useState(false);
   const [successPopup, setSuccessPopup] = useState<{ visible: boolean; title: string; subtitle: string }>({ visible: false, title: '', subtitle: '' });
 
   const showSuccess = (title: string, subtitle: string) => setSuccessPopup({ visible: true, title, subtitle });
@@ -225,12 +256,8 @@ export default function TasksPage() {
       const projId = typeof t.project === 'object' ? t.project?._id : t.project;
       if (projId !== filterProject) return false;
     }
-    if (filterDateFrom && t.dueDate) {
-      if (new Date(t.dueDate) < new Date(filterDateFrom)) return false;
-    }
-    if (filterDateTo && t.dueDate) {
-      if (new Date(t.dueDate) > new Date(filterDateTo + 'T23:59:59')) return false;
-    }
+    if (filterDateFrom && new Date(t.createdAt) < new Date(filterDateFrom)) return false;
+    if (filterDateTo && new Date(t.createdAt) > new Date(filterDateTo + 'T23:59:59')) return false;
     return true;
   };
 
@@ -361,7 +388,7 @@ export default function TasksPage() {
               className={styles.dateInput}
               value={filterDateFrom}
               onChange={(e) => setFilterDateFrom(e.target.value)}
-              title="Due date from"
+              title="Created from"
             />
             <span className={styles.dateRangeSep}>–</span>
             <input
@@ -369,7 +396,7 @@ export default function TasksPage() {
               className={styles.dateInput}
               value={filterDateTo}
               onChange={(e) => setFilterDateTo(e.target.value)}
-              title="Due date to"
+              title="Created to"
             />
           </div>
 
@@ -408,6 +435,8 @@ export default function TasksPage() {
                     onDelete={(t) => setDeleteConfirm(t)}
                     onClick={handleTaskClick}
                     patchTimer={patchTimer}
+                    delegatableMembers={delegatableMembers}
+                    onDelegateClick={(t) => setDelegateModal({ task: t, delegateTo: '', note: '', error: '' })}
                   />
                 ))}
               </div>
@@ -433,6 +462,8 @@ export default function TasksPage() {
                         onDelete={(t) => setDeleteConfirm(t)}
                         onClick={handleTaskClick}
                         patchTimer={patchTimer}
+                        delegatableMembers={delegatableMembers}
+                        onDelegateClick={(t) => setDelegateModal({ task: t, delegateTo: '', note: '', error: '' })}
                       />
                     ))}
                   </div>
@@ -768,6 +799,62 @@ export default function TasksPage() {
         onDone={hideSuccess}
       />
 
+      {/* Delegate modal */}
+      <Modal
+        isOpen={!!delegateModal}
+        onClose={() => { setDelegateModal(null); }}
+        title="Delegate Task"
+        size="sm"
+      >
+        {delegateModal && (
+          <div className={styles.delegateModalBody}>
+            <p className={styles.delegateModalTask}>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, marginTop: 2 }}>
+                <polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/>
+              </svg>
+              <span>{delegateModal.task.title}</span>
+            </p>
+
+            <div className={styles.delegateModalField}>
+              <label>Delegate to</label>
+              <select
+                value={delegateModal.delegateTo}
+                onChange={(e) => setDelegateModal((m) => m ? { ...m, delegateTo: e.target.value, error: '' } : null)}
+                autoFocus
+              >
+                <option value="">Select a team member…</option>
+                {delegatableMembers.map((m) => (
+                  <option key={m.id} value={m.id}>{m.name}</option>
+                ))}
+              </select>
+            </div>
+
+            <div className={styles.delegateModalField}>
+              <label>Note <span className={styles.delegateOptional}>(optional)</span></label>
+              <textarea
+                rows={3}
+                placeholder="Add context about why you're delegating…"
+                value={delegateModal.note}
+                onChange={(e) => setDelegateModal((m) => m ? { ...m, note: e.target.value } : null)}
+              />
+            </div>
+
+            {delegateModal.error && (
+              <p className={styles.delegateModalError}>{delegateModal.error}</p>
+            )}
+
+            <div className={styles.delegateModalActions}>
+              <Button variant="ghost" onClick={() => setDelegateModal(null)} disabled={delegating}>
+                Cancel
+              </Button>
+              <Button onClick={handleDelegateSubmit} loading={delegating} disabled={!delegateModal.delegateTo}>
+                Delegate
+              </Button>
+            </div>
+          </div>
+        )}
+      </Modal>
+
       {/* Delete confirm */}
       <Modal isOpen={!!deleteConfirm} onClose={() => setDeleteConfirm(null)} title="Delete Task" size="sm">
         <div className={styles.deleteConfirm}>
@@ -791,6 +878,8 @@ function TaskRow({
   onDelete,
   onClick,
   patchTimer,
+  delegatableMembers,
+  onDelegateClick,
 }: {
   task: Task;
   currentUserId: string;
@@ -800,8 +889,15 @@ function TaskRow({
   onDelete: (t: Task) => void;
   onClick: (t: Task) => void;
   patchTimer: (id: string, action: 'start' | 'pause' | 'resume' | 'hold' | 'finish') => Promise<Task | null>;
+  delegatableMembers: { id: string; name: string }[];
+  onDelegateClick: (task: Task) => void;
 }) {
   const isOverdue = task.dueDate && task.status !== 'done' && new Date(task.dueDate) < new Date();
+
+  const isSelfAssigned = task.assignees.filter(Boolean).some(
+    (a) => ((a as any)._id?.toString() || a.id) === currentUserId
+  );
+  const canDelegate = isSelfAssigned && delegatableMembers.length > 0;
 
   const stop = (e: React.MouseEvent) => e.stopPropagation();
 
@@ -866,17 +962,32 @@ function TaskRow({
       <div className={styles.taskRight} onClick={stop}>
         {task.assignees.filter(Boolean).length > 0 && (
           <div className={styles.assignees}>
-            {task.assignees.filter(Boolean).slice(0, 3).map((a) => (
-              <span key={(a as any)._id?.toString() || a.id || a.email} className={styles.assigneeChip}>
-                <Avatar name={a.name || '?'} size="sm" />
-                <span className={styles.assigneeName}>{a.name}</span>
-              </span>
-            ))}
+            {task.assignees.filter(Boolean).slice(0, 3).map((a) => {
+              const aId = (a as any)._id?.toString() || a.id;
+              const isSelf = aId === currentUserId;
+              return (
+                <span
+                  key={aId || a.email}
+                  className={`${styles.assigneeChip} ${isSelf && canDelegate ? styles.assigneeChipSelf : ''}`}
+                  onClick={isSelf && canDelegate ? (e) => { stop(e); onDelegateClick(task); } : undefined}
+                  title={isSelf && canDelegate ? 'Click to delegate' : undefined}
+                >
+                  <Avatar name={a.name || '?'} size="sm" />
+                  <span className={styles.assigneeName}>{a.name}</span>
+                  {isSelf && canDelegate && (
+                    <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className={styles.delegateChevron}>
+                      <polyline points="15 10 20 15 15 20"/><path d="M4 4v7a4 4 0 004 4h12"/>
+                    </svg>
+                  )}
+                </span>
+              );
+            })}
             {task.assignees.filter(Boolean).length > 3 && (
               <span className={styles.assigneeMore}>+{task.assignees.filter(Boolean).length - 3}</span>
             )}
           </div>
         )}
+
 
         <div className={styles.statusActions}>
           {renderWorkflowBtn()}
