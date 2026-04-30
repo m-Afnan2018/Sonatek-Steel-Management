@@ -1,0 +1,109 @@
+.wrapper {
+  border-top: 1px solid var(--border);
+  background: var(--surface);
+  padding: 0.625rem 1rem;
+  flex-shrink: 0;
+}
+
+/* ── Reply bar ───────────────────────────────────────────────────────── */
+.replyBar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.375rem 0.75rem;
+  border-left: 3px solid var(--primary);
+  background: var(--primary-light);
+  border-radius: var(--radius-sm);
+  margin-bottom: 0.5rem;
+}
+.replyBarContent {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.375rem;
+  min-width: 0;
+  color: var(--primary);
+  flex: 1;
+}
+.replyBarName {
+  display: block;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  color: var(--primary);
+  white-space: nowrap;
+}
+.replyBarText {
+  display: block;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.clearReply {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text-muted);
+  padding: 0.125rem;
+  display: flex;
+  align-items: center;
+  border-radius: var(--radius-sm);
+  flex-shrink: 0;
+  transition: color var(--transition), background var(--transition);
+}
+.clearReply:hover { color: var(--danger); background: var(--danger-light); }
+
+/* ── Input row ───────────────────────────────────────────────────────── */
+.inputRow {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.625rem;
+}
+
+.textarea {
+  flex: 1;
+  background: var(--card);
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 0.625rem 1rem;
+  font-size: 0.875rem;
+  font-family: var(--font-body);
+  color: var(--text-primary);
+  resize: none;
+  outline: none;
+  line-height: 1.5;
+  /* exactly 3 lines + top & bottom padding */
+  max-height: calc(3 * 1.5 * 0.875rem + 2 * 0.625rem);
+  overflow-y: auto;
+  transition: border-color var(--transition);
+  /* hide scrollbar — scroll still works via mouse/touch */
+  scrollbar-width: none;
+}
+.textarea::-webkit-scrollbar { display: none; }
+.textarea:focus { border-color: var(--primary); }
+.textarea::placeholder { color: var(--text-muted); }
+
+/* ── Send button ─────────────────────────────────────────────────────── */
+.sendBtn {
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--primary);
+  border: none;
+  color: #fff;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background var(--transition), transform 0.15s, opacity var(--transition);
+}
+.sendBtn:hover:not(:disabled) {
+  background: var(--primary-hover);
+  transform: scale(1.06);
+}
+.sendBtn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}

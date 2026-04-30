@@ -13,6 +13,7 @@ import { useAuthStore } from '@/store/authStore';
 import { formatDate, formatStatus, timeAgo } from '@/lib/utils';
 import type { Task, Comment } from '@/types';
 import styles from './taskDetail.module.css';
+import { ChevronLeft, CornerUpRight } from 'lucide-react';
 
 export default function TaskDetailPage() {
   const params = useParams();
@@ -141,9 +142,7 @@ export default function TaskDetailPage() {
     <AppShell title={task.title}>
       <div className={styles.page}>
         <button className={styles.back} onClick={() => router.back()}>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <polyline points="15 18 9 12 15 6" />
-          </svg>
+          <ChevronLeft size={16} />
           Back to project
         </button>
 
@@ -267,9 +266,7 @@ export default function TaskDetailPage() {
               ))}
               {canDelegate && (
                 <button className={styles.delegateBtn} onClick={() => setShowDelegate(true)}>
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                    <polyline points="15 10 20 15 15 20"/><path d="M4 4v7a4 4 0 004 4h12"/>
-                  </svg>
+                  <CornerUpRight size={12} strokeWidth={2.5} />
                   Delegate
                 </button>
               )}

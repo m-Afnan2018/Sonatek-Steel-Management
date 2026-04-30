@@ -7,6 +7,7 @@ import Button from '@/components/ui/Button/Button';
 import api from '@/lib/api';
 import type { User } from '@/types';
 import styles from './CreateProjectModal.module.css';
+import { X, Image } from 'lucide-react';
 
 const DotLottieReact = dynamic(
   () => import('@lottiefiles/dotlottie-react').then((m) => m.DotLottieReact),
@@ -176,9 +177,7 @@ export default function CreateProjectModal({
                   onClick={removeThumb}
                   title="Remove thumbnail"
                 >
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                    <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
-                  </svg>
+                  <X size={14} strokeWidth={2.5} />
                 </button>
               </div>
             ) : (
@@ -194,11 +193,7 @@ export default function CreateProjectModal({
                   if (file) pickThumb(file);
                 }}
               >
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className={styles.thumbDropIcon}>
-                  <rect x="3" y="3" width="18" height="18" rx="2" />
-                  <circle cx="8.5" cy="8.5" r="1.5" />
-                  <polyline points="21 15 16 10 5 21" />
-                </svg>
+                <Image size={22} strokeWidth={1.5} className={styles.thumbDropIcon} />
                 <span className={styles.thumbDropText}>
                   <u>Click to upload</u> or drag &amp; drop
                 </span>

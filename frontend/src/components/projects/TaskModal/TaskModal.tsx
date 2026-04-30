@@ -13,6 +13,7 @@ import { useAuthStore } from '@/store/authStore';
 import { uploadFile } from '@/lib/api';
 import type { Task, Comment, User, Attachment } from '@/types';
 import styles from './TaskModal.module.css';
+import { Check, CornerUpRight, ArrowRight, Clock, Trash2 } from 'lucide-react';
 
 type Tab = 'details' | 'notes' | 'links' | 'files' | 'comments' | 'timeline';
 
@@ -552,9 +553,7 @@ export default function TaskModal({ task, isOpen, onClose, onUpdate, onDelete, o
                             <Avatar name={m.name || '?'} size="sm" />
                             <span className={styles.assigneePickerName}>{m.name}</span>
                             {selected && (
-                              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
-                                <polyline points="20 6 9 17 4 12" />
-                              </svg>
+                              <Check size={11} strokeWidth={3} />
                             )}
                           </button>
                         );
@@ -592,9 +591,7 @@ export default function TaskModal({ task, isOpen, onClose, onUpdate, onDelete, o
                           className={styles.delegateBtn}
                           onClick={() => setShowDelegate((v) => !v)}
                         >
-                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                            <polyline points="15 10 20 15 15 20"/><path d="M4 4v7a4 4 0 004 4h12"/>
-                          </svg>
+                          <CornerUpRight size={12} strokeWidth={2.5} />
                           Delegate
                         </button>
                       );
@@ -645,9 +642,7 @@ export default function TaskModal({ task, isOpen, onClose, onUpdate, onDelete, o
                       <div key={d._id} className={styles.delegationEntry}>
                         <span className={styles.delegationLine}>
                           <strong>{d.delegatedBy?.name}</strong>
-                          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" style={{ margin: '0 4px', flexShrink: 0 }}>
-                            <line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/>
-                          </svg>
+                          <ArrowRight size={10} strokeWidth={2.5} style={{ margin: '0 4px', flexShrink: 0 }} />
                           <strong>{d.delegatedTo?.name}</strong>
                         </span>
                         {d.note && <span className={styles.delegationNote}>"{d.note}"</span>}
@@ -815,9 +810,7 @@ export default function TaskModal({ task, isOpen, onClose, onUpdate, onDelete, o
 
                     {/* Total elapsed summary */}
                     <div className={styles.timelineSummary}>
-                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
-                      </svg>
+                      <Clock size={13} />
                       Total time logged:&nbsp;
                       <strong>{fmtDuration(task.totalElapsedSeconds * 1000)}</strong>
                       {task.estimatedHours != null && task.estimatedHours > 0 && (
@@ -977,12 +970,7 @@ export default function TaskModal({ task, isOpen, onClose, onUpdate, onDelete, o
               size="sm"
               onClick={() => { onDelete(task!); onClose(); }}
             >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ marginRight: 4 }}>
-                <polyline points="3 6 5 6 21 6" />
-                <path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6" />
-                <path d="M10 11v6M14 11v6" />
-                <path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2" />
-              </svg>
+              <Trash2 size={14} style={{ marginRight: 4 }} />
               Delete Task
             </Button>
           )}

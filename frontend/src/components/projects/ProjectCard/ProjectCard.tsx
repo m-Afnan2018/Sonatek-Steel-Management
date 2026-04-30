@@ -7,6 +7,7 @@ import Avatar from '@/components/ui/Avatar/Avatar';
 import { formatDate, formatStatus } from '@/lib/utils';
 import type { Project } from '@/types';
 import styles from './ProjectCard.module.css';
+import { Image } from 'lucide-react';
 
 interface ProjectCardProps {
   project: Project;
@@ -43,11 +44,7 @@ export default function ProjectCard({ project }: ProjectCardProps) {
         </div>
       ) : (
         <div className={styles.thumbPlaceholder}>
-          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" className={styles.thumbIcon}>
-            <rect x="3" y="3" width="18" height="18" rx="2" />
-            <circle cx="8.5" cy="8.5" r="1.5" />
-            <polyline points="21 15 16 10 5 21" />
-          </svg>
+          <Image size={28} strokeWidth={1.2} className={styles.thumbIcon} />
         </div>
       )}
 

@@ -3,6 +3,7 @@
 import { useEffect, useRef, ReactNode } from 'react';
 import styles from './Modal.module.css';
 import { cn } from '@/lib/utils';
+import { X } from 'lucide-react';
 
 interface ModalProps {
   isOpen: boolean;
@@ -44,9 +45,7 @@ export default function Modal({ isOpen, onClose, title, children, size = 'md' }:
           <div className={styles.header}>
             <h2 className={styles.title}>{title}</h2>
             <button className={styles.close} onClick={onClose} aria-label="Close">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M18 6L6 18M6 6l12 12" />
-              </svg>
+              <X size={20} />
             </button>
           </div>
         )}

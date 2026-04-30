@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import mongoose from 'mongoose';
 import Department from '../models/Department';
 import User from '../models/User';
+import Conversation from '../models/Conversation';
 
 const MEMBER_SELECT = 'name email avatar role';
 
@@ -58,6 +59,18 @@ export const createDepartment = async (req: Request, res: Response): Promise<voi
     }
     await dept.populate('heads', MEMBER_SELECT);
     await dept.populate('members', MEMBER_SELECT);
+
+    // Auto-create the department group chat
+    const systemUserId = headId || req.user!.id;
+    await Conversation.create({
+      type: 'department',
+      name: dept.name,
+      participants: dept.members.map((m: any) => m._id ?? m),
+      admins: dept.heads.map((h: any) => h._id ?? h),
+      department: dept._id,
+      createdBy: systemUserId,
+    });
+
     res.status(201).json(dept);
   } catch {
     res.status(500).json({ message: 'Server error.' });
@@ -125,6 +138,14 @@ export const addMember = async (req: Request, res: Response): Promise<void> => {
     if (!dept) { res.status(404).json({ message: 'Department not found.' }); return; }
 
     await syncUserDepts(uid);
+
+    // Sync department chat group membership
+    const deptConv = await Conversation.findOne({ type: 'department', department: req.params.id });
+    if (deptConv && !deptConv.participants.some((p) => p.toString() === uid.toString())) {
+      deptConv.participants.push(uid);
+      await deptConv.save();
+    }
+
     res.json(dept);
   } catch (err) {
     console.error('addMember error:', err);
@@ -158,6 +179,12 @@ export const removeMember = async (req: Request, res: Response): Promise<void> =
       .populate('members', MEMBER_SELECT);
 
     await syncUserDepts(userIdStr);
+
+    // Sync department chat group membership
+    await Conversation.updateOne(
+      { type: 'department', department: req.params.id },
+      { $pull: { participants: new (require('mongoose').Types.ObjectId)(userIdStr), admins: new (require('mongoose').Types.ObjectId)(userIdStr) } },
+    );
 
     res.json(populated);
   } catch (err) {

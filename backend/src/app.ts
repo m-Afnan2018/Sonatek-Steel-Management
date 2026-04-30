@@ -17,6 +17,7 @@ import mediaRoutes from './routes/media.routes';
 import projectCalendarRoutes from './routes/projectCalendar.routes';
 import socialRoutes from './routes/social.routes';
 import pushRoutes from './routes/push.routes';
+import chatRoutes from './routes/chat.routes';
 import { sendPushToUser } from './utils/webPush';
 import { errorHandler, notFound } from './middleware/error.middleware';
 import { authenticate } from './middleware/auth.middleware';
@@ -74,6 +75,7 @@ app.use('/api/projects/:id/media', mediaRoutes);
 app.use('/api/projects/:id/calendar', projectCalendarRoutes);
 app.use('/api/projects/:id/social', socialRoutes);
 app.use('/api/push', pushRoutes);
+app.use('/api/chat', chatRoutes);
 
 // Notifications routes (inline)
 app.get('/api/notifications', authenticate, async (req, res) => {

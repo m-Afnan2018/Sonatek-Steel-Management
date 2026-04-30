@@ -11,6 +11,7 @@ import { useTeam } from '@/hooks/useTeam';
 import { useAuthStore } from '@/store/authStore';
 import type { Department, User } from '@/types';
 import styles from './departments.module.css';
+import { Plus, ChevronRight, Users, Star, Pencil, Trash2, X } from 'lucide-react';
 
 /** Safely extract string ID from a User — handles both `id` and `_id` */
 function uid(m: User | any): string {
@@ -288,9 +289,7 @@ export default function DepartmentsPage() {
             <h2 className={styles.listTitle}>Departments</h2>
             {isAdmin && (
               <button className={styles.newBtn} onClick={() => setShowCreate(true)} title="New department">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                  <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
-                </svg>
+                <Plus size={16} strokeWidth={2.5} />
               </button>
             )}
           </div>
@@ -325,9 +324,7 @@ export default function DepartmentsPage() {
                       </span>
                     </div>
                     {selectedDept?._id === d._id && (
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className={styles.chevron}>
-                        <polyline points="9 18 15 12 9 6" />
-                      </svg>
+                      <ChevronRight size={14} strokeWidth={2.5} className={styles.chevron} />
                     )}
                   </button>
                 </li>
@@ -341,12 +338,7 @@ export default function DepartmentsPage() {
           {!selectedDept ? (
             <div className={styles.emptyState}>
               <div className={styles.emptyIcon}>
-                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" />
-                  <circle cx="9" cy="7" r="4" />
-                  <path d="M23 21v-2a4 4 0 00-3-3.87" />
-                  <path d="M16 3.13a4 4 0 010 7.75" />
-                </svg>
+                <Users size={48} strokeWidth={1.5} />
               </div>
               <h3 className={styles.emptyTitle}>Select a department</h3>
               <p className={styles.emptyDesc}>Choose a department from the sidebar to view its members and details.</p>
@@ -374,16 +366,12 @@ export default function DepartmentsPage() {
                     )}
                     <div className={styles.detailMeta}>
                       <span className={styles.detailMetaItem}>
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                          <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" /><circle cx="9" cy="7" r="4" />
-                        </svg>
+                        <Users size={14} />
                         {selectedDept.members.length} {selectedDept.members.length === 1 ? 'member' : 'members'}
                       </span>
                       {selectedDept.heads && selectedDept.heads.length > 0 && (
                         <span className={styles.detailMetaItem}>
-                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                            <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
-                          </svg>
+                          <Star size={14} />
                           {selectedDept.heads.length === 1 ? 'Head' : 'Heads'}:{' '}
                           {selectedDept.heads.map((h) => h.name).join(', ')}
                         </span>
@@ -394,22 +382,14 @@ export default function DepartmentsPage() {
                 {isAdmin && (
                   <div className={styles.detailActions}>
                     <button className={styles.iconBtn} onClick={() => setShowEdit(true)} title="Edit">
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" />
-                        <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" />
-                      </svg>
+                      <Pencil size={16} />
                     </button>
                     <button
                       className={`${styles.iconBtn} ${styles.iconBtnDanger}`}
                       onClick={() => setShowConfirmDelete(true)}
                       title="Delete"
                     >
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <polyline points="3 6 5 6 21 6" />
-                        <path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6" />
-                        <path d="M10 11v6M14 11v6" />
-                        <path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2" />
-                      </svg>
+                      <Trash2 size={16} />
                     </button>
                   </div>
                 )}
@@ -457,9 +437,7 @@ export default function DepartmentsPage() {
                               <Avatar name={m.name} size="md" />
                               {isHead && (
                                 <span className={styles.headBadge} title="Department Head">
-                                  <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor" stroke="none">
-                                    <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
-                                  </svg>
+                                  <Star size={10} fill="currentColor" stroke="none" />
                                 </span>
                               )}
                             </div>
@@ -477,9 +455,7 @@ export default function DepartmentsPage() {
                                   title="Set as head"
                                   onClick={() => handleAddHead(memberId)}
                                 >
-                                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                    <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
-                                  </svg>
+                                  <Star size={13} />
                                   Make Head
                                 </button>
                               )}
@@ -489,9 +465,7 @@ export default function DepartmentsPage() {
                                   title="Remove as head"
                                   onClick={() => handleRemoveHead(memberId)}
                                 >
-                                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                    <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
-                                  </svg>
+                                  <Star size={13} />
                                   Remove as Head
                                 </button>
                               )}
@@ -500,9 +474,7 @@ export default function DepartmentsPage() {
                                 title="Remove from department"
                                 onClick={() => handleRemoveMember(memberId)}
                               >
-                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                  <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
-                                </svg>
+                                <X size={13} />
                                 Remove
                               </button>
                             </div>

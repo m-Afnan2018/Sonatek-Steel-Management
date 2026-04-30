@@ -6,6 +6,7 @@ import Topbar from '../Topbar/Topbar';
 import QuickNoteModal from '@/components/ui/QuickNoteModal/QuickNoteModal';
 import { usePushSubscription } from '@/hooks/usePushSubscription';
 import { useSidebarStore } from '@/store/sidebarStore';
+import { useChatSocket } from '@/hooks/useChatSocket';
 import styles from './AppShell.module.css';
 
 interface AppShellProps {
@@ -18,6 +19,7 @@ export default function AppShell({ children, title }: AppShellProps) {
   const [quickNoteOpen, setQuickNoteOpen] = useState(false);
   const { collapsed, toggle } = useSidebarStore();
   const { status, enable } = usePushSubscription();
+  useChatSocket();
 
   useEffect(() => {
     if (status === 'not_granted') enable();

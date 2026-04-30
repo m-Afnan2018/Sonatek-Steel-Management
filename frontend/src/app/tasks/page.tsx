@@ -19,6 +19,7 @@ import { formatDate } from '@/lib/utils';
 import api, { uploadFile } from '@/lib/api';
 import type { Task, Attachment } from '@/types';
 import styles from './tasks.module.css';
+import { Calendar, ChevronLeft, ChevronRight, ArrowUpDown, CheckSquare, Check, CornerUpRight } from 'lucide-react';
 
 const API_BASE = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api').replace(/\/api$/, '');
 type CreateTab = 'details' | 'notes' | 'links' | 'files';
@@ -398,7 +399,7 @@ export default function TasksPage() {
           {/* Date range */}
           <div className={styles.dateRange}>
             <span className={styles.dateRangeIcon}>
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+              <Calendar size={12} strokeWidth={2.5} />
             </span>
             <input
               type="date"
@@ -473,12 +474,7 @@ export default function TasksPage() {
                       onClick={() => setCompletedSort((s) => s === 'desc' ? 'asc' : 'desc')}
                       title="Sort by created date"
                     >
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                        {completedSort === 'desc'
-                          ? <><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></>
-                          : <><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/></>
-                        }
-                      </svg>
+                      <ArrowUpDown size={12} strokeWidth={2.5} />
                       {completedSort === 'desc' ? 'Newest first' : 'Oldest first'}
                     </button>
                   )}
@@ -511,7 +507,7 @@ export default function TasksPage() {
                           onClick={() => setCompletedPage((p) => Math.max(1, p - 1))}
                           disabled={completedPage === 1}
                         >
-                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="15 18 9 12 15 6"/></svg>
+                          <ChevronLeft size={14} strokeWidth={2.5} />
                         </button>
                         <span className={styles.pageInfo}>
                           {completedPage} / {completedTotalPages}
@@ -522,7 +518,7 @@ export default function TasksPage() {
                           onClick={() => setCompletedPage((p) => Math.min(completedTotalPages, p + 1))}
                           disabled={completedPage === completedTotalPages}
                         >
-                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="9 18 15 12 9 6"/></svg>
+                          <ChevronRight size={14} strokeWidth={2.5} />
                         </button>
                       </div>
                     )}
@@ -650,9 +646,7 @@ export default function TasksPage() {
                             <span className={styles.assigneeInitial}>{m.name.charAt(0).toUpperCase()}</span>
                             <span>{m.name}</span>
                             {checked && (
-                              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
-                                <polyline points="20 6 9 17 4 12" />
-                              </svg>
+                              <Check size={11} strokeWidth={3} />
                             )}
                           </button>
                         );
@@ -681,9 +675,7 @@ export default function TasksPage() {
                               <span className={styles.assigneeInitial}>{m.name.charAt(0).toUpperCase()}</span>
                               <span>{m.name}</span>
                               {checked && (
-                                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
-                                  <polyline points="20 6 9 17 4 12" />
-                                </svg>
+                                <Check size={11} strokeWidth={3} />
                               )}
                             </button>
                           );
@@ -707,9 +699,7 @@ export default function TasksPage() {
                       <span className={styles.assigneeInitial}>{(user?.name ?? '?').charAt(0).toUpperCase()}</span>
                       <span>Assign to me</span>
                       {form.assignees.includes(user?.id ?? '') && (
-                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
-                          <polyline points="20 6 9 17 4 12" />
-                        </svg>
+                        <Check size={11} strokeWidth={3} />
                       )}
                     </button>
                   )}
@@ -869,9 +859,7 @@ export default function TasksPage() {
         {delegateModal && (
           <div className={styles.delegateModalBody}>
             <p className={styles.delegateModalTask}>
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, marginTop: 2 }}>
-                <polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/>
-              </svg>
+              <CheckSquare size={13} style={{ flexShrink: 0, marginTop: 2 }} />
               <span>{delegateModal.task.title}</span>
             </p>
 
@@ -1035,9 +1023,7 @@ function TaskRow({
                   <Avatar name={a.name || '?'} size="sm" />
                   <span className={styles.assigneeName}>{a.name}</span>
                   {isSelf && canDelegate && (
-                    <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className={styles.delegateChevron}>
-                      <polyline points="15 10 20 15 15 20"/><path d="M4 4v7a4 4 0 004 4h12"/>
-                    </svg>
+                    <CornerUpRight size={9} strokeWidth={2.5} className={styles.delegateChevron} />
                   )}
                 </span>
               );

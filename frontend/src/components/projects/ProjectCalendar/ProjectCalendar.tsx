@@ -14,6 +14,7 @@ import Button from '@/components/ui/Button/Button';
 import Spinner from '@/components/ui/Spinner/Spinner';
 import { cn } from '@/lib/utils';
 import styles from './ProjectCalendar.module.css';
+import { ChevronLeft, ChevronRight, X, Link, FileText, File, Image, Calendar as CalendarIcon, MapPin, RefreshCw, Check } from 'lucide-react';
 
 /* ── Types ──────────────────────────────────────────────────────────── */
 
@@ -220,40 +221,10 @@ function fileTypeFromMime(mimeType: string): CalEventAttachment['fileType'] {
 }
 
 function AttachmentFileIcon({ fileType }: { fileType: CalEventAttachment['fileType'] }) {
-  if (fileType === 'image') {
-    return (
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-        <rect x="3" y="3" width="18" height="18" rx="2" />
-        <circle cx="8.5" cy="8.5" r="1.5" />
-        <path d="M21 15l-5-5L5 21" />
-      </svg>
-    );
-  }
-  if (fileType === 'video') {
-    return (
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-        <polygon points="23 7 16 12 23 17 23 7" />
-        <rect x="1" y="5" width="15" height="14" rx="2" />
-      </svg>
-    );
-  }
-  if (fileType === 'document') {
-    return (
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-        <polyline points="14 2 14 8 20 8" />
-        <line x1="16" y1="13" x2="8" y2="13" />
-        <line x1="16" y1="17" x2="8" y2="17" />
-        <line x1="10" y1="9" x2="8" y2="9" />
-      </svg>
-    );
-  }
-  return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-      <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z" />
-      <polyline points="13 2 13 9 20 9" />
-    </svg>
-  );
+  if (fileType === 'image') return <Image size={18} />;
+  if (fileType === 'video') return <File size={18} />;
+  if (fileType === 'document') return <FileText size={18} />;
+  return <File size={18} />;
 }
 
 /* ── Main Component ─────────────────────────────────────────────────── */
@@ -543,15 +514,11 @@ export default function ProjectCalendar({ projectId }: ProjectCalendarProps) {
           </span>
           <div className={styles.monthNav}>
             <button className={styles.navBtn} onClick={prevMonth} aria-label="Previous month">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                <polyline points="15 18 9 12 15 6" />
-              </svg>
+              <ChevronLeft size={16} strokeWidth={2.5} />
             </button>
             <button className={styles.todayBtn} onClick={goToday}>Today</button>
             <button className={styles.navBtn} onClick={nextMonth} aria-label="Next month">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                <polyline points="9 18 15 12 9 6" />
-              </svg>
+              <ChevronRight size={16} strokeWidth={2.5} />
             </button>
           </div>
         </div>
@@ -804,9 +771,7 @@ export default function ProjectCalendar({ projectId }: ProjectCalendarProps) {
                         onClick={() => setField('endTime', '')}
                         title="Clear end time"
                       >
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                          <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
-                        </svg>
+                        <X size={12} strokeWidth={2.5} />
                         Reset
                       </button>
                     )}
@@ -914,9 +879,7 @@ export default function ProjectCalendar({ projectId }: ProjectCalendarProps) {
                         onClick={() => removeAttachment(idx)}
                         aria-label="Remove attachment"
                       >
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                          <path d="M18 6L6 18M6 6l12 12" />
-                        </svg>
+                        <X size={14} />
                       </button>
                     </li>
                   ))}
@@ -944,19 +907,14 @@ export default function ProjectCalendar({ projectId }: ProjectCalendarProps) {
                 <ul className={styles.linkList}>
                   {form.links.map((l, idx) => (
                     <li key={idx} className={styles.linkItem}>
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className={styles.linkIcon}>
-                        <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
-                        <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
-                      </svg>
+                      <Link size={14} className={styles.linkIcon} />
                       <span className={styles.linkText}>{l.length > 55 ? l.substring(0, 55) + '…' : l}</span>
                       <button
                         className={styles.attachRemove}
                         onClick={() => removeLink(idx)}
                         aria-label="Remove link"
                       >
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                          <path d="M18 6L6 18M6 6l12 12" />
-                        </svg>
+                        <X size={14} />
                       </button>
                     </li>
                   ))}
@@ -1020,9 +978,7 @@ export default function ProjectCalendar({ projectId }: ProjectCalendarProps) {
                   <span className={styles.mediaName}>{m.name}</span>
                   {selected && (
                     <span className={styles.mediaCheck}>
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3">
-                        <polyline points="20 6 9 17 4 12" />
-                      </svg>
+                      <Check size={14} strokeWidth={3} stroke="white" />
                     </span>
                   )}
                 </button>
@@ -1082,9 +1038,7 @@ function EventDetailModal({ event, canModify, onClose, onEdit, onDelete }: Event
       <div className={styles.viewBody}>
         {/* Date / time */}
         <div className={styles.viewRow}>
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className={styles.viewIcon}>
-            <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
-          </svg>
+          <CalendarIcon size={14} className={styles.viewIcon} />
           <span>{dateStr}</span>
           {timeLabel && <span className={styles.viewTimePill}>{timeLabel}</span>}
         </div>
@@ -1092,9 +1046,7 @@ function EventDetailModal({ event, canModify, onClose, onEdit, onDelete }: Event
         {/* Location */}
         {event.location && (
           <div className={styles.viewRow}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className={styles.viewIcon}>
-              <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/>
-            </svg>
+            <MapPin size={14} className={styles.viewIcon} />
             <span>{event.location}</span>
           </div>
         )}
@@ -1102,9 +1054,7 @@ function EventDetailModal({ event, canModify, onClose, onEdit, onDelete }: Event
         {/* Recurrence */}
         {event.recurrence !== 'none' && (
           <div className={styles.viewRow}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className={styles.viewIcon}>
-              <polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 014-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 01-4 4H3"/>
-            </svg>
+            <RefreshCw size={14} className={styles.viewIcon} />
             <span style={{ textTransform: 'capitalize' }}>{event.recurrence}</span>
           </div>
         )}
@@ -1171,10 +1121,7 @@ function EventDetailModal({ event, canModify, onClose, onEdit, onDelete }: Event
                   rel="noopener noreferrer"
                   className={styles.viewLink}
                 >
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
-                    <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
-                  </svg>
+                  <Link size={13} />
                   <span>{l.length > 60 ? l.substring(0, 60) + '…' : l}</span>
                 </a>
               ))}
@@ -1208,9 +1155,7 @@ function EventDetailModal({ event, canModify, onClose, onEdit, onDelete }: Event
         <div className={styles.lightbox} onClick={() => setLightbox(null)}>
           <img src={lightbox} alt="Preview" className={styles.lightboxImg} />
           <button className={styles.lightboxClose} onClick={() => setLightbox(null)}>
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5">
-              <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-            </svg>
+            <X size={20} stroke="white" strokeWidth={2.5} />
           </button>
         </div>
       )}

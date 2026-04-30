@@ -12,6 +12,7 @@ import { useCalendarEvents } from '@/hooks/useCalendarEvents';
 import { useTeam } from '@/hooks/useTeam';
 import { useAuthStore } from '@/store/authStore';
 import styles from './attendance.module.css';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 export default function AttendancePage() {
   const { records, stats, loading, fetchMyAttendance, fetchUserAttendance, fetchStats, fetchUserStats, adminUpdateAttendance, adminCreateAttendance } = useAttendance();
@@ -71,17 +72,13 @@ export default function AttendancePage() {
           <div className={styles.main}>
             <div className={styles.calendarHeader}>
               <button className={styles.navBtn} onClick={handlePrevMonth}>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <polyline points="15 18 9 12 15 6" />
-                </svg>
+                <ChevronLeft size={16} />
               </button>
               <h2 className={styles.monthTitle}>
                 {monthNames[month - 1]} {year}
               </h2>
               <button className={styles.navBtn} onClick={handleNextMonth}>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <polyline points="9 18 15 12 9 6" />
-                </svg>
+                <ChevronRight size={16} />
               </button>
             </div>
 

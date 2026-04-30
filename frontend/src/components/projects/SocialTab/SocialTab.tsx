@@ -6,6 +6,7 @@ import Modal from '@/components/ui/Modal/Modal';
 import Spinner from '@/components/ui/Spinner/Spinner';
 import api from '@/lib/api';
 import styles from './SocialTab.module.css';
+import { Link, Upload, Image, Check, Clock, Pencil } from 'lucide-react';
 
 const STATIC_BASE = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api').replace(/\/api$/, '');
 
@@ -187,13 +188,13 @@ function MediaPicker({
             onClick={() => switchMode(m)}
           >
             {m === 'url' && (
-              <><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/></svg> URL</>
+  <><Link size={12} strokeWidth={2.5} /> URL</>
             )}
             {m === 'upload' && (
-              <><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg> Upload</>
+  <><Upload size={12} strokeWidth={2.5} /> Upload</>
             )}
             {m === 'gallery' && (
-              <><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg> Gallery</>
+  <><Image size={12} strokeWidth={2.5} /> Gallery</>
             )}
           </button>
         ))}
@@ -245,9 +246,7 @@ function MediaPicker({
               </>
             ) : (
               <>
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className={styles.dropZoneIcon}>
-                  <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
-                </svg>
+                <Upload size={22} strokeWidth={1.5} className={styles.dropZoneIcon} />
                 <span className={styles.dropZoneText}><u>Click to browse</u> or drag &amp; drop</span>
                 <span className={styles.dropZoneSub}>Images &amp; videos — max 1 GB</span>
               </>
@@ -284,7 +283,7 @@ function MediaPicker({
                     />
                     {selected && (
                       <span className={styles.galleryCheckmark}>
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3"><polyline points="20 6 9 17 4 12"/></svg>
+                        <Check size={14} strokeWidth={3} stroke="#fff" />
                       </span>
                     )}
                   </button>
@@ -531,7 +530,7 @@ export default function SocialTab({ projectId }: { projectId: string }) {
               </div>
               <div className={styles.platformInfoActions}>
                 <button className={styles.editTokenBtn} onClick={() => openConnect(activePlatform!)}>
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4z"/></svg>
+                  <Pencil size={13} />
                   Edit Token
                 </button>
                 <button className={styles.disconnectBtn} onClick={() => handleDisconnect(activeAccount._id)}>
@@ -618,7 +617,7 @@ export default function SocialTab({ projectId }: { projectId: string }) {
 
                     <div className={styles.postMeta}>
                       <span className={styles.postTime}>
-                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                        <Clock size={11} />
                         {fmt(post.scheduledAt)}
                       </span>
                     </div>
