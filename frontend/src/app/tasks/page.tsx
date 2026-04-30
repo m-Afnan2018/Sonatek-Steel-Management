@@ -103,6 +103,9 @@ export default function TasksPage() {
   const [showTaskModal, setShowTaskModal] = useState(false);
   const [localTasks, setLocalTasks] = useState<Task[]>([]);
   const [completedOpen, setCompletedOpen] = useState(false);
+  const [completedPage, setCompletedPage] = useState(1);
+  const [completedSort, setCompletedSort] = useState<'desc' | 'asc'>('desc');
+  const COMPLETED_PAGE_SIZE = 10;
   const [deleteConfirm, setDeleteConfirm] = useState<Task | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [delegateModal, setDelegateModal] = useState<{ task: Task; delegateTo: string; note: string; error: string } | null>(null);
@@ -270,13 +273,21 @@ export default function TasksPage() {
     });
   }, [localTasks, filterStatus, filterPriority, filterAssignee, filterProject, filterDateFrom, filterDateTo]);
 
-  // Completed tasks ignore the status filter (they're always "done") but apply everything else
+  // Completed tasks — filtered, sorted by createdAt, then paginated
   const completedTasks = useMemo(() => {
-    return localTasks.filter((t) => {
-      if (t.status !== 'done') return false;
-      return matchesNonStatusFilters(t);
+    const filtered = localTasks.filter((t) => t.status === 'done' && matchesNonStatusFilters(t));
+    filtered.sort((a, b) => {
+      const diff = new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+      return completedSort === 'desc' ? diff : -diff;
     });
-  }, [localTasks, filterPriority, filterAssignee, filterProject, filterDateFrom, filterDateTo]);
+    return filtered;
+  }, [localTasks, filterPriority, filterAssignee, filterProject, filterDateFrom, filterDateTo, completedSort]);
+
+  const completedTotalPages = Math.ceil(completedTasks.length / COMPLETED_PAGE_SIZE);
+  const completedPagedTasks = completedTasks.slice(
+    (completedPage - 1) * COMPLETED_PAGE_SIZE,
+    completedPage * COMPLETED_PAGE_SIZE,
+  );
 
   const hasFilters = filterStatus || filterPriority || filterAssignee || filterProject || filterDateFrom || filterDateTo;
 
@@ -287,7 +298,13 @@ export default function TasksPage() {
     setFilterProject('');
     setFilterDateFrom('');
     setFilterDateTo('');
+    setCompletedPage(1);
   };
+
+  // Reset page when filters or sort changes
+  useEffect(() => { setCompletedPage(1); }, [
+    filterPriority, filterAssignee, filterProject, filterDateFrom, filterDateTo, completedSort,
+  ]);
 
   const emptyMessage = hasFilters
     ? { icon: '🔍', title: 'No matches', text: 'No tasks match the current filters.' }
@@ -444,29 +461,72 @@ export default function TasksPage() {
 
             {completedTasks.length > 0 && (
               <div className={styles.completedSection}>
-                <button className={styles.completedToggle} onClick={() => setCompletedOpen((v) => !v)}>
-                  <span className={styles.completedChevron}>{completedOpen ? '▾' : '▸'}</span>
-                  Completed
-                  <span className={styles.completedCount}>{completedTasks.length}</span>
-                </button>
+                <div className={styles.completedHeader}>
+                  <button className={styles.completedToggle} onClick={() => setCompletedOpen((v) => !v)}>
+                    <span className={styles.completedChevron}>{completedOpen ? '▾' : '▸'}</span>
+                    Completed
+                    <span className={styles.completedCount}>{completedTasks.length}</span>
+                  </button>
+                  {completedOpen && (
+                    <button
+                      className={styles.sortBtn}
+                      onClick={() => setCompletedSort((s) => s === 'desc' ? 'asc' : 'desc')}
+                      title="Sort by created date"
+                    >
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                        {completedSort === 'desc'
+                          ? <><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></>
+                          : <><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/></>
+                        }
+                      </svg>
+                      {completedSort === 'desc' ? 'Newest first' : 'Oldest first'}
+                    </button>
+                  )}
+                </div>
+
                 {completedOpen && (
-                  <div className={styles.taskList}>
-                    {completedTasks.map((task) => (
-                      <TaskRow
-                        key={task._id}
-                        task={task}
-                        currentUserId={user?.id ?? ''}
-                        isAdminOrManager={isAdminOrManager}
-                        onStatusChange={handleStatusChange}
-                        onTimerUpdate={handleTimerUpdate}
-                        onDelete={(t) => setDeleteConfirm(t)}
-                        onClick={handleTaskClick}
-                        patchTimer={patchTimer}
-                        delegatableMembers={delegatableMembers}
-                        onDelegateClick={(t) => setDelegateModal({ task: t, delegateTo: '', note: '', error: '' })}
-                      />
-                    ))}
-                  </div>
+                  <>
+                    <div className={styles.taskList}>
+                      {completedPagedTasks.map((task) => (
+                        <TaskRow
+                          key={task._id}
+                          task={task}
+                          currentUserId={user?.id ?? ''}
+                          isAdminOrManager={isAdminOrManager}
+                          onStatusChange={handleStatusChange}
+                          onTimerUpdate={handleTimerUpdate}
+                          onDelete={(t) => setDeleteConfirm(t)}
+                          onClick={handleTaskClick}
+                          patchTimer={patchTimer}
+                          delegatableMembers={delegatableMembers}
+                          onDelegateClick={(t) => setDelegateModal({ task: t, delegateTo: '', note: '', error: '' })}
+                        />
+                      ))}
+                    </div>
+
+                    {completedTotalPages > 1 && (
+                      <div className={styles.pagination}>
+                        <button
+                          className={styles.pageBtn}
+                          onClick={() => setCompletedPage((p) => Math.max(1, p - 1))}
+                          disabled={completedPage === 1}
+                        >
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="15 18 9 12 15 6"/></svg>
+                        </button>
+                        <span className={styles.pageInfo}>
+                          {completedPage} / {completedTotalPages}
+                          <span className={styles.pageTotal}> &nbsp;({completedTasks.length} tasks)</span>
+                        </span>
+                        <button
+                          className={styles.pageBtn}
+                          onClick={() => setCompletedPage((p) => Math.min(completedTotalPages, p + 1))}
+                          disabled={completedPage === completedTotalPages}
+                        >
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="9 18 15 12 9 6"/></svg>
+                        </button>
+                      </div>
+                    )}
+                  </>
                 )}
               </div>
             )}
