@@ -16,6 +16,9 @@ export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
   maximumScale: 1,
+  userScalable: false,
+  viewportFit: 'cover',  // iOS notch/home-bar safe areas
+  interactiveWidget: 'resizes-content',  // keyboard shrinks the layout, dvh updates
 };
 
 export default function RootLayout({

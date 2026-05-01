@@ -1,7 +1,11 @@
+/* ── Full-bleed layout filling everything below the topbar ─────────────── */
 .layout {
   display: flex;
-  height: calc(100vh - var(--topbar-height));
+  /* Desktop: cancel AppShell's 1.5rem padding on all sides */
   margin: -1.5rem;
+  /* Use dvh so height shrinks when soft keyboard appears */
+  height: calc(100vh - var(--topbar-height));          /* fallback */
+  height: calc(100dvh - var(--topbar-height));         /* keyboard-aware */
   overflow: hidden;
   background: var(--bg);
 }
@@ -36,9 +40,25 @@
 
 /* ── Mobile ──────────────────────────────────────────────────────────────── */
 @media (max-width: 768px) {
-  .sidebarPanel { width: 100%; }
-  .mainPanel    { width: 100%; }
-  /* One panel at a time on mobile */
-  .sidebarHidden { display: none; }
-  .mainHidden    { display: none; }
+  .layout {
+    /* Mobile AppShell uses 1rem padding — match it */
+    margin: -1rem;
+    height: calc(100vh - var(--topbar-height));
+    height: calc(100dvh - var(--topbar-height));
+    /* Prevent any horizontal overflow */
+    width: calc(100% + 2rem);
+    max-width: 100vw;
+  }
+
+  /* Each panel takes the full width on mobile */
+  .sidebarPanel {
+    width: 100%;
+  }
+  .mainPanel {
+    width: 100%;
+  }
+
+  /* One panel visible at a time */
+  .sidebarHidden { display: none !important; }
+  .mainHidden    { display: none !important; }
 }

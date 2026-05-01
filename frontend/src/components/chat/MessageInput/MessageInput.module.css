@@ -2,7 +2,11 @@
   border-top: 1px solid var(--border);
   background: var(--surface);
   padding: 0.625rem 0.75rem;
+  /* iOS home indicator safe area */
+  padding-bottom: max(0.625rem, env(safe-area-inset-bottom));
   flex-shrink: 0;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 /* ── Reply bar ───────────────────────────────────────────────────────────── */

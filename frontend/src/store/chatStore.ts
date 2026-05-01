@@ -66,6 +66,7 @@ interface ChatState {
   onlineUsers: Set<string>;
   typingUsers: Record<string, Set<string>>;      // conversationId -> Set<userId>
   initialUnread: Record<string, number>;         // convId -> unread count at open time
+  conversationSeenAt: Record<string, Record<string, string>>; // convId -> userId -> ISO seenAt
 
   setConversations: (convs: Conversation[]) => void;
   upsertConversation: (conv: Conversation) => void;
@@ -77,6 +78,7 @@ interface ChatState {
   removeMessage: (conversationId: string, messageId: string) => void;
   setOnlineUsers: (userIds: string[]) => void;
   setInitialUnread: (convId: string, count: number) => void;
+  updateSeenAt: (convId: string, userId: string, seenAt: string) => void;
   setUserOnline: (userId: string) => void;
   setUserOffline: (userId: string) => void;
   setTyping: (conversationId: string, userId: string, isTyping: boolean) => void;
@@ -88,13 +90,14 @@ interface ChatState {
   removeSavedMessageId: (id: string) => void;
 }
 
-export const useChatStore = create<ChatState>((set) => ({
+export const    useChatStore = create<ChatState>((set) => ({
   conversations:        [],
   activeConversationId: null,
   messages:             {},
   onlineUsers:          new Set(),
   typingUsers:          {},
   initialUnread:        {},
+  conversationSeenAt:   {},
   savedMessageIds:      new Set(),
 
   setConversations: (convs) => set({ conversations: convs }),
@@ -153,6 +156,14 @@ export const useChatStore = create<ChatState>((set) => ({
 
   setInitialUnread: (convId, count) =>
     set((s) => ({ initialUnread: { ...s.initialUnread, [convId]: count } })),
+
+  updateSeenAt: (convId, userId, seenAt) =>
+    set((s) => ({
+      conversationSeenAt: {
+        ...s.conversationSeenAt,
+        [convId]: { ...(s.conversationSeenAt[convId] ?? {}), [userId]: seenAt },
+      },
+    })),
 
   setUserOnline: (userId) =>
     set((s) => {

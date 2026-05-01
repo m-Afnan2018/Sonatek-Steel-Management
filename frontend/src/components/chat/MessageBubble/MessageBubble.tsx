@@ -3,9 +3,10 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import Avatar from '@/components/ui/Avatar/Avatar';
 import { timeAgo } from '@/lib/utils';
+import { useChatStore } from '@/store/chatStore';
 import type { ChatMessage, ChatUser } from '@/store/chatStore';
 import styles from './MessageBubble.module.css';
-import { FileText, CornerUpLeft, CheckCheck, Check } from 'lucide-react';
+import { FileText, CornerUpLeft, CheckCheck } from 'lucide-react';
 import MessageContextMenu, { type ContextMenuPosition } from '../MessageContextMenu/MessageContextMenu';
 import EmojiPicker from '../EmojiPicker/EmojiPicker';
 import ReactionViewer from '../ReactionViewer/ReactionViewer';
@@ -142,7 +143,14 @@ export default function MessageBubble({
     );
   }
 
-  const seenByOthers = msg.seenBy?.some((s) => s.user !== currentUserId);
+  // Determine read status from conversationSeenAt store (tracks when each user last saw the conv)
+  const conversationSeenAt = useChatStore((s) => s.conversationSeenAt);
+  const convSeenMap = conversationSeenAt[msg.conversation] ?? {};
+  const msgTime = new Date(msg.createdAt).getTime();
+  // Message is "read" if any participant other than current user has seenAt >= msg.createdAt
+  const isRead = Object.entries(convSeenMap).some(
+    ([uid, seenAt]) => uid !== currentUserId && new Date(seenAt).getTime() >= msgTime,
+  );
 
   return (
     <div
@@ -247,11 +255,11 @@ export default function MessageBubble({
             {msg.isEdited && !editing && <span className={styles.edited}>edited</span>}
             <span className={styles.time}>{timeAgo(msg.createdAt)}</span>
             {isSelf && (
-              <span className={styles.ticks} title={seenByOthers ? 'Seen' : 'Delivered'}>
-                {seenByOthers ? (
+              <span className={styles.ticks} title={isRead ? 'Read' : 'Sent'}>
+                {isRead ? (
                   <CheckCheck size={14} color="#4fc3f7" />
                 ) : (
-                  <Check size={14} opacity={0.6} />
+                  <CheckCheck size={14} opacity={0.45} />
                 )}
               </span>
             )}

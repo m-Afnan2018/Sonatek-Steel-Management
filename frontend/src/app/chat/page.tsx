@@ -25,6 +25,10 @@ export default function ChatPage() {
 
   useEffect(() => {
     fetchConversations();
+    // Clear active conversation when leaving the chat page entirely
+    return () => {
+      useChatStore.getState().setActiveConversation(null);
+    };
   }, [fetchConversations]);
 
   const activeConversation = conversations.find((c) => c._id === activeConversationId) ?? null;
@@ -35,6 +39,8 @@ export default function ChatPage() {
   };
 
   const handleBack = () => {
+    // Clear active conversation so notifications resume for this chat
+    useChatStore.getState().setActiveConversation(null);
     setMobileView('sidebar');
   };
 

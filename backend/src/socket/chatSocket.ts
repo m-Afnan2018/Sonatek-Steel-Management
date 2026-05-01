@@ -150,10 +150,12 @@ export function initSocket(httpServer: HttpServer): SocketServer {
           { $set: { lastReadAt: new Date() } },
           { upsert: true },
         );
-        socket.to(data.conversationId).emit('messages_seen', {
+        // Use io.to (not socket.to) so the sender also gets the event
+        // and can update their message ticks to blue
+        io.to(data.conversationId).emit('messages_seen', {
           conversationId: data.conversationId,
           userId,
-          seenAt: new Date(),
+          seenAt: new Date().toISOString(),
         });
       } catch (err) {
         console.error('[Socket] mark_seen error:', err);

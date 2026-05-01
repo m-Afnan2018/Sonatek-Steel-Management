@@ -3,6 +3,7 @@
 import { useEffect, useRef } from 'react';
 import { io, Socket } from 'socket.io-client';
 import { useAuthStore } from '@/store/authStore';
+import api from '@/lib/api';
 import { useChatStore } from '@/store/chatStore';
 import type { ChatMessage, Conversation } from '@/store/chatStore';
 
@@ -34,7 +35,7 @@ export function useChatSocket() {
 
   const {
     appendMessage, updateMessage, setOnlineUsers, setUserOnline, setUserOffline,
-    setTyping, incrementUnread, clearUnread,
+    setTyping, incrementUnread, clearUnread, updateSeenAt,
     upsertConversation,
   } = useChatStore();
 
@@ -81,7 +82,17 @@ export function useChatSocket() {
       }
     });
 
-    socket.on('online_users', ({ userIds }: { userIds: string[] }) => setOnlineUsers(userIds));
+    socket.on('online_users', ({ userIds }: { userIds: string[] }) => {
+      setOnlineUsers(userIds);
+      // Initialize saved message IDs now that we're authenticated
+      api.get('/chat/saved')
+        .then(({ data }) => {
+          useChatStore.getState().setSavedMessageIds(
+            data.map((s: { messageId: string }) => s.messageId)
+          );
+        })
+        .catch(() => {});
+    });
     socket.on('user_online',  ({ userId: uid }: { userId: string }) => setUserOnline(uid));
     socket.on('user_offline', ({ userId: uid, lastSeen }: { userId: string; lastSeen: string }) => {
       setUserOffline(uid);
@@ -103,7 +114,10 @@ export function useChatSocket() {
       setTyping(conversationId, uid, false);
     });
 
-    socket.on('messages_seen', ({ conversationId, userId: seenByUserId }: { conversationId: string; userId: string; seenAt: string }) => {
+    socket.on('messages_seen', ({ conversationId, userId: seenByUserId, seenAt }: { conversationId: string; userId: string; seenAt: string }) => {
+      // Record when this user last saw the conversation (drives blue ticks on sender's side)
+      updateSeenAt(conversationId, seenByUserId, seenAt);
+      // If it's the current user who just saw it, clear their unread count
       if (seenByUserId === userId) clearUnread(conversationId);
     });
 
