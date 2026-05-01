@@ -1,8 +1,10 @@
 import { Request, Response } from 'express';
+import { getIO } from '../socket/chatSocket';
 import mongoose from 'mongoose';
 import Conversation from '../models/Conversation';
 import Message from '../models/Message';
 import UserChatSettings from '../models/UserChatSettings';
+import SavedMessage from '../models/SavedMessage';
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 
@@ -21,7 +23,7 @@ export const getConversations = async (req: Request, res: Response): Promise<voi
     const userId = req.user!.id;
 
     const conversations = await Conversation.find({ participants: userId })
-      .populate('participants', 'name email avatar role')
+      .populate('participants', 'name email avatar role lastSeen')
       .populate({ path: 'lastMessage', populate: { path: 'sender', select: 'name avatar' } })
       .sort({ lastActivity: -1 });
 
@@ -69,7 +71,7 @@ export const getOrCreateDirect = async (req: Request, res: Response): Promise<vo
     let conv = await Conversation.findOne({
       type: 'direct',
       participants: { $all: [userId, targetUserId], $size: 2 },
-    }).populate('participants', 'name email avatar role')
+    }).populate('participants', 'name email avatar role lastSeen')
       .populate({ path: 'lastMessage', populate: { path: 'sender', select: 'name avatar' } });
 
     if (!conv) {
@@ -79,7 +81,7 @@ export const getOrCreateDirect = async (req: Request, res: Response): Promise<vo
         admins: [],
         createdBy: userId,
       });
-      conv = await conv.populate('participants', 'name email avatar role');
+      conv = await conv.populate('participants', 'name email avatar role lastSeen');
     }
 
     await ensureSettings(userId, conv._id.toString());
@@ -112,7 +114,7 @@ export const createGroup = async (req: Request, res: Response): Promise<void> =>
     });
 
     await Promise.all(participants.map((id) => ensureSettings(id, conv._id.toString())));
-    const populated = await conv.populate('participants', 'name email avatar role');
+    const populated = await conv.populate('participants', 'name email avatar role lastSeen');
     res.status(201).json(populated);
   } catch (err) {
     console.error('createGroup:', err);
@@ -124,7 +126,7 @@ export const getConversation = async (req: Request, res: Response): Promise<void
   try {
     const userId = req.user!.id;
     const conv = await Conversation.findOne({ _id: req.params.id, participants: userId })
-      .populate('participants', 'name email avatar role')
+      .populate('participants', 'name email avatar role lastSeen')
       .populate('admins', 'name email avatar');
     if (!conv) { res.status(404).json({ message: 'Conversation not found.' }); return; }
     res.json(conv);
@@ -153,7 +155,7 @@ export const updateConversation = async (req: Request, res: Response): Promise<v
     if (avatar      !== undefined) conv.avatar      = avatar;
     await conv.save();
 
-    res.json(await conv.populate('participants', 'name email avatar role'));
+    res.json(await conv.populate('participants', 'name email avatar role lastSeen'));
   } catch {
     res.status(500).json({ message: 'Server error.' });
   }
@@ -181,7 +183,7 @@ export const addMembers = async (req: Request, res: Response): Promise<void> => 
     await conv.save();
     await Promise.all(newIds.map((id) => ensureSettings(id, conv._id.toString())));
 
-    res.json(await conv.populate('participants', 'name email avatar role'));
+    res.json(await conv.populate('participants', 'name email avatar role lastSeen'));
   } catch {
     res.status(500).json({ message: 'Server error.' });
   }
@@ -338,6 +340,8 @@ export const editMessage = async (req: Request, res: Response): Promise<void> =>
     msg.editedAt = new Date();
     await msg.save();
     await msg.populate('sender', 'name email avatar');
+    // Broadcast real-time edit to all conversation participants
+    getIO()?.to(msg.conversation.toString()).emit('message_updated', msg);
     res.json(msg);
   } catch {
     res.status(500).json({ message: 'Server error.' });
@@ -366,6 +370,13 @@ export const deleteMessage = async (req: Request, res: Response): Promise<void> 
     }
 
     await msg.save();
+    if (forEveryone) {
+      // Broadcast to all participants so everyone sees the deletion instantly
+      getIO()?.to(msg.conversation.toString()).emit('message_deleted', {
+        messageId: req.params.id,
+        conversationId: msg.conversation.toString(),
+      });
+    }
     res.json({ message: 'Deleted.', forEveryone });
   } catch {
     res.status(500).json({ message: 'Server error.' });
@@ -417,6 +428,106 @@ export const markSeen = async (req: Request, res: Response): Promise<void> => {
     );
     res.json({ message: 'Marked as read.' });
   } catch {
+    res.status(500).json({ message: 'Server error.' });
+  }
+};
+
+// ── Pin Message ───────────────────────────────────────────────────────────────
+
+export const pinMessage = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const userId  = req.user!.id;
+    const convId  = req.params.id;
+    const msgId   = req.params.msgId;
+    const pin     = req.method === 'POST';
+
+    const conv = await Conversation.findOne({ _id: convId, participants: userId });
+    if (!conv) { res.status(404).json({ message: 'Conversation not found.' }); return; }
+
+    if (pin) {
+      if (conv.pinnedMessages.length >= 3) {
+        res.status(400).json({ message: 'Maximum 3 pinned messages allowed.' });
+        return;
+      }
+      const alreadyPinned = conv.pinnedMessages.some((p) => p.toString() === msgId);
+      if (!alreadyPinned) {
+        conv.pinnedMessages.push(new mongoose.Types.ObjectId(msgId));
+      }
+    } else {
+      conv.pinnedMessages = conv.pinnedMessages.filter((p) => p.toString() !== msgId) as any;
+    }
+
+    await conv.save();
+
+    const populated = await Conversation.findById(conv._id)
+      .populate('participants', 'name email avatar role lastSeen')
+      .populate({ path: 'pinnedMessages', populate: { path: 'sender', select: 'name' } });
+
+    getIO()?.to(convId).emit('conversation_updated', populated);
+    res.json(populated);
+  } catch (err) {
+    console.error('pinMessage:', err);
+    res.status(500).json({ message: 'Server error.' });
+  }
+};
+
+// ── Saved Messages ────────────────────────────────────────────────────────────
+
+export const saveMessage = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const userId = req.user!.id;
+    const msgId  = req.params.msgId;
+
+    const msg = await Message.findById(msgId).populate('sender', 'name avatar');
+    if (!msg) { res.status(404).json({ message: 'Message not found.' }); return; }
+
+    const conv = await Conversation.findById(msg.conversation)
+      .populate('participants', 'name');
+    const convName = conv?.name ||
+      (conv?.participants as any[])?.[0]?.name ||
+      'Chat';
+
+    const saved = await SavedMessage.findOneAndUpdate(
+      { user: userId, messageId: msgId },
+      {
+        user:             userId,
+        messageId:        msgId,
+        conversationId:   msg.conversation,
+        content:          msg.content,
+        senderName:       (msg.sender as any)?.name || '',
+        senderAvatar:     (msg.sender as any)?.avatar || '',
+        conversationName: convName,
+        savedAt:          new Date(),
+      },
+      { upsert: true, new: true },
+    );
+
+    res.status(201).json(saved);
+  } catch (err) {
+    console.error('saveMessage:', err);
+    res.status(500).json({ message: 'Server error.' });
+  }
+};
+
+export const unsaveMessage = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const userId = req.user!.id;
+    const msgId  = req.params.msgId;
+    await SavedMessage.deleteOne({ user: userId, messageId: msgId });
+    res.json({ message: 'Unsaved.' });
+  } catch (err) {
+    console.error('unsaveMessage:', err);
+    res.status(500).json({ message: 'Server error.' });
+  }
+};
+
+export const getSavedMessages = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const userId = req.user!.id;
+    const saved  = await SavedMessage.find({ user: userId }).sort({ savedAt: -1 });
+    res.json(saved);
+  } catch (err) {
+    console.error('getSavedMessages:', err);
     res.status(500).json({ message: 'Server error.' });
   }
 };

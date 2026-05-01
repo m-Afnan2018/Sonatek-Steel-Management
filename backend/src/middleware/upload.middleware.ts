@@ -26,6 +26,7 @@ const ALL_ALLOWED_MIME = new Set([
   'application/vnd.openxmlformats-officedocument.presentationml.presentation',
   'text/plain', 'text/csv', 'text/markdown',
   'application/zip', 'application/x-tar', 'application/gzip',
+  'audio/webm', 'audio/ogg', 'audio/mp4', 'audio/mpeg', 'audio/wav',
 ]);
 
 // ── Factory ───────────────────────────────────────────────────────────────────

@@ -1,7 +1,7 @@
 .window {
   flex: 1;
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   min-height: 0;
   min-width: 0;
   background: var(--bg);
@@ -59,6 +59,22 @@
   background-image: radial-gradient(circle, var(--border) 1px, transparent 1px);
   background-size: 24px 24px;
   background-color: var(--bg);
+}
+
+.unreadDivider {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.625rem 1rem;
+}
+.unreadDivider span {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: #fff;
+  background: var(--primary);
+  padding: 0.25rem 0.875rem;
+  border-radius: 999px;
+  white-space: nowrap;
 }
 
 .loadingCenter {
@@ -156,3 +172,93 @@
   color: var(--text-muted);
   font-style: italic;
 }
+
+/* ── Layout with info panel ──────────────────────────────────────────── */
+.chatArea {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  min-width: 0;
+}
+
+/* ── Header action buttons ───────────────────────────────────────────── */
+.headerActions {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  flex-shrink: 0;
+}
+
+.backBtn {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 36px; height: 36px;
+  border: none; background: none;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  color: var(--text-secondary);
+  transition: background var(--transition);
+  flex-shrink: 0;
+}
+.backBtn:hover { background: var(--card); }
+
+@media (max-width: 768px) {
+  .backBtn { display: flex; }
+}
+
+.headerBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border: none;
+  background: none;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  color: var(--text-secondary);
+  transition: background var(--transition), color var(--transition);
+}
+.headerBtn:hover { background: var(--card-hover); color: var(--text-primary); }
+.headerBtnActive { background: var(--primary-light); color: var(--primary); }
+
+/* ── Search bar (below header) ───────────────────────────────────────── */
+.searchBar {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  padding: 0.5rem 1.25rem;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+  flex-shrink: 0;
+}
+
+.searchBarIcon {
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.searchInput {
+  flex: 1;
+  background: none;
+  border: none;
+  outline: none;
+  font-size: 0.875rem;
+  color: var(--text-primary);
+}
+.searchInput::placeholder { color: var(--text-muted); }
+
+.searchClearBtn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  padding: 0.2rem;
+  border-radius: var(--radius-sm);
+  transition: color var(--transition);
+}
+.searchClearBtn:hover { color: var(--text-primary); }

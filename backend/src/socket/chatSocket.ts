@@ -1,6 +1,7 @@
 import { Server as HttpServer } from 'http';
 import { Server as SocketServer, Socket } from 'socket.io';
 import { verifyAccessToken } from '../utils/jwt';
+import User from '../models/User';
 import Conversation from '../models/Conversation';
 import Message from '../models/Message';
 import UserChatSettings from '../models/UserChatSettings';
@@ -30,6 +31,9 @@ export function isUserOnline(userId: string): boolean {
   return onlineUsers.has(userId);
 }
 
+let ioInstance: SocketServer | null = null;
+export function getIO(): SocketServer | null { return ioInstance; }
+
 export function initSocket(httpServer: HttpServer): SocketServer {
   const io = new SocketServer(httpServer, {
     cors: {
@@ -39,6 +43,8 @@ export function initSocket(httpServer: HttpServer): SocketServer {
   });
 
   // JWT auth middleware
+  ioInstance = io;
+
   io.use((socket, next) => {
     const token = socket.handshake.auth?.token as string;
     if (!token) return next(new Error('Authentication required'));
@@ -184,11 +190,46 @@ export function initSocket(httpServer: HttpServer): SocketServer {
       }
     });
 
+    // ── pin_message ───────────────────────────────────────────────
+    socket.on('pin_message', async (data: { conversationId: string; messageId: string; pin: boolean }) => {
+      try {
+        const conv = await Conversation.findOne({
+          _id: data.conversationId,
+          participants: userId,
+        });
+        if (!conv) return;
+
+        if (data.pin) {
+          if (conv.pinnedMessages.length >= 3) return;
+          const alreadyPinned = conv.pinnedMessages.some((p) => p.toString() === data.messageId);
+          if (!alreadyPinned) {
+            conv.pinnedMessages.push(new mongoose.Types.ObjectId(data.messageId));
+          }
+        } else {
+          conv.pinnedMessages = conv.pinnedMessages.filter((p) => p.toString() !== data.messageId) as any;
+        }
+
+        await conv.save();
+
+        const populated = await Conversation.findById(conv._id)
+          .populate('participants', 'name email avatar role lastSeen')
+          .populate({ path: 'pinnedMessages', populate: { path: 'sender', select: 'name' } });
+
+        io.to(data.conversationId).emit('conversation_updated', populated);
+      } catch (err) {
+        console.error('[Socket] pin_message error:', err);
+      }
+    });
+
     // ── disconnect ────────────────────────────────────────────────
     socket.on('disconnect', () => {
       removeOnline(userId, socket.id);
       const lastSeen = new Date();
-      io.emit('user_offline', { userId, lastSeen });
+      // Only mark offline once all tabs are closed
+      if (!onlineUsers.has(userId)) {
+        User.findByIdAndUpdate(userId, { lastSeen }).catch(() => {});
+        io.emit('user_offline', { userId, lastSeen: lastSeen.toISOString() });
+      }
     });
   });
 

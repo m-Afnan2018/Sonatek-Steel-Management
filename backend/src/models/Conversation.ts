@@ -13,6 +13,7 @@ export interface IConversation extends Document {
   lastActivity: Date;
   createdAt: Date;
   updatedAt: Date;
+  pinnedMessages: Types.ObjectId[];
 }
 
 const ConversationSchema = new Schema<IConversation>(
@@ -27,6 +28,7 @@ const ConversationSchema = new Schema<IConversation>(
     createdBy:    { type: Schema.Types.ObjectId, ref: 'User', required: true },
     lastMessage:  { type: Schema.Types.ObjectId, ref: 'Message' },
     lastActivity: { type: Date, default: Date.now },
+    pinnedMessages: [{ type: Schema.Types.ObjectId, ref: 'Message' }],
   },
   { timestamps: true },
 );

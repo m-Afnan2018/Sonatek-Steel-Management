@@ -7,6 +7,7 @@ export interface ChatUser {
   email: string;
   avatar?: string;
   role?: string;
+  lastSeen?: string;
 }
 
 export interface MessageAttachment {
@@ -55,6 +56,7 @@ export interface Conversation {
   isPinned: boolean;
   isArchived: boolean;
   createdAt: string;
+  pinnedMessages?: Array<{ _id: string; content: string; sender: { name: string } }>;
 }
 
 interface ChatState {
@@ -63,6 +65,7 @@ interface ChatState {
   messages: Record<string, ChatMessage[]>;       // conversationId -> messages
   onlineUsers: Set<string>;
   typingUsers: Record<string, Set<string>>;      // conversationId -> Set<userId>
+  initialUnread: Record<string, number>;         // convId -> unread count at open time
 
   setConversations: (convs: Conversation[]) => void;
   upsertConversation: (conv: Conversation) => void;
@@ -73,11 +76,16 @@ interface ChatState {
   updateMessage: (conversationId: string, msg: ChatMessage) => void;
   removeMessage: (conversationId: string, messageId: string) => void;
   setOnlineUsers: (userIds: string[]) => void;
+  setInitialUnread: (convId: string, count: number) => void;
   setUserOnline: (userId: string) => void;
   setUserOffline: (userId: string) => void;
   setTyping: (conversationId: string, userId: string, isTyping: boolean) => void;
   incrementUnread: (conversationId: string) => void;
   clearUnread: (conversationId: string) => void;
+  savedMessageIds: Set<string>;
+  setSavedMessageIds: (ids: string[]) => void;
+  addSavedMessageId: (id: string) => void;
+  removeSavedMessageId: (id: string) => void;
 }
 
 export const useChatStore = create<ChatState>((set) => ({
@@ -86,6 +94,8 @@ export const useChatStore = create<ChatState>((set) => ({
   messages:             {},
   onlineUsers:          new Set(),
   typingUsers:          {},
+  initialUnread:        {},
+  savedMessageIds:      new Set(),
 
   setConversations: (convs) => set({ conversations: convs }),
 
@@ -141,6 +151,9 @@ export const useChatStore = create<ChatState>((set) => ({
 
   setOnlineUsers: (userIds) => set({ onlineUsers: new Set(userIds) }),
 
+  setInitialUnread: (convId, count) =>
+    set((s) => ({ initialUnread: { ...s.initialUnread, [convId]: count } })),
+
   setUserOnline: (userId) =>
     set((s) => {
       const next = new Set(s.onlineUsers);
@@ -169,6 +182,23 @@ export const useChatStore = create<ChatState>((set) => ({
         c._id === conversationId ? { ...c, unreadCount: c.unreadCount + 1 } : c,
       ),
     })),
+
+  setSavedMessageIds: (ids) =>
+    set({ savedMessageIds: new Set(ids) }),
+
+  addSavedMessageId: (id) =>
+    set((s) => {
+      const next = new Set(s.savedMessageIds);
+      next.add(id);
+      return { savedMessageIds: next };
+    }),
+
+  removeSavedMessageId: (id) =>
+    set((s) => {
+      const next = new Set(s.savedMessageIds);
+      next.delete(id);
+      return { savedMessageIds: next };
+    }),
 
   clearUnread: (conversationId) =>
     set((s) => ({

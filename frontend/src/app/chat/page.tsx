@@ -1,9 +1,10 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import AppShell from '@/components/layout/AppShell/AppShell';
 import ConversationSidebar from '@/components/chat/ConversationSidebar/ConversationSidebar';
 import ChatWindow from '@/components/chat/ChatWindow/ChatWindow';
+import SavedMessagesPanel from '@/components/chat/SavedMessagesPanel/SavedMessagesPanel';
 import { useChatSocket } from '@/hooks/useChatSocket';
 import { useChat } from '@/hooks/useChat';
 import { useChatStore } from '@/store/chatStore';
@@ -12,11 +13,15 @@ import styles from './chat.module.css';
 import { MessageSquare } from 'lucide-react';
 
 export default function ChatPage() {
-  useChatSocket(); // establish socket connection
+  useChatSocket();
 
   const currentUser = useAuthStore((s) => s.user);
   const { conversations, activeConversationId } = useChatStore();
-  const { fetchConversations } = useChat();
+  const { fetchConversations, selectConversation } = useChat();
+
+  // Mobile: 'sidebar' | 'chat'
+  const [mobileView, setMobileView] = useState<'sidebar' | 'chat'>('sidebar');
+  const [showSaved, setShowSaved] = useState(false);
 
   useEffect(() => {
     fetchConversations();
@@ -24,16 +29,45 @@ export default function ChatPage() {
 
   const activeConversation = conversations.find((c) => c._id === activeConversationId) ?? null;
 
+  const handleSelect = (convId: string) => {
+    selectConversation(convId);
+    setMobileView('chat');
+  };
+
+  const handleBack = () => {
+    setMobileView('sidebar');
+  };
+
+  const handleNavigateToConv = (convId: string) => {
+    selectConversation(convId);
+    setMobileView('chat');
+  };
+
   return (
     <AppShell title="Chat">
       <div className={styles.layout}>
-        <ConversationSidebar currentUserId={currentUser?.id ?? ''} />
+        {/* Sidebar — hidden on mobile when chat is open */}
+        <div className={`${styles.sidebarPanel} ${mobileView === 'chat' ? styles.sidebarHidden : ''}`} style={{ position: 'relative' }}>
+          {showSaved && (
+            <SavedMessagesPanel
+              onClose={() => setShowSaved(false)}
+              onNavigate={handleNavigateToConv}
+            />
+          )}
+          <ConversationSidebar
+            currentUserId={currentUser?.id ?? ''}
+            onSelect={handleSelect}
+            onOpenSaved={() => setShowSaved((s) => !s)}
+          />
+        </div>
 
-        <div className={styles.main}>
+        {/* Main — hidden on mobile when sidebar is shown */}
+        <div className={`${styles.mainPanel} ${mobileView === 'sidebar' ? styles.mainHidden : ''}`}>
           {activeConversation ? (
             <ChatWindow
               conversation={activeConversation}
               currentUserId={currentUser?.id ?? ''}
+              onBack={handleBack}
             />
           ) : (
             <div className={styles.empty}>

@@ -10,6 +10,23 @@ const SOCKET_URL = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/ap
 
 let globalSocket: Socket | null = null;
 
+function playNotificationSound() {
+  try {
+    const ctx = new AudioContext();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(820, ctx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(580, ctx.currentTime + 0.08);
+    gain.gain.setValueAtTime(0.22, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.28);
+    osc.start();
+    osc.stop(ctx.currentTime + 0.28);
+  } catch {}
+}
+
 export function useChatSocket() {
   const token   = useAuthStore((s) => s.accessToken);
   const userId  = useAuthStore((s) => s.user?.id);
@@ -39,8 +56,11 @@ export function useChatSocket() {
     socket.on('new_message', (msg: ChatMessage) => {
       appendMessage(msg.conversation, msg);
       const { activeConversationId: activeId } = useChatStore.getState();
+      const senderId = (msg.sender as any)?._id || (msg.sender as any)?.id || '';
       if (msg.conversation !== activeId) {
         incrementUnread(msg.conversation);
+        // Play sound for messages from others when not in that conversation
+        if (senderId !== userId) playNotificationSound();
       }
     });
 
@@ -48,9 +68,32 @@ export function useChatSocket() {
       updateMessage(msg.conversation, msg);
     });
 
+    socket.on('message_deleted', ({ messageId, conversationId }: { messageId: string; conversationId: string }) => {
+      const { messages } = useChatStore.getState();
+      const msg = messages[conversationId]?.find((m) => m._id === messageId);
+      if (msg) {
+        useChatStore.getState().updateMessage(conversationId, {
+          ...msg,
+          deletedForEveryone: true,
+          content: '',
+          attachments: [],
+        });
+      }
+    });
+
     socket.on('online_users', ({ userIds }: { userIds: string[] }) => setOnlineUsers(userIds));
     socket.on('user_online',  ({ userId: uid }: { userId: string }) => setUserOnline(uid));
-    socket.on('user_offline', ({ userId: uid }: { userId: string; lastSeen: string }) => setUserOffline(uid));
+    socket.on('user_offline', ({ userId: uid, lastSeen }: { userId: string; lastSeen: string }) => {
+      setUserOffline(uid);
+      // Patch lastSeen into any conversation that has this participant
+      if (lastSeen) {
+        const { conversations } = useChatStore.getState();
+        conversations.forEach((conv) => {
+          const p = conv.participants.find((p) => (p._id || p.id) === uid);
+          if (p) p.lastSeen = lastSeen;
+        });
+      }
+    });
 
     socket.on('user_typing', ({ userId: uid, conversationId }: { userId: string; userName: string; conversationId: string }) => {
       setTyping(conversationId, uid, true);

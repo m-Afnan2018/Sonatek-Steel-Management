@@ -9,6 +9,7 @@ export interface IUser extends Document {
   avatar?: string;
   isActive: boolean;
   lateThreshold?: string; // "HH:MM" e.g. "09:30"
+  lastSeen?: Date;
   refreshToken?: string;
   createdAt: Date;
   updatedAt: Date;
@@ -24,6 +25,7 @@ const userSchema = new Schema<IUser>(
     avatar: { type: String, default: '' },
     isActive: { type: Boolean, default: true },
     lateThreshold: { type: String, default: '09:30' },
+    lastSeen:     { type: Date, default: null },
     refreshToken: { type: String, select: false },
   },
   {
@@ -36,6 +38,7 @@ const userSchema = new Schema<IUser>(
         delete ret.__v;
         delete ret.password;
         delete ret.refreshToken;
+        // lastSeen is intentionally kept in output
         return ret;
       },
     },

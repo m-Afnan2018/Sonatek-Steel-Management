@@ -11,7 +11,8 @@ export function useChat() {
     conversations, setConversations, upsertConversation,
     messages, setMessages, prependMessages,
     activeConversationId, setActiveConversation,
-    clearUnread,
+    clearUnread, setInitialUnread, updateMessage, removeMessage,
+    setSavedMessageIds, addSavedMessageId, removeSavedMessageId,
   } = useChatStore();
 
   // ── Conversations ─────────────────────────────────────────────────────────
@@ -42,11 +43,14 @@ export function useChat() {
   }, [upsertConversation, setActiveConversation]);
 
   const selectConversation = useCallback((id: string) => {
+    // Capture unread count BEFORE clearing so ChatWindow can scroll to first unread
+    const unread = useChatStore.getState().conversations.find((c) => c._id === id)?.unreadCount ?? 0;
+    setInitialUnread(id, unread);
     setActiveConversation(id);
     clearUnread(id);
     getSocket()?.emit('mark_seen', { conversationId: id });
     api.post(`/chat/${id}/seen`).catch(() => {});
-  }, [setActiveConversation, clearUnread]);
+  }, [setActiveConversation, clearUnread, setInitialUnread]);
 
   const updateConversationSettings = useCallback(async (
     id: string,
@@ -95,11 +99,17 @@ export function useChat() {
 
   const editMessage = useCallback(async (messageId: string, content: string) => {
     const { data } = await api.patch<ChatMessage>(`/chat/messages/${messageId}`, { content });
+    // Update the store across all conversation message lists
+    if (data) {
+      const convId = data.conversation;
+      if (convId) updateMessage(convId, data);
+    }
     return data;
-  }, []);
+  }, [updateMessage]);
 
   const deleteMessage = useCallback(async (messageId: string, forEveryone = false) => {
     await api.delete(`/chat/messages/${messageId}?forEveryone=${forEveryone}`);
+    // Store updates are handled by the caller (ChatWindow) which has convId context
   }, []);
 
   const toggleReaction = useCallback((messageId: string, emoji: string) => {
@@ -111,6 +121,31 @@ export function useChat() {
     if (!socket?.connected) return;
     socket.emit(isTyping ? 'typing_start' : 'typing_stop', { conversationId });
   }, []);
+
+  // ── Pin / Saved Messages ──────────────────────────────────────────────────
+
+  const pinMessage = useCallback(async (convId: string, msgId: string, pin: boolean) => {
+    const method = pin ? 'post' : 'delete';
+    const { data } = await api[method]<Conversation>(`/chat/${convId}/pin/${msgId}`);
+    upsertConversation(data);
+    return data;
+  }, [upsertConversation]);
+
+  const fetchSavedMessages = useCallback(async () => {
+    const { data } = await api.get('/chat/saved');
+    setSavedMessageIds(data.map((s: any) => s.messageId));
+    return data;
+  }, [setSavedMessageIds]);
+
+  const saveMsg = useCallback(async (msg: ChatMessage) => {
+    await api.post(`/chat/messages/${msg._id}/save`);
+    addSavedMessageId(msg._id);
+  }, [addSavedMessageId]);
+
+  const unsaveMsg = useCallback(async (msgId: string) => {
+    await api.delete(`/chat/messages/${msgId}/save`);
+    removeSavedMessageId(msgId);
+  }, [removeSavedMessageId]);
 
   const addMembers = useCallback(async (conversationId: string, memberIds: string[]) => {
     const { data } = await api.post<Conversation>(`/chat/${conversationId}/members`, { memberIds });
@@ -141,5 +176,11 @@ export function useChat() {
     sendTyping,
     addMembers,
     removeMember,
+    updateMessage,
+    removeMessage,
+    pinMessage,
+    fetchSavedMessages,
+    saveMsg,
+    unsaveMsg,
   };
 }

@@ -7,12 +7,14 @@ import { useChat } from '@/hooks/useChat';
 import NewChatModal from '../NewChatModal/NewChatModal';
 import type { Conversation } from '@/store/chatStore';
 import styles from './ConversationSidebar.module.css';
-import { Building2, MessageSquarePlus, Search, BellOff } from 'lucide-react';
+import { Building2, MessageSquarePlus, Search, BellOff, Bookmark } from 'lucide-react';
 
 type Tab = 'all' | 'direct' | 'group' | 'department';
 
 interface Props {
   currentUserId: string;
+  onSelect?: (convId: string) => void;
+  onOpenSaved?: () => void;
 }
 
 function formatTime(iso: string) {
@@ -80,7 +82,7 @@ function ConvItem({ conv, isActive, currentUserId, onClick }: {
   );
 }
 
-export default function ConversationSidebar({ currentUserId }: Props) {
+export default function ConversationSidebar({ currentUserId, onSelect, onOpenSaved }: Props) {
   const { conversations, activeConversationId } = useChatStore();
   const { selectConversation } = useChat();
 
@@ -124,6 +126,9 @@ export default function ConversationSidebar({ currentUserId }: Props) {
           <span>Chats</span>
           {totalUnread > 0 && <span className={styles.totalBadge}>{totalUnread}</span>}
         </div>
+        <button className={styles.newBtn} onClick={() => onOpenSaved?.()} title="Saved Messages">
+          <Bookmark size={18} />
+        </button>
         <button className={styles.newBtn} onClick={() => setShowNew(true)} title="New chat">
           <MessageSquarePlus size={18} />
         </button>
@@ -169,7 +174,7 @@ export default function ConversationSidebar({ currentUserId }: Props) {
               conv={conv}
               isActive={conv._id === activeConversationId}
               currentUserId={currentUserId}
-              onClick={() => selectConversation(conv._id)}
+              onClick={() => { selectConversation(conv._id); onSelect?.(conv._id); }}
             />
           ))
         )}
