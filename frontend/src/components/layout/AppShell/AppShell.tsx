@@ -24,7 +24,8 @@ export default function AppShell({ children, title }: AppShellProps) {
   useUnreadTitle();
 
   useEffect(() => {
-    if (status === 'not_granted') enable();
+    // Auto-subscribe: ask permission on first visit, and re-subscribe if subscription expired
+    if (status === 'not_granted' || status === 'not_subscribed') enable();
   }, [status, enable]);
 
   // Global Shift+N shortcut — skip when focus is inside a text field

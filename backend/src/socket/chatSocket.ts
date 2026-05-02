@@ -6,6 +6,7 @@ import Conversation from '../models/Conversation';
 import Message from '../models/Message';
 import UserChatSettings from '../models/UserChatSettings';
 import mongoose from 'mongoose';
+import { sendPushToUser } from '../utils/webPush';
 
 interface AuthenticatedSocket extends Socket {
   userId: string;
@@ -132,6 +133,27 @@ export function initSocket(httpServer: HttpServer): SocketServer {
 
         // Broadcast to everyone in the room (including sender for confirmation)
         io.to(data.conversationId).emit('new_message', msg);
+
+        // Push notification to participants who are offline right now
+        try {
+          const preview = data.content?.trim()
+            ? data.content.length > 60 ? data.content.substring(0, 60) + '…' : data.content
+            : '📎 Attachment';
+
+          const offlineParticipants = conv.participants
+            .map((p) => p.toString())
+            .filter((pid) => pid !== userId && !isUserOnline(pid));
+
+          await Promise.all(
+            offlineParticipants.map((pid) =>
+              sendPushToUser(pid, {
+                title: s.userName || 'New Message',
+                body:  preview,
+                url:   '/chat',
+              }).catch(() => {}),
+            ),
+          );
+        } catch {} // push failures must never break message delivery
       } catch (err) {
         console.error('[Socket] send_message error:', err);
       }

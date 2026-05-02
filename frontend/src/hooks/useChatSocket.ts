@@ -7,7 +7,7 @@ import api from '@/lib/api';
 import { useChatStore } from '@/store/chatStore';
 import type { ChatMessage, Conversation } from '@/store/chatStore';
 
-const SOCKET_URL = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api').replace(/\/api$/, '');
+const SOCKET_URL = (process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:5000/api').replace(/\/api$/, '');
 
 let globalSocket: Socket | null = null;
 
