@@ -48,7 +48,12 @@ export function useChatSocket() {
 
     const socket = io(SOCKET_URL, {
       auth: { token },
-      transports: ['websocket'],
+      // Start with WebSocket, fall back to polling if WS upgrade fails (e.g. first nginx reload)
+      transports: ['websocket', 'polling'],
+      upgrade: true,
+      reconnection: true,
+      reconnectionAttempts: 10,
+      reconnectionDelay: 2000,
     });
 
     globalSocket = socket;

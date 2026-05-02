@@ -126,7 +126,7 @@ export default function ConversationSidebar({ currentUserId, onSelect, onOpenSav
           <span>Chats</span>
           {totalUnread > 0 && <span className={styles.totalBadge}>{totalUnread}</span>}
         </div>
-        <button className={styles.newBtn} onClick={() => onOpenSaved?.()} title="Saved Messages">
+        <button className={styles.newBtn} style={{marginLeft: 'auto'}} onClick={() => onOpenSaved?.()} title="Saved Messages">
           <Bookmark size={18} />
         </button>
         <button className={styles.newBtn} onClick={() => setShowNew(true)} title="New chat">

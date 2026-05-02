@@ -35,11 +35,22 @@ let ioInstance: SocketServer | null = null;
 export function getIO(): SocketServer | null { return ioInstance; }
 
 export function initSocket(httpServer: HttpServer): SocketServer {
+  // Support comma-separated origins e.g. "http://localhost:3000,https://ganesyx.dexploit.space"
+  const allowedOrigins = (process.env.CORS_ORIGIN || 'http://localhost:3000')
+    .split(',').map((o) => o.trim());
+
   const io = new SocketServer(httpServer, {
     cors: {
-      origin: process.env.CORS_ORIGIN || 'http://localhost:3000',
+      origin: (origin, cb) => {
+        // Allow requests with no origin (mobile apps, curl, etc.)
+        if (!origin) return cb(null, true);
+        if (allowedOrigins.includes(origin)) return cb(null, true);
+        return cb(new Error(`CORS blocked: ${origin}`));
+      },
       credentials: true,
     },
+    // Allow both WebSocket and long-polling so the connection can fall back
+    transports: ['websocket', 'polling'],
   });
 
   // JWT auth middleware
