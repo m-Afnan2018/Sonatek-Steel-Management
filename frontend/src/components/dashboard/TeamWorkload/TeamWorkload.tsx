@@ -11,6 +11,7 @@ interface TeamWorkloadProps {
 }
 
 export default function TeamWorkload({ members }: TeamWorkloadProps) {
+  const sorted = [...members].sort((a, b) => b.activeTasks - a.activeTasks);
   const maxTasks = Math.max(...members.map((m) => m.activeTasks), 1);
   const router = useRouter()
 
@@ -18,7 +19,7 @@ export default function TeamWorkload({ members }: TeamWorkloadProps) {
     <div className={styles.card} onClick={() => router.push('/team')}>
       <h3 className={styles.heading}>Team Workload</h3>
       <div className={styles.list}>
-        {members.slice(0, 6).map((m) => (
+        {sorted.slice(0, 6).map((m) => (
           <div key={m.id} className={styles.item}>
             <Avatar name={m.name} src={m.avatar} size="sm" />
             <div className={styles.info}>
