@@ -32,7 +32,7 @@ export const register = async (req: Request, res: Response): Promise<void> => {
     const accessToken = generateAccessToken(tokenPayload);
     const refreshToken = generateRefreshToken(tokenPayload);
 
-    user.refreshToken = refreshToken;
+    user.refreshTokens = [refreshToken];
     await user.save();
 
     res.cookie('refreshToken', refreshToken, {
@@ -89,7 +89,12 @@ export const login = async (req: Request, res: Response): Promise<void> => {
     const accessToken = generateAccessToken(tokenPayload);
     const refreshToken = generateRefreshToken(tokenPayload);
 
-    user.refreshToken = refreshToken;
+    // Add new device token; cap at 10 to prevent unbounded growth
+    if (!user.refreshTokens) user.refreshTokens = [];
+    user.refreshTokens.push(refreshToken);
+    if (user.refreshTokens.length > 10) {
+      user.refreshTokens = user.refreshTokens.slice(-10);
+    }
     await user.save();
 
     res.cookie('refreshToken', refreshToken, {
@@ -119,7 +124,10 @@ export const logout = async (req: Request, res: Response): Promise<void> => {
   try {
     const refreshToken = req.cookies?.refreshToken;
     if (refreshToken) {
-      await User.findOneAndUpdate({ refreshToken }, { refreshToken: '' });
+      await User.findOneAndUpdate(
+        { refreshTokens: refreshToken },
+        { $pull: { refreshTokens: refreshToken } },
+      );
     }
 
     res.clearCookie('refreshToken', {
@@ -145,9 +153,9 @@ export const refreshAccessToken = async (req: Request, res: Response): Promise<v
 
   try {
     const decoded = verifyRefreshToken(refreshToken);
-    const user = await User.findById(decoded.id).select('+refreshToken');
+    const user = await User.findById(decoded.id).select('+refreshTokens');
 
-    if (!user || user.refreshToken !== refreshToken) {
+    if (!user || !user.refreshTokens?.includes(refreshToken)) {
       res.status(401).json({ message: 'Invalid refresh token.' });
       return;
     }
@@ -177,6 +185,24 @@ export const refreshAccessToken = async (req: Request, res: Response): Promise<v
   }
 };
 
+
+export const logoutAll = async (req: Request, res: Response): Promise<void> => {
+  try {
+    // Clear all refresh tokens for this user — signs out every device
+    await User.findByIdAndUpdate(req.user!.id, { refreshTokens: [] });
+
+    res.clearCookie('refreshToken', {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+    });
+
+    res.json({ message: 'Signed out from all devices.' });
+  } catch (error) {
+    console.error('LogoutAll error:', error);
+    res.status(500).json({ message: 'Server error.' });
+  }
+};
 export const getMe = async (req: Request, res: Response): Promise<void> => {
   try {
     const user = await User.findById(req.user?.id);

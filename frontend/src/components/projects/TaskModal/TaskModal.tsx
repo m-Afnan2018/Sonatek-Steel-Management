@@ -527,7 +527,7 @@ export default function TaskModal({ task, isOpen, onClose, onUpdate, onDelete, o
 
                 <div className={styles.sectionHeader} style={{ marginTop: '1rem' }}>
                   <span className={styles.sectionLabel}>Assignees</span>
-                  {isAdminOrManager && !editingAssignees && (
+                  {canEdit && !editingAssignees && (
                     <button
                       className={styles.inlineEditBtn}
                       onClick={() => setEditingAssignees(true)}

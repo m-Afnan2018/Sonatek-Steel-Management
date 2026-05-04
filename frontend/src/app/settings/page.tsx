@@ -223,6 +223,16 @@ function PushStatusCard({
 export default function SettingsPage() {
   const user = useAuthStore((s) => s.user);
   const { logout } = useAuth();
+
+  const handleSignOutAll = () => {
+    setConfirmState({
+      message: 'This will sign you out from all devices including this one. Continue?',
+      action: async () => {
+        await api.post('/auth/logout-all');
+        logout();
+      },
+    });
+  };
   const updateUser = useAuthStore((s) => s.updateUser);
   const { departments } = useDepartments();
 
@@ -469,7 +479,20 @@ export default function SettingsPage() {
         {/* ── Danger Zone ──────────────────────────────────────────────── */}
         <div className={styles.dangerZone}>
           <h2 className={styles.sectionTitle}>Danger Zone</h2>
-          <Button variant="danger" onClick={logout}>Sign Out</Button>
+          <div className={styles.dangerRow}>
+            <div>
+              <p className={styles.dangerLabel}>Sign out of this device</p>
+              <p className={styles.dangerDesc}>Ends your current session only.</p>
+            </div>
+            <Button variant="danger" onClick={logout}>Sign Out</Button>
+          </div>
+          <div className={styles.dangerRow}>
+            <div>
+              <p className={styles.dangerLabel}>Sign out from everywhere</p>
+              <p className={styles.dangerDesc}>Immediately revokes all active sessions on every device.</p>
+            </div>
+            <Button variant="danger" onClick={handleSignOutAll}>Sign Out Everywhere</Button>
+          </div>
         </div>
       </div>
 

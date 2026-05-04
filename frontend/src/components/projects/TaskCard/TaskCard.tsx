@@ -44,6 +44,10 @@ export default function TaskCard({
         task.status !== "done" &&
         new Date(task.dueDate) < new Date();
 
+    // Visually escalate to critical when overdue
+    const effectivePriority: keyof typeof priorityVariant =
+        isOverdue ? "critical" : task.priority;
+
     return (
         <div
             className={`${styles.card} ${isOverdue ? styles.cardOverdue : ""}`}
@@ -52,8 +56,8 @@ export default function TaskCard({
             onDragStart={onDragStart}
         >
             <div className={styles.top}>
-                <Badge variant={priorityVariant[task.priority]} size="sm">
-                    {task.priority}
+                <Badge variant={priorityVariant[effectivePriority]} size="sm">
+                    {isOverdue && task.priority !== "critical" ? "critical ⚠" : effectivePriority}
                 </Badge>
                 {task.dueDate && (
                     <span className={`${styles.due} ${isOverdue ? styles.dueOverdue : ""}`}>

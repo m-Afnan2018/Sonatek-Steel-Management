@@ -942,6 +942,10 @@ function TaskRow({
 }) {
   const isOverdue = task.dueDate && task.status !== 'done' && new Date(task.dueDate) < new Date();
 
+  // Visually escalate to critical when overdue
+  const effectivePriority: keyof typeof priorityVariant =
+    isOverdue ? 'critical' : task.priority;
+
   const isSelfAssigned = task.assignees.filter(Boolean).some(
     (a) => ((a as any)._id?.toString() || a.id) === currentUserId
   );
@@ -1003,7 +1007,9 @@ function TaskRow({
               {isOverdue ? '⚠ ' : ''}{formatDate(task.dueDate)}
             </span>
           )}
-          <Badge variant={priorityVariant[task.priority]} size="sm">{task.priority}</Badge>
+          <Badge variant={priorityVariant[effectivePriority]} size="sm">
+              {isOverdue && task.priority !== 'critical' ? 'critical ⚠' : effectivePriority}
+            </Badge>
         </div>
       </div>
 

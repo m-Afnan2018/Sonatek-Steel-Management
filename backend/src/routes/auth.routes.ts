@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { body } from 'express-validator';
-import { login, logout, refreshAccessToken, getMe, updateMe, uploadAvatar, changePassword } from '../controllers/auth.controller';
+import { login, logout, logoutAll, refreshAccessToken, getMe, updateMe, uploadAvatar, changePassword } from '../controllers/auth.controller';
 import { authenticate } from '../middleware/auth.middleware';
 import { createUpload } from '../middleware/upload.middleware';
 import path from 'path';
@@ -29,6 +29,7 @@ router.post(
 );
 
 router.post('/logout', logout);
+router.post('/logout-all', authenticate, logoutAll);
 router.post('/refresh', refreshAccessToken);
 router.get('/me', authenticate, getMe);
 router.put('/me', authenticate, updateMe);

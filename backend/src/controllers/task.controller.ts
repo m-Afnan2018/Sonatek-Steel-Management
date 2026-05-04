@@ -181,6 +181,32 @@ export const updateTask = async (
     res: Response,
 ): Promise<void> => {
     try {
+        // Check permission before updating
+        const existing = await Task.findById(req.params.id);
+        if (!existing) {
+            res.status(404).json({ message: "Task not found." });
+            return;
+        }
+
+        const isAdminOrManager =
+            req.user?.role === "admin" || req.user?.role === "manager";
+        const isReporter = String(existing.reporter) === String(req.user?.id);
+        const isAssignee = existing.assignees.some(
+            (a) => a.toString() === String(req.user?.id),
+        );
+
+        if (!isAdminOrManager && !isReporter && !isAssignee) {
+            res.status(403).json({
+                message: "You don't have permission to edit this task.",
+            });
+            return;
+        }
+
+        // Assignee field can only be changed by admin/manager/reporter — not by assignees
+        if (!isAdminOrManager && !isReporter && req.body.assignees !== undefined) {
+            delete req.body.assignees;
+        }
+
         const task = await Task.findByIdAndUpdate(
             req.params.id,
             { $set: req.body },

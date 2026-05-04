@@ -10,7 +10,7 @@ export interface IUser extends Document {
   isActive: boolean;
   lateThreshold?: string; // "HH:MM" e.g. "09:30"
   lastSeen?: Date;
-  refreshToken?: string;
+  refreshTokens: string[];
   createdAt: Date;
   updatedAt: Date;
   comparePassword(candidatePassword: string): Promise<boolean>;
@@ -26,7 +26,7 @@ const userSchema = new Schema<IUser>(
     isActive: { type: Boolean, default: true },
     lateThreshold: { type: String, default: '09:30' },
     lastSeen:     { type: Date, default: null },
-    refreshToken: { type: String, select: false },
+    refreshTokens: { type: [String], default: [], select: false },
   },
   {
     timestamps: true,
@@ -37,7 +37,7 @@ const userSchema = new Schema<IUser>(
         delete ret._id;
         delete ret.__v;
         delete ret.password;
-        delete ret.refreshToken;
+        delete ret.refreshTokens;
         // lastSeen is intentionally kept in output
         return ret;
       },
