@@ -73,7 +73,7 @@ export function startAutoCheckoutJob(): void {
     } catch (error) {
       console.error('[AutoCheckout] Error during auto-checkout job:', error);
     }
-  });
+  }, { timezone: 'Asia/Kolkata' });
 
   console.log('[AutoCheckout] Scheduled: auto-checkout job at 22:00 daily.');
 }

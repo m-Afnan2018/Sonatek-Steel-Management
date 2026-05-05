@@ -12,7 +12,7 @@ import User from '../models/User';
  * Admins can later change an absent record to 'leave' if needed.
  */
 export function startAutoAbsentJob(): void {
-  // "59 23 * * 1-6" = 23:59, Monday (1) through Saturday (6), every week
+  // "59 23 * * 1-6" = 23:59 IST, Monday through Saturday
   cron.schedule('59 23 * * 1-6', async () => {
     console.log('[AutoAbsent] Running auto-absent job at 23:59...');
 
@@ -53,7 +53,7 @@ export function startAutoAbsentJob(): void {
     } catch (error) {
       console.error('[AutoAbsent] Error during auto-absent job:', error);
     }
-  });
+  }, { timezone: 'Asia/Kolkata' });
 
   console.log('[AutoAbsent] Scheduled: auto-absent job at 23:59 Mon–Sat.');
 }

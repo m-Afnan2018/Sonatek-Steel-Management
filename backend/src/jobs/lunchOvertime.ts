@@ -55,7 +55,7 @@ export function startLunchOvertimeJob(): void {
     } catch (err) {
       console.error('[LunchOvertime] Error:', err);
     }
-  });
+  }, { timezone: 'Asia/Kolkata' });
 
   console.log('[LunchOvertime] Scheduled: checking every 5 minutes for overtime lunch breaks.');
 }
