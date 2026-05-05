@@ -950,7 +950,7 @@ export default function TaskModal({ task, isOpen, onClose, onUpdate, onDelete, o
                     onChange={(e) => setEditProject(e.target.value)}
                   >
                     <option value="">No project</option>
-                    {projects.map((p) => (
+                    {[...projects].sort((a, b) => a.title.localeCompare(b.title)).map((p) => (
                       <option key={p._id} value={p._id}>{p.title}</option>
                     ))}
                   </select>

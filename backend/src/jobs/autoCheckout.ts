@@ -8,7 +8,7 @@ import Task from '../models/Task';
  * Also auto-pauses any running tasks and stops open lunch breaks.
  */
 export function startAutoCheckoutJob(): void {
-  // Cron: "0 22 * * *" = every day at 22:00 (server local time)
+  // Cron: "0 22 * * *" = every day at 22:00 IST
   cron.schedule('0 22 * * *', async () => {
     console.log('[AutoCheckout] Running auto-checkout job at 22:00...');
 
