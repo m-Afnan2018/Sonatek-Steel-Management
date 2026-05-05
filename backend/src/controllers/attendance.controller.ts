@@ -190,7 +190,10 @@ export const getUserAttendance = async (req: Request, res: Response): Promise<vo
 export const getTeamAttendance = async (req: Request, res: Response): Promise<void> => {
   try {
     const { date, userId, status } = req.query;
-    const queryDate = date ? new Date(date as string) : getToday();
+    const queryDate = date ? (() => {
+      const [y, m, d] = (date as string).split('-').map(Number);
+      return new Date(y, m - 1, d); // TZ=Asia/Kolkata → constructs IST midnight
+    })() : getToday();
     const filter: Record<string, unknown> = { date: queryDate };
     if (userId) filter.user = userId;
     if (status) filter.status = status;

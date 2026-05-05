@@ -33,8 +33,9 @@ export default function CheckInButton({ viewUserId, viewUserName }: CheckInButto
         const { data } = await api.get('/attendance/my', {
           params: { month: new Date().getMonth() + 1, year: new Date().getFullYear() },
         });
-        const today = new Date().toISOString().split('T')[0];
-        const todayRecord = data.find((r: { date: string }) => r.date.startsWith(today));
+        const toIST = (d: Date) => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(d);
+        const today = toIST(new Date());
+        const todayRecord = data.find((r: { date: string }) => toIST(new Date(r.date)) === today);
         if (todayRecord?.checkOut) {
           setFlow('checked_out');
           setCheckInTime(todayRecord.checkIn);
@@ -65,7 +66,7 @@ export default function CheckInButton({ viewUserId, viewUserName }: CheckInButto
     const fetch = async () => {
       try {
         const { default: api } = await import('@/lib/api');
-        const today = new Date().toISOString().split('T')[0];
+        const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(new Date());
         const { data } = await api.get('/attendance/team', { params: { date: today, userId: viewUserId } });
         setViewedRecord(data[0] ?? null);
       } catch {
