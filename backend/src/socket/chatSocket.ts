@@ -35,6 +35,16 @@ export function isUserOnline(userId: string): boolean {
 let ioInstance: SocketServer | null = null;
 export function getIO(): SocketServer | null { return ioInstance; }
 
+/** Make every active socket belonging to a user join a Socket.io room immediately. */
+export function addUserToRoom(userId: string, roomId: string): void {
+  const socketIds = onlineUsers.get(userId);
+  if (!socketIds || !ioInstance) return;
+  for (const socketId of socketIds) {
+    const sock = ioInstance.sockets.sockets.get(socketId);
+    sock?.join(roomId);
+  }
+}
+
 export function initSocket(httpServer: HttpServer): SocketServer {
   // Support comma-separated origins e.g. "http://localhost:3000,https://ganesyx.dexploit.space"
   const allowedOrigins = (process.env.CORS_ORIGIN || 'http://localhost:3000')

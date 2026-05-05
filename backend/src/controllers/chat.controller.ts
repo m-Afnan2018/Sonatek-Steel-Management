@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { getIO } from '../socket/chatSocket';
+import { getIO, addUserToRoom } from '../socket/chatSocket';
 import mongoose from 'mongoose';
 import Conversation from '../models/Conversation';
 import Message from '../models/Message';
@@ -86,6 +86,11 @@ export const getOrCreateDirect = async (req: Request, res: Response): Promise<vo
 
     await ensureSettings(userId, conv._id.toString());
     await ensureSettings(targetUserId, conv._id.toString());
+    // Immediately add both participants' sockets to the room
+    // so messages work without a page refresh
+    const roomId = conv._id.toString();
+    addUserToRoom(userId, roomId);
+    addUserToRoom(targetUserId, roomId);
     res.status(201).json(conv);
   } catch (err) {
     console.error('getOrCreateDirect:', err);
@@ -115,6 +120,9 @@ export const createGroup = async (req: Request, res: Response): Promise<void> =>
 
     await Promise.all(participants.map((id) => ensureSettings(id, conv._id.toString())));
     const populated = await conv.populate('participants', 'name email avatar role lastSeen');
+    // Immediately add all participants' sockets to the new room
+    const groupRoomId = conv._id.toString();
+    participants.forEach((id) => addUserToRoom(id, groupRoomId));
     res.status(201).json(populated);
   } catch (err) {
     console.error('createGroup:', err);

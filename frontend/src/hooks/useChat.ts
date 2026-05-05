@@ -32,6 +32,8 @@ export function useChat() {
     const { data } = await api.post<Conversation>('/chat/direct', { targetUserId });
     upsertConversation(data);
     setActiveConversation(data._id);
+    // Ensure this socket joins the new room immediately
+    getSocket()?.emit('join_conversation', { conversationId: data._id });
     return data;
   }, [upsertConversation, setActiveConversation]);
 
@@ -39,6 +41,8 @@ export function useChat() {
     const { data } = await api.post<Conversation>('/chat/group', { name, memberIds });
     upsertConversation(data);
     setActiveConversation(data._id);
+    // Ensure this socket joins the new room immediately
+    getSocket()?.emit('join_conversation', { conversationId: data._id });
     return data;
   }, [upsertConversation, setActiveConversation]);
 
