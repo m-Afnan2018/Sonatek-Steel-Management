@@ -85,6 +85,26 @@ export default function TaskModal({ task, isOpen, onClose, onUpdate, onDelete, o
     return result;
   }, [myHeadDepts, currentUser]);
 
+  const isDeptHead = myHeadDepts.length > 0;
+  // Members this user can assign to when editing (mirrors task-creation rules)
+  const assignableMembers = useMemo(() => {
+    if (isAdminOrManager) return members;
+    if (isDeptHead) {
+      const seen = new Set<string>();
+      const result: typeof members = [];
+      for (const d of myHeadDepts) {
+        for (const m of [...d.members, ...d.heads] as typeof members) {
+          const id = uid(m);
+          if (id && !seen.has(id)) { seen.add(id); result.push(m as (typeof members)[0]); }
+        }
+      }
+      return result;
+    }
+    // Regular member — only self
+    const self = members.find((m) => uid(m) === uid(currentUser));
+    return self ? [self] : [];
+  }, [isAdminOrManager, isDeptHead, myHeadDepts, members, currentUser]);
+
   const [tab, setTab] = useState<Tab>('details');
   const [comments, setComments] = useState<Comment[]>([]);
   const [newComment, setNewComment] = useState('');
