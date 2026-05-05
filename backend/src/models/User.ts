@@ -11,6 +11,7 @@ export interface IUser extends Document {
   lateThreshold?: string; // "HH:MM" e.g. "09:30"
   lastSeen?: Date;
   refreshTokens: string[];
+  tokenVersion: number;
   createdAt: Date;
   updatedAt: Date;
   comparePassword(candidatePassword: string): Promise<boolean>;
@@ -27,6 +28,7 @@ const userSchema = new Schema<IUser>(
     lateThreshold: { type: String, default: '09:30' },
     lastSeen:     { type: Date, default: null },
     refreshTokens: { type: [String], default: [], select: false },
+    tokenVersion: { type: Number, default: 0, select: false },
   },
   {
     timestamps: true,

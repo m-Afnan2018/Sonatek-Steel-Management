@@ -1,7 +1,8 @@
 import { Request, Response, NextFunction } from 'express';
 import { verifyAccessToken } from '../utils/jwt';
+import User from '../models/User';
 
-export const authenticate = (req: Request, res: Response, next: NextFunction): void => {
+export const authenticate = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   const authHeader = req.headers.authorization;
 
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -13,6 +14,14 @@ export const authenticate = (req: Request, res: Response, next: NextFunction): v
 
   try {
     const decoded = verifyAccessToken(token);
+
+    // Verify tokenVersion — instantly rejects tokens from signed-out-everywhere sessions
+    const user = await User.findById(decoded.id).select('+tokenVersion');
+    if (!user || user.tokenVersion !== (decoded.tokenVersion ?? 0)) {
+      res.status(401).json({ message: 'Session expired. Please log in again.' });
+      return;
+    }
+
     req.user = {
       id: decoded.id,
       email: decoded.email,

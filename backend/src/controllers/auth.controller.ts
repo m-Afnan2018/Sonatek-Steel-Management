@@ -28,7 +28,7 @@ export const register = async (req: Request, res: Response): Promise<void> => {
 
     await user.save();
 
-    const tokenPayload = { id: String(user._id), email: user.email, role: user.role, name: user.name };
+    const tokenPayload = { id: String(user._id), email: user.email, role: user.role, name: user.name, tokenVersion: user.tokenVersion ?? 0 };
     const accessToken = generateAccessToken(tokenPayload);
     const refreshToken = generateRefreshToken(tokenPayload);
 
@@ -68,7 +68,7 @@ export const login = async (req: Request, res: Response): Promise<void> => {
   const { email, password } = req.body;
 
   try {
-    const user = await User.findOne({ email }).select('+password');
+    const user = await User.findOne({ email }).select('+password +tokenVersion');
     if (!user) {
       res.status(401).json({ message: 'Invalid email or password.' });
       return;
@@ -85,7 +85,7 @@ export const login = async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
-    const tokenPayload = { id: String(user._id), email: user.email, role: user.role, name: user.name };
+    const tokenPayload = { id: String(user._id), email: user.email, role: user.role, name: user.name, tokenVersion: user.tokenVersion ?? 0 };
     const accessToken = generateAccessToken(tokenPayload);
     const refreshToken = generateRefreshToken(tokenPayload);
 
@@ -153,14 +153,14 @@ export const refreshAccessToken = async (req: Request, res: Response): Promise<v
 
   try {
     const decoded = verifyRefreshToken(refreshToken);
-    const user = await User.findById(decoded.id).select('+refreshTokens');
+    const user = await User.findById(decoded.id).select('+refreshTokens +tokenVersion');
 
     if (!user || !user.refreshTokens?.includes(refreshToken)) {
       res.status(401).json({ message: 'Invalid refresh token.' });
       return;
     }
 
-    const tokenPayload = { id: String(user._id), email: user.email, role: user.role, name: user.name };
+    const tokenPayload = { id: String(user._id), email: user.email, role: user.role, name: user.name, tokenVersion: user.tokenVersion ?? 0 };
     const newAccessToken = generateAccessToken(tokenPayload);
     // const newRefreshToken = generateRefreshToken(tokenPayload);
 
@@ -188,8 +188,8 @@ export const refreshAccessToken = async (req: Request, res: Response): Promise<v
 
 export const logoutAll = async (req: Request, res: Response): Promise<void> => {
   try {
-    // Clear all refresh tokens for this user — signs out every device
-    await User.findByIdAndUpdate(req.user!.id, { refreshTokens: [] });
+    // Clear all refresh tokens and bump tokenVersion — instantly invalidates all active JWTs
+    await User.findByIdAndUpdate(req.user!.id, { $set: { refreshTokens: [] }, $inc: { tokenVersion: 1 } });
 
     res.clearCookie('refreshToken', {
       httpOnly: true,
