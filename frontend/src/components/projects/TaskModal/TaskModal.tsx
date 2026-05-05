@@ -560,7 +560,7 @@ export default function TaskModal({ task, isOpen, onClose, onUpdate, onDelete, o
                 {editingAssignees ? (
                   <div className={styles.assigneeEditor}>
                     <div className={styles.assigneePickerGrid}>
-                      {members.map((m) => {
+                      {assignableMembers.map((m) => {
                         const id = uid(m);
                         const selected = assigneeIds.includes(id);
                         return (
