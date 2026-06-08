@@ -8,8 +8,8 @@ export default function RegisterPage() {
     <div className={styles.container}>
       <div className={styles.card}>
         <div className={styles.logo}>
-          <div className={styles.logoIcon}>GS</div>
-          <h1 className={styles.logoText}>Ganesyx</h1>
+          <div className={styles.logoIcon}>S</div>
+          <h1 className={styles.logoText}>Sonatek</h1>
           <p className={styles.logoSub}>Account registration</p>
         </div>
 

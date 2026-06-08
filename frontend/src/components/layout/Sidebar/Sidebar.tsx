@@ -101,7 +101,7 @@ export default function Sidebar({ isOpen, onClose, collapsed, onToggleCollapsed 
             <Image src={image.src} width={25} height={25} alt="logo" />
           </div>
           <div className={styles.logoText}>
-            <h1 className={styles.logoName}>Ganesyx</h1>
+            <h1 className={styles.logoName}>Sonatek</h1>
             <p className={styles.logoSub}>Task Manager</p>
           </div>
         </div>
