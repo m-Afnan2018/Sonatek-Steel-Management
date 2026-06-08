@@ -41,7 +41,7 @@ export default function RootLayout({
       <body>
         <script
           dangerouslySetInnerHTML={{
-            __html: `try{var t=JSON.parse(localStorage.getItem('theme')||'{}');document.documentElement.setAttribute('data-theme',t.state?.theme||'dark')}catch(e){}`,
+            __html: `try{var t=JSON.parse(localStorage.getItem('theme')||'{}');document.documentElement.setAttribute('data-theme',t.state?.theme||'light')}catch(e){}`,
           }}
         />
         {children}
