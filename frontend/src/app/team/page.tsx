@@ -72,9 +72,6 @@ export default function TeamPage() {
                 <div key={task._id} className={styles.taskItem}>
                   <div className={styles.taskInfo}>
                     <span className={styles.taskTitle}>{task.title}</span>
-                    <span className={styles.taskProject}>
-                      {typeof task.project === 'object' ? task.project.title : ''}
-                    </span>
                   </div>
                   <div className={styles.taskBadges}>
                     <Badge variant="primary">{formatStatus(task.status)}</Badge>

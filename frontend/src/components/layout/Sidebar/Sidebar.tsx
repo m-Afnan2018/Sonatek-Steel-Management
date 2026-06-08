@@ -10,7 +10,6 @@ import Image from 'next/image'
 import image from '@/assets/images/logo.png'
 import {
   LayoutDashboard,
-  FolderOpen,
   CheckSquare,
   Calendar,
   Users,
@@ -32,11 +31,6 @@ const navItems = [
     label: 'Dashboard',
     href: '/dashboard',
     icon: <LayoutDashboard size={20} />,
-  },
-  {
-    label: 'Projects',
-    href: '/projects',
-    icon: <FolderOpen size={20} />,
   },
   {
     label: 'Tasks',
@@ -108,7 +102,7 @@ export default function Sidebar({ isOpen, onClose, collapsed, onToggleCollapsed 
           </div>
           <div className={styles.logoText}>
             <h1 className={styles.logoName}>Ganesyx</h1>
-            <p className={styles.logoSub}>Project Manager</p>
+            <p className={styles.logoSub}>Task Manager</p>
           </div>
         </div>
 

@@ -12,6 +12,10 @@ import {
   getAllUserTasks,
   patchTimer,
   delegateTask,
+  addContribution,
+  getContributions,
+  patchContributionTimer,
+  toggleContributionDone,
 } from '../controllers/task.controller';
 import { authenticate } from '../middleware/auth.middleware';
 import { authorize } from '../middleware/role.middleware';
@@ -30,6 +34,9 @@ router.post(
   createTask
 );
 
+router.patch('/:id/contribute/timer', patchContributionTimer);
+router.patch('/:id/contribute/done', toggleContributionDone);
+
 router.put('/:id', updateTask);
 router.put('/:id/status', updateTaskStatus);
 router.delete('/:id', deleteTask);
@@ -43,5 +50,7 @@ router.post(
 router.post('/:id/log-hours', logHours);
 router.patch('/:id/timer', patchTimer);
 router.post('/:id/delegate', delegateTask);
+router.post('/:id/contribute', addContribution);
+router.get('/:id/contributions', getContributions);
 
 export default router;

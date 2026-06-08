@@ -9,7 +9,6 @@ import {
   PieChart, Pie, Cell,
 } from 'recharts';
 import api from '@/lib/api';
-import { useProjects } from '@/hooks/useProjects';
 import type { BurndownData, VelocityData, AttendanceSummary } from '@/types';
 import styles from './reports.module.css';
 
@@ -24,8 +23,6 @@ const tooltipStyle = {
 };
 
 export default function ReportsPage() {
-  const { projects } = useProjects();
-  const [selectedProject, setSelectedProject] = useState('');
   const [burndown, setBurndown] = useState<BurndownData | null>(null);
   const [velocity, setVelocity] = useState<VelocityData[]>([]);
   const [attendanceSummary, setAttendanceSummary] = useState<AttendanceSummary | null>(null);
@@ -33,36 +30,25 @@ export default function ReportsPage() {
   const [error, setError] = useState('');
 
   useEffect(() => {
-    if (projects.length > 0 && !selectedProject) {
-      setSelectedProject(projects[0]._id);
-    }
-  }, [projects, selectedProject]);
-
-  useEffect(() => {
     const fetchReports = async () => {
       setLoading(true);
       setError('');
       try {
-        const requests = [
+        const [burndownRes, velocityRes, attendanceRes] = await Promise.all([
+          api.get('/reports/burndown'),
           api.get('/reports/velocity'),
           api.get('/reports/attendance-summary'),
-        ];
-
-        if (selectedProject) {
-          requests.push(api.get('/reports/burndown', { params: { projectId: selectedProject } }));
-        }
-
-        const results = await Promise.all(requests);
-        setVelocity(results[0].data);
-        setAttendanceSummary(results[1].data);
-        if (results[2]) setBurndown(results[2].data);
+        ]);
+        setBurndown(burndownRes.data);
+        setVelocity(velocityRes.data);
+        setAttendanceSummary(attendanceRes.data);
       } catch {
         setError('Failed to load reports. Please try again.');
       }
       setLoading(false);
     };
     fetchReports();
-  }, [selectedProject]);
+  }, []);
 
   // Task status donut data from burndown
   const statusData = burndown ? [
@@ -82,15 +68,6 @@ export default function ReportsPage() {
             <div className={styles.section}>
               <div className={styles.sectionHeader}>
                 <h2 className={styles.sectionTitle}>Burndown Chart</h2>
-                <select
-                  value={selectedProject}
-                  onChange={(e) => setSelectedProject(e.target.value)}
-                  className={styles.select}
-                >
-                  {projects.map((p) => (
-                    <option key={p._id} value={p._id}>{p.title}</option>
-                  ))}
-                </select>
               </div>
               <div className={styles.chart}>
                 {burndown && burndown.data.length > 0 ? (

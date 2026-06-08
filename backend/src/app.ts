@@ -3,7 +3,6 @@ import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import path from 'path';
 import authRoutes from './routes/auth.routes';
-import projectRoutes from './routes/project.routes';
 import taskRoutes from './routes/task.routes';
 import attendanceRoutes from './routes/attendance.routes';
 import teamRoutes from './routes/team.routes';
@@ -13,9 +12,6 @@ import noteRoutes from './routes/note.routes';
 import adminRoutes from './routes/admin.routes';
 import calendarEventRoutes from './routes/calendarEvent.routes';
 import departmentRoutes from './routes/department.routes';
-import mediaRoutes from './routes/media.routes';
-import projectCalendarRoutes from './routes/projectCalendar.routes';
-import socialRoutes from './routes/social.routes';
 import pushRoutes from './routes/push.routes';
 import chatRoutes from './routes/chat.routes';
 import { sendPushToUser } from './utils/webPush';
@@ -68,7 +64,6 @@ app.post('/api/upload', authenticate, upload.single('file'), (req, res) => {
 
 // Routes
 app.use('/api/auth', authRoutes);
-app.use('/api/projects', projectRoutes);
 app.use('/api/tasks', taskRoutes);
 app.use('/api/attendance', attendanceRoutes);
 app.use('/api/team', teamRoutes);
@@ -78,9 +73,6 @@ app.use('/api/notes', noteRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/calendar-events', calendarEventRoutes);
 app.use('/api/departments', departmentRoutes);
-app.use('/api/projects/:id/media', mediaRoutes);
-app.use('/api/projects/:id/calendar', projectCalendarRoutes);
-app.use('/api/projects/:id/social', socialRoutes);
 app.use('/api/push', pushRoutes);
 app.use('/api/chat', chatRoutes);
 

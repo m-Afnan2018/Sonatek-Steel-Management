@@ -14,6 +14,25 @@
   flex-wrap: wrap;
 }
 
+/* ─── Group task banner (inside create modal) ───────────────────── */
+.groupTaskBanner {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: rgba(139, 92, 246, 0.08);
+  border: 1px solid rgba(139, 92, 246, 0.25);
+  border-radius: var(--radius-sm);
+  padding: 0.5rem 0.75rem;
+  font-size: 0.8125rem;
+  color: #8b5cf6;
+  font-weight: 500;
+}
+
+.groupTaskBannerIcon {
+  font-size: 0.875rem;
+  flex-shrink: 0;
+}
+
 /* ─── Tab switcher ───────────────────────────────────────────────── */
 .tabs {
   display: flex;
@@ -385,22 +404,6 @@
   flex-wrap: wrap;
 }
 
-.projectName {
-  display: flex;
-  align-items: center;
-  gap: 0.25rem;
-  font-size: 0.75rem;
-  color: var(--text-muted);
-  font-weight: 500;
-}
-
-.projectName::before {
-  content: '◈';
-  font-size: 0.625rem;
-  color: var(--primary);
-  opacity: 0.7;
-}
-
 .dueDate {
   font-size: 0.75rem;
   color: var(--text-muted);
@@ -478,6 +481,17 @@
 .assigneeAvatar:hover {
   transform: translateY(-2px);
   z-index: 1;
+}
+
+.groupTaskLabel {
+  font-size: 0.6875rem;
+  font-weight: 700;
+  color: #8b5cf6;
+  background: rgba(139, 92, 246, 0.1);
+  border: 1px solid rgba(139, 92, 246, 0.25);
+  border-radius: 999px;
+  padding: 0.125rem 0.625rem;
+  white-space: nowrap;
 }
 
 .assigneeMore {

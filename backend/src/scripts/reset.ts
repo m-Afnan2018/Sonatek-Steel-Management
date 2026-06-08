@@ -14,7 +14,6 @@ import mongoose from 'mongoose';
 import crypto from 'crypto';
 import bcrypt from 'bcryptjs';
 import User from '../models/User';
-import Project from '../models/Project';
 import Task from '../models/Task';
 import Attendance from '../models/Attendance';
 import Department from '../models/Department';
@@ -88,7 +87,6 @@ const reset = async () => {
   // ── Wipe every collection ─────────────────────────────────────────
   await Promise.all([
     User.deleteMany({}),
-    Project.deleteMany({}),
     Task.deleteMany({}),
     Attendance.deleteMany({}),
     Department.deleteMany({}),

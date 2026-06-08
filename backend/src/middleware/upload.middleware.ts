@@ -38,7 +38,6 @@ const ALL_ALLOWED_MIME = new Set([
 // Folder conventions (add more as needed):
 //   usersDP          — user profile pictures
 //   taskAttachments  — files attached to tasks
-//   projectAssets    — project-level assets
 //   (root / '')      — legacy flat uploads (backward-compatible)
 
 export interface UploadOptions {

@@ -7,6 +7,19 @@ export interface IAttachment {
     uploadedAt: Date;
 }
 
+export interface IContribution {
+    user: Types.ObjectId;
+    content: string;
+    attachments: IAttachment[];
+    links: string[];
+    submittedAt: Date;
+    updatedAt: Date;
+    timerStatus: 'idle' | 'running' | 'paused' | 'finished';
+    timerEvents: ITimerEvent[];
+    totalElapsedSeconds: number;
+    isDone: boolean;
+}
+
 export interface ITimerEvent {
     action: "start" | "pause" | "resume" | "hold" | "finish";
     timestamp: Date;
@@ -23,7 +36,6 @@ export interface ITask extends Document {
     title: string;
     description?: string;
     remark?: string;
-    project?: Types.ObjectId;
     isPersonal: boolean;
     status: "backlog" | "todo" | "in_progress" | "in_review" | "done";
     priority: "low" | "medium" | "high" | "critical";
@@ -43,6 +55,8 @@ export interface ITask extends Document {
     timerEvents: ITimerEvent[];
     totalElapsedSeconds: number;
     delegations: IDelegation[];
+    isGroupTask: boolean;
+    contributions: IContribution[];
     createdAt: Date;
     updatedAt: Date;
 }
@@ -64,10 +78,6 @@ const taskSchema = new Schema<ITask>(
             type: String,
             default: "",
             maxlength: 2000,
-        },
-        project: {
-            type: Schema.Types.ObjectId,
-            ref: "Project",
         },
         isPersonal: {
             type: Boolean,
@@ -150,11 +160,45 @@ const taskSchema = new Schema<ITask>(
                 delegatedAt: { type: Date, default: Date.now },
             },
         ],
+        isGroupTask: { type: Boolean, default: false },
+        contributions: [
+            {
+                user:    { type: Schema.Types.ObjectId, ref: "User", required: true },
+                content: { type: String, default: "" },
+                attachments: [
+                    {
+                        name:       String,
+                        url:        String,
+                        type:       { type: String, enum: ["file", "image", "link"], default: "file" },
+                        uploadedAt: { type: Date, default: Date.now },
+                    },
+                ],
+                links:       [{ type: String }],
+                submittedAt: { type: Date, default: Date.now },
+                updatedAt:   { type: Date, default: Date.now },
+                timerStatus: {
+                    type: String,
+                    enum: ['idle', 'running', 'paused', 'finished'],
+                    default: 'idle',
+                },
+                timerEvents: [
+                    {
+                        action: {
+                            type: String,
+                            enum: ['start', 'pause', 'resume', 'finish'],
+                            required: true,
+                        },
+                        timestamp: { type: Date, required: true },
+                    },
+                ],
+                totalElapsedSeconds: { type: Number, default: 0 },
+                isDone: { type: Boolean, default: false },
+            },
+        ],
     },
     { timestamps: true },
 );
 
-taskSchema.index({ project: 1, status: 1 });
 taskSchema.index({ assignees: 1 });
 taskSchema.index({ reporter: 1 });
 taskSchema.index({ isPersonal: 1 });

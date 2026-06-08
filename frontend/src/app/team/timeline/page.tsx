@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import AppShell from '@/components/layout/AppShell/AppShell';
 import Avatar from '@/components/ui/Avatar/Avatar';
 import Spinner from '@/components/ui/Spinner/Spinner';
-import TaskModal from '@/components/projects/TaskModal/TaskModal';
+import TaskModal from '@/components/tasks/TaskModal/TaskModal';
 import { useAuthStore } from '@/store/authStore';
 import { useTasks } from '@/hooks/useTasks';
 import { useTeam } from '@/hooks/useTeam';

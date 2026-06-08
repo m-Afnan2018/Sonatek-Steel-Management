@@ -13,7 +13,6 @@ const typeIcons: Record<string, string> = {
   comment_mention: '💬',
   deadline_reminder: '⏰',
   status_change: '🔄',
-  project_invite: '📧',
 };
 
 export default function ActivityFeed({ notifications }: ActivityFeedProps) {

@@ -5,7 +5,6 @@ export interface Department {
   color: string;
   heads: User[];
   members: User[];
-  canSocialMedia: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -19,36 +18,6 @@ export interface User {
   isActive?: boolean;
   lateThreshold?: string;
   createdAt?: string;
-}
-
-export interface ProjectMember {
-  user: User;
-  role: 'lead' | 'member' | 'viewer';
-}
-
-export interface ProjectLink {
-  title: string;
-  url: string;
-}
-
-export interface Project {
-  _id: string;
-  title: string;
-  description: string;
-  status: 'planning' | 'active' | 'on_hold' | 'completed' | 'archived';
-  priority: 'low' | 'medium' | 'high' | 'critical';
-  startDate: string;
-  endDate: string;
-  owner: User;
-  members: ProjectMember[];
-  tags: string[];
-  progress: number;
-  thumbnail?: string;
-  links?: ProjectLink[];
-  taskCounts?: Record<string, number>;
-  totalTasks?: number;
-  createdAt: string;
-  updatedAt: string;
 }
 
 export interface Attachment {
@@ -71,12 +40,25 @@ export interface Delegation {
   delegatedAt: string;
 }
 
+export interface Contribution {
+  _id: string;
+  user: User;
+  content: string;
+  attachments: Attachment[];
+  links: string[];
+  submittedAt: string;
+  updatedAt: string;
+  timerStatus: 'idle' | 'running' | 'paused' | 'finished';
+  timerEvents: { action: string; timestamp: string }[];
+  totalElapsedSeconds: number;
+  isDone: boolean;
+}
+
 export interface Task {
   _id: string;
   title: string;
   description?: string;
   remark?: string;
-  project?: string | Project;
   isPersonal: boolean;
   status: 'backlog' | 'todo' | 'in_progress' | 'in_review' | 'done';
   priority: 'low' | 'medium' | 'high' | 'critical';
@@ -97,6 +79,8 @@ export interface Task {
   timerEvents: ITimerEvent[];
   totalElapsedSeconds: number;
   delegations: Delegation[];
+  isGroupTask?: boolean;
+  contributions?: Contribution[];
   createdAt: string;
   updatedAt: string;
 }
@@ -106,7 +90,6 @@ export interface Comment {
   content: string;
   author: User;
   task?: string;
-  project?: string;
   mentions: string[];
   createdAt: string;
   updatedAt: string;
@@ -153,7 +136,7 @@ export interface Notification {
   _id: string;
   recipient: string;
   sender: User;
-  type: 'task_assigned' | 'comment_mention' | 'deadline_reminder' | 'status_change' | 'project_invite';
+  type: 'task_assigned' | 'comment_mention' | 'deadline_reminder' | 'status_change';
   title: string;
   message: string;
   link?: string;

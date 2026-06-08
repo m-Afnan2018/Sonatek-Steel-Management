@@ -1,0 +1,456 @@
+.root {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   ASSIGNEE FORM CARD
+   ══════════════════════════════════════════════════════════════ */
+.formCard {
+  background: var(--card);
+  border: 1.5px solid rgba(139, 92, 246, 0.25);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.formTitleRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem 1rem;
+  background: rgba(139, 92, 246, 0.06);
+  border-bottom: 1px solid rgba(139, 92, 246, 0.15);
+}
+
+.formTitle {
+  font-size: 0.8125rem;
+  font-weight: 700;
+  color: #8b5cf6;
+  margin: 0;
+}
+
+.formBody {
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.875rem;
+}
+
+
+/* ── Done toggle ── */
+.doneToggle {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  text-align: left;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  padding: 0.5rem 0.875rem;
+  border-radius: var(--radius-sm);
+  border: 1.5px dashed var(--border);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.doneToggle:hover:not(:disabled) {
+  border-color: var(--success);
+  color: var(--success);
+  background: rgba(34, 197, 94, 0.05);
+}
+
+.doneToggleActive {
+  border-style: solid;
+  border-color: var(--success);
+  color: var(--success);
+  background: rgba(34, 197, 94, 0.07);
+}
+
+.doneToggle:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* ── Fields ── */
+.field { display: flex; flex-direction: column; gap: 0.375rem; }
+
+.label { font-size: 0.75rem; font-weight: 600; color: var(--text-secondary); }
+
+.textarea {
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 0.5rem 0.75rem;
+  font-size: 0.8125rem;
+  background: var(--surface);
+  color: var(--text-primary);
+  resize: vertical;
+  font-family: inherit;
+  transition: border-color 0.15s;
+}
+
+.textarea:focus {
+  outline: none;
+  border-color: #8b5cf6;
+  box-shadow: 0 0 0 2px rgba(139, 92, 246, 0.15);
+}
+
+.input {
+  flex: 1;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 0.375rem 0.625rem;
+  font-size: 0.8125rem;
+  background: var(--surface);
+  color: var(--text-primary);
+  font-family: inherit;
+}
+
+.input:focus { outline: none; border-color: #8b5cf6; }
+
+.linkRow { display: flex; gap: 0.5rem; align-items: center; }
+
+.linkList { display: flex; flex-direction: column; gap: 0.25rem; margin-top: 0.25rem; }
+
+.linkItem {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  font-size: 0.75rem;
+  padding: 0.25rem 0.5rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+
+.linkUrl {
+  flex: 1;
+  color: var(--primary);
+  text-decoration: none;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.linkUrl:hover { text-decoration: underline; }
+
+.removeBtn {
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 0.625rem;
+  padding: 0.125rem 0.25rem;
+  border-radius: var(--radius-sm);
+}
+
+.removeBtn:hover { color: var(--danger); }
+
+.fileInputHidden { display: none; }
+
+.dropZone {
+  border: 2px dashed var(--border);
+  border-radius: var(--radius-sm);
+  padding: 0.875rem;
+  text-align: center;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.dropZone:hover { border-color: #8b5cf6; background: rgba(139, 92, 246, 0.04); }
+.dropZoneUploading { cursor: wait; opacity: 0.7; }
+.dropZoneText { font-size: 0.75rem; color: var(--text-secondary); }
+
+.uploadError { font-size: 0.75rem; color: var(--danger); margin: 0.25rem 0 0; }
+
+.attachList { display: flex; flex-direction: column; gap: 0.375rem; margin-top: 0.375rem; }
+
+.attachItem { display: flex; align-items: center; gap: 0.5rem; font-size: 0.75rem; }
+
+.attachThumb {
+  flex-shrink: 0;
+  width: 32px; height: 32px;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  display: block;
+}
+
+.attachThumb img { width: 100%; height: 100%; object-fit: cover; }
+
+.attachName {
+  flex: 1;
+  color: var(--primary);
+  text-decoration: none;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.attachName:hover { text-decoration: underline; }
+
+.formActions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--border);
+  margin-top: 0.125rem;
+}
+
+.savedMsg { font-size: 0.75rem; font-weight: 600; color: var(--success); }
+.saveError { font-size: 0.75rem; color: var(--danger); margin: 0; }
+
+/* ═══════════════════════════════════════════════════════════════
+   CONTRIBUTIONS LIST
+   ══════════════════════════════════════════════════════════════ */
+.sectionLabel {
+  font-size: 0.6875rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin: 0 0 0.5rem;
+}
+
+.contributionsList { display: flex; flex-direction: column; gap: 0.75rem; }
+
+/* ── Card ── */
+.contribCard {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.contribCard:hover {
+  border-color: rgba(139, 92, 246, 0.3);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+}
+
+.contribCardDone {
+  border-color: rgba(34, 197, 94, 0.3);
+}
+
+.contribCardDone:hover { border-color: rgba(34, 197, 94, 0.5); }
+
+.contribHeader {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  padding: 0.625rem 0.875rem;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+}
+
+.contribMeta { display: flex; flex-direction: column; gap: 0.0625rem; flex: 1; min-width: 0; }
+.contribName { font-size: 0.8125rem; font-weight: 600; color: var(--text-primary); }
+.contribTime { font-size: 0.6875rem; color: var(--text-muted); }
+
+.contribBadges { display: flex; align-items: center; gap: 0.375rem; flex-shrink: 0; }
+
+.doneBadge {
+  font-size: 0.625rem;
+  font-weight: 700;
+  padding: 0.1875rem 0.5625rem;
+  border-radius: 999px;
+  background: rgba(34, 197, 94, 0.12);
+  color: var(--success);
+  border: 1px solid rgba(34, 197, 94, 0.3);
+  white-space: nowrap;
+}
+
+.inProgressBadge {
+  font-size: 0.625rem;
+  font-weight: 600;
+  padding: 0.1875rem 0.5625rem;
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+  white-space: nowrap;
+}
+
+.elapsedBadge {
+  font-size: 0.625rem;
+  font-weight: 700;
+  padding: 0.1875rem 0.5625rem;
+  border-radius: 999px;
+  background: rgba(139, 92, 246, 0.1);
+  color: #8b5cf6;
+  border: 1px solid rgba(139, 92, 246, 0.2);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.contribBody {
+  padding: 0.875rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.625rem;
+}
+
+.contribContent {
+  font-size: 0.8125rem;
+  color: var(--text-primary);
+  line-height: 1.55;
+  white-space: pre-wrap;
+  margin: 0;
+}
+
+.contribLinks { display: flex; flex-direction: column; gap: 0.25rem; }
+
+.contribLink {
+  font-size: 0.75rem;
+  color: var(--primary);
+  text-decoration: none;
+  display: flex;
+  align-items: center;
+  gap: 0.3125rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.contribLink:hover { text-decoration: underline; }
+
+.contribAttachments { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+.contribAttach { text-decoration: none; display: inline-flex; }
+
+.contribAttachImg {
+  width: 72px; height: 72px;
+  object-fit: cover;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+}
+
+.contribAttachFile {
+  font-size: 0.75rem;
+  color: var(--primary);
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.25rem 0.5rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+
+.contribAttachFile:hover { border-color: var(--primary); }
+
+.contribEmpty { font-size: 0.75rem; color: var(--text-muted); font-style: italic; margin: 0; }
+
+/* ═══════════════════════════════════════════════════════════════
+   TIMELINE — identical design to TaskModal's Timeline tab
+   ══════════════════════════════════════════════════════════════ */
+.timelineSection {
+  border-top: 1px solid var(--border);
+}
+
+.timelineToggle {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  width: 100%;
+  padding: 0.4375rem 0.875rem;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  transition: color 0.15s, background 0.15s;
+}
+
+.timelineToggle:hover { color: var(--text-primary); background: var(--surface); }
+
+.timeline {
+  padding: 0.5rem 1rem 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.timelineItem {
+  display: flex;
+  gap: 0.75rem;
+  min-height: 2.5rem;
+}
+
+.timelineSpine {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex-shrink: 0;
+  padding-top: 0.25rem;
+}
+
+.timelineDot {
+  width: 0.625rem;
+  height: 0.625rem;
+  border-radius: 50%;
+  flex-shrink: 0;
+  position: relative;
+  z-index: 1;
+}
+
+.timelineLine {
+  width: 2px;
+  flex: 1;
+  background: var(--border);
+  margin-top: 0.25rem;
+  margin-bottom: 0;
+  min-height: 1rem;
+}
+
+.timelineContent {
+  flex: 1;
+  padding-bottom: 0.875rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.1875rem;
+}
+
+.timelineHeader {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.timelineAction {
+  font-size: 0.6875rem;
+  font-weight: 700;
+  padding: 0.125rem 0.5rem;
+  border-radius: var(--radius-sm);
+  line-height: 1.4;
+}
+
+.timelineTime {
+  font-size: 0.6875rem;
+  color: var(--text-muted);
+}
+
+.timelineDuration {
+  font-size: 0.6875rem;
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.timelineSummary {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  padding: 0.625rem 0 0 1.375rem;
+  border-top: 1px solid var(--border);
+  margin-top: 0.25rem;
+}

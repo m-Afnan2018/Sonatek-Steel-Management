@@ -2,15 +2,9 @@ import { Request, Response } from 'express';
 import Task from '../models/Task';
 import Attendance from '../models/Attendance';
 
-export const getBurndown = async (req: Request, res: Response): Promise<void> => {
+export const getBurndown = async (_req: Request, res: Response): Promise<void> => {
   try {
-    const { projectId } = req.query;
-    if (!projectId) {
-      res.status(400).json({ message: 'projectId is required.' });
-      return;
-    }
-
-    const tasks = await Task.find({ project: projectId });
+    const tasks = await Task.find({ isPersonal: { $ne: true } });
     const totalTasks = tasks.length;
 
     // Generate daily burndown for last 30 days

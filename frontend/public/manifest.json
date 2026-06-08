@@ -1,11 +1,11 @@
 {
-  "name": "Ganesyx",
-  "short_name": "Ganesyx",
-  "description": "Team Project Management & Attendance Web App",
+  "name": "Sonatek Steels Management",
+  "short_name": "Sonatek",
+  "description": "Team Task Management & Attendance Web App",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#0A0A0F",
-  "theme_color": "#6C63FF",
+  "theme_color": "#ffffff",
+  "background_color": "#ffffff",
   "orientation": "portrait-primary",
   "icons": [
     {

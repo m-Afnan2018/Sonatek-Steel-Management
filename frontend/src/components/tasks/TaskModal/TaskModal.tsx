@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef, useMemo } from 'react';
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import Modal from '@/components/ui/Modal/Modal';
 import Button from '@/components/ui/Button/Button';
 import Badge from '@/components/ui/Badge/Badge';
@@ -11,6 +11,7 @@ import { useTasks } from '@/hooks/useTasks';
 import { useDepartments } from '@/hooks/useDepartments';
 import { useAuthStore } from '@/store/authStore';
 import { uploadFile } from '@/lib/api';
+import api from '@/lib/api';
 import type { Task, Comment, User, Attachment } from '@/types';
 import styles from './TaskModal.module.css';
 import { Check, CornerUpRight, ArrowRight, Clock, Trash2 } from 'lucide-react';
@@ -25,7 +26,6 @@ interface TaskModalProps {
   onDelete?: (task: Task) => void;
   onSaved?: () => void;
   members: User[];
-  projects?: { _id: string; title: string }[];
   patchTimer?: (id: string, action: 'start' | 'pause' | 'resume' | 'hold' | 'finish') => Promise<Task | null>;
 }
 
@@ -52,7 +52,7 @@ function uid(u: User | any): string {
   return (u?.id || u?._id)?.toString() ?? '';
 }
 
-export default function TaskModal({ task, isOpen, onClose, onUpdate, onDelete, onSaved, members, projects, patchTimer }: TaskModalProps) {
+export default function TaskModal({ task, isOpen, onClose, onUpdate, onDelete, onSaved, members, patchTimer }: TaskModalProps) {
   const { updateTask, addComment, delegateTask } = useTasks();
   const { departments } = useDepartments();
   const currentUser = useAuthStore((s) => s.user);
@@ -122,7 +122,6 @@ export default function TaskModal({ task, isOpen, onClose, onUpdate, onDelete, o
   const [editDue, setEditDue] = useState('');
   const [editDueTime, setEditDueTime] = useState('');
   const [editEstHours, setEditEstHours] = useState('');
-  const [editProject, setEditProject] = useState('');
 
   // Links
   const [newLink, setNewLink] = useState('');
@@ -155,11 +154,16 @@ export default function TaskModal({ task, isOpen, onClose, onUpdate, onDelete, o
   const [mentionSearch, setMentionSearch] = useState('');
   const [showMentions, setShowMentions] = useState(false);
   const titleInputRef = useRef<HTMLInputElement>(null);
+  const prevTaskIdRef = useRef<string | null>(null);
 
   // All hooks before any early return ↑
 
   useEffect(() => {
     if (task) {
+      const isNewTask = prevTaskIdRef.current !== task._id;
+      prevTaskIdRef.current = task._id;
+
+      // Always sync data — must stay fresh on every update
       setEditTitle(task.title);
       setEditDesc(task.description || '');
       setEditNotes(task.notes || '');
@@ -172,33 +176,35 @@ export default function TaskModal({ task, isOpen, onClose, onUpdate, onDelete, o
       setAttachments(task.attachments || []);
       setAssigneeIds(task.assignees.filter(Boolean).map((a) => uid(a)));
       setEditEstHours(task.estimatedHours != null ? String(task.estimatedHours) : '');
-      setEditProject(
-        task.project
-          ? typeof task.project === 'object'
-            ? (task.project as any)._id
-            : task.project
-          : ''
-      );
-      setTab('details');
-      setEditingTitle(false);
-      setEditingDesc(false);
-      setEditingAssignees(false);
-      setShowDelegate(false);
-      setDelegateTo('');
-      setDelegateNote('');
-      setDelegateError('');
+
+      // Only reset navigation/UI state when a different task is opened
+      if (isNewTask) {
+        setTab('details');
+        setEditingTitle(false);
+        setEditingDesc(false);
+        setEditingAssignees(false);
+        setShowDelegate(false);
+        setDelegateTo('');
+        setDelegateNote('');
+        setDelegateError('');
+      }
     }
   }, [task]);
+
+  // Must be above the early return — hooks cannot be called conditionally
+  const refetchTask = useCallback(async () => {
+    if (!task) return;
+    try {
+      const { data } = await api.get(`/tasks/${task._id}`);
+      onUpdate(data);
+    } catch {
+      // silently ignore — contributions will refresh on next modal open
+    }
+  }, [task, onUpdate]);
 
   if (!task) return null;
 
   // Dirty check — any main field changed from the task prop
-  const taskProjectId = task.project
-    ? typeof task.project === 'object'
-      ? (task.project as any)._id
-      : task.project
-    : '';
-
   const isDirty =
     editTitle.trim() !== task.title ||
     editDesc !== (task.description || '') ||
@@ -206,8 +212,7 @@ export default function TaskModal({ task, isOpen, onClose, onUpdate, onDelete, o
     editPriority !== task.priority ||
     editDue !== (task.dueDate ? task.dueDate.split('T')[0] : '') ||
     editDueTime !== (task.dueTime || '') ||
-    editNotes !== (task.notes || '') ||
-    editProject !== taskProjectId;
+    editNotes !== (task.notes || '');
 
   // ── Helpers ──────────────────────────────────────────────────────
   const save = async (patch: Partial<Task>) => {
@@ -228,7 +233,6 @@ export default function TaskModal({ task, isOpen, onClose, onUpdate, onDelete, o
       dueDate: editDue || undefined,
       dueTime: editDueTime || undefined,
       notes: editNotes,
-      ...(editProject ? { project: editProject } : { project: null }),
     } as Partial<Task>);
     if (updated) {
       onClose();
@@ -253,7 +257,7 @@ export default function TaskModal({ task, isOpen, onClose, onUpdate, onDelete, o
   };
 
   const toggleAssignee = (id: string) => {
-    setAssigneeIds((prev) => (prev.includes(id) ? [] : [id]));
+    setAssigneeIds((prev) => prev.includes(id) ? [] : [id]);
   };
 
   const handleDelegate = async () => {
@@ -382,23 +386,6 @@ export default function TaskModal({ task, isOpen, onClose, onUpdate, onDelete, o
       }
     : undefined;
 
-  const tabCount = (t: Tab) => {
-    if (t === 'links') return links.length || undefined;
-    if (t === 'files') return attachments.length || undefined;
-    if (t === 'comments') return comments.length || undefined;
-    if (t === 'timeline') return task.timerEvents.length || undefined;
-    return undefined;
-  };
-
-  const TABS: { key: Tab; label: string }[] = [
-    { key: 'details', label: 'Details' },
-    { key: 'notes', label: 'Notes' },
-    { key: 'links', label: 'Links' },
-    { key: 'files', label: 'Files' },
-    { key: 'comments', label: 'Comments' },
-    { key: 'timeline', label: 'Timeline' },
-  ];
-
   // ── Timeline helpers ──────────────────────────────────────────────
   const ACTION_META: Record<string, { label: string; color: string; bg: string }> = {
     start:  { label: 'Started',   color: '#10b981', bg: '#d1fae5' },
@@ -424,6 +411,23 @@ export default function TaskModal({ task, isOpen, onClose, onUpdate, onDelete, o
       hour: '2-digit', minute: '2-digit',
     });
   }
+
+  const tabCount = (t: Tab) => {
+    if (t === 'links') return links.length || undefined;
+    if (t === 'files') return attachments.length || undefined;
+    if (t === 'comments') return comments.length || undefined;
+    if (t === 'timeline') return task.timerEvents.length || undefined;
+    return undefined;
+  };
+
+  const TABS: { key: Tab; label: string }[] = [
+    { key: 'details', label: 'Details' },
+    { key: 'notes', label: 'Notes' },
+    { key: 'links', label: 'Links' },
+    { key: 'files', label: 'Files' },
+    { key: 'comments', label: 'Comments' },
+    { key: 'timeline', label: 'Timeline' },
+  ];
 
   // Build enriched timeline entries with duration annotations
   const timelineEntries = task.timerEvents.map((ev, i) => {
@@ -940,30 +944,6 @@ export default function TaskModal({ task, isOpen, onClose, onUpdate, onDelete, o
                     >✕</button>
                   )}
                 </div>
-              </div>
-              <div className={styles.metaRow}>
-                <span className={styles.sideLabel}>Project</span>
-                {canEdit && projects && projects.length > 0 ? (
-                  <select
-                    className={styles.metaSelect}
-                    value={editProject}
-                    onChange={(e) => setEditProject(e.target.value)}
-                  >
-                    <option value="">No project</option>
-                    {[...projects].sort((a, b) => a.title.localeCompare(b.title)).map((p) => (
-                      <option key={p._id} value={p._id}>{p.title}</option>
-                    ))}
-                  </select>
-                ) : (
-                  <span className={styles.metaValue}>
-                    {task.project
-                      ? typeof task.project === 'object'
-                        ? (task.project as any).title
-                        : task.project
-                      : <span className={styles.placeholder}>—</span>
-                    }
-                  </span>
-                )}
               </div>
               <div className={styles.metaRow}>
                 <span className={styles.sideLabel}>Reporter</span>

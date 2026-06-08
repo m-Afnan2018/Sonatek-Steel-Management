@@ -3,7 +3,6 @@ dotenv.config();
 
 import mongoose from 'mongoose';
 import User from '../models/User';
-import Project from '../models/Project';
 import Task from '../models/Task';
 import Attendance from '../models/Attendance';
 
@@ -14,7 +13,6 @@ const seed = async () => {
   console.log('Connected to MongoDB');
 
   await User.deleteMany({});
-  await Project.deleteMany({});
   await Task.deleteMany({});
   await Attendance.deleteMany({});
   console.log('Cleared existing data');
@@ -47,67 +45,11 @@ const seed = async () => {
   const allUsers = [admin, manager, ...members];
   console.log(`Created ${allUsers.length} users`);
 
-  // ── Projects ──────────────────────────────────────────────────────────
-  const now = new Date();
-  const projects = await Promise.all([
-    Project.create({
-      title: 'Client Portal Redesign',
-      description: 'Full redesign of the client-facing portal with improved UX, mobile responsiveness, and a refreshed design system.',
-      status: 'active',
-      priority: 'high',
-      startDate: new Date(now.getFullYear(), now.getMonth() - 1, 1),
-      endDate:   new Date(now.getFullYear(), now.getMonth() + 2, 28),
-      owner: admin._id,
-      members: [
-        { user: manager._id,    role: 'lead'   },
-        { user: members[0]._id, role: 'member' },
-        { user: members[1]._id, role: 'member' },
-        { user: members[2]._id, role: 'member' },
-      ],
-      tags: ['frontend', 'design', 'ux'],
-      progress: 35,
-    }),
-    Project.create({
-      title: 'Backend API Upgrade',
-      description: 'Migrate all REST endpoints to v2 with improved error handling, rate limiting, and Swagger documentation.',
-      status: 'active',
-      priority: 'critical',
-      startDate: new Date(now.getFullYear(), now.getMonth(), 1),
-      endDate:   new Date(now.getFullYear(), now.getMonth() + 1, 15),
-      owner: manager._id,
-      members: [
-        { user: admin._id,      role: 'viewer' },
-        { user: members[0]._id, role: 'lead'   },
-        { user: members[2]._id, role: 'member' },
-        { user: members[3]._id, role: 'member' },
-      ],
-      tags: ['backend', 'api', 'security'],
-      progress: 60,
-    }),
-    Project.create({
-      title: 'Mobile Application',
-      description: 'Build the React Native mobile app for iOS and Android with real-time notifications and offline support.',
-      status: 'planning',
-      priority: 'medium',
-      startDate: new Date(now.getFullYear(), now.getMonth() + 1, 1),
-      endDate:   new Date(now.getFullYear(), now.getMonth() + 4, 30),
-      owner: admin._id,
-      members: [
-        { user: manager._id,    role: 'lead'   },
-        { user: members[1]._id, role: 'member' },
-        { user: members[4]._id, role: 'member' },
-      ],
-      tags: ['mobile', 'react-native', 'ios', 'android'],
-      progress: 10,
-    }),
-  ]);
-  console.log(`Created ${projects.length} projects`);
-
   // ── Tasks ─────────────────────────────────────────────────────────────
+  const now = new Date();
   const taskDefs: Array<{
     title: string;
     description: string;
-    project: number;
     status: 'backlog' | 'todo' | 'in_progress' | 'in_review' | 'done';
     priority: 'low' | 'medium' | 'high' | 'critical';
     assignee: number;
@@ -115,28 +57,28 @@ const seed = async () => {
     elapsed: number;
     tags: string[];
   }> = [
-    { title: 'Set up project scaffolding',      description: 'Initialize the project repository, CI/CD pipeline, and base folder structure.',                      project: 0, status: 'done',        priority: 'medium',   assignee: 0, estHours: 4,  elapsed: 14400,  tags: ['setup']     },
-    { title: 'Design new colour system',        description: 'Define the primary, secondary, and neutral colour tokens to be used across the portal.',              project: 0, status: 'done',        priority: 'high',     assignee: 1, estHours: 6,  elapsed: 21600,  tags: ['design']    },
-    { title: 'Implement authentication flow',   description: 'Build login, registration, password reset, and session management using JWT.',                        project: 0, status: 'done',        priority: 'critical', assignee: 0, estHours: 10, elapsed: 36000,  tags: ['auth']      },
-    { title: 'Build dashboard layout',          description: 'Create the main dashboard with widget grid, summary cards, and quick-action bar.',                    project: 0, status: 'in_review',   priority: 'high',     assignee: 1, estHours: 8,  elapsed: 25200,  tags: ['frontend']  },
-    { title: 'Responsive sidebar navigation',  description: 'Make the sidebar fully responsive and accessible on all screen sizes.',                               project: 0, status: 'in_progress', priority: 'medium',   assignee: 2, estHours: 5,  elapsed: 10800,  tags: ['frontend']  },
-    { title: 'User avatar upload',              description: 'Allow users to upload and crop a profile picture, stored in S3.',                                     project: 0, status: 'todo',        priority: 'low',      assignee: 0, estHours: 3,  elapsed: 0,      tags: ['frontend']  },
-    { title: 'Dark mode toggle',               description: 'Add system-preference-aware dark mode with manual override stored in user preferences.',               project: 0, status: 'todo',        priority: 'low',      assignee: 1, estHours: 4,  elapsed: 0,      tags: ['frontend']  },
-    { title: 'Notifications panel',            description: 'Real-time notification drawer with read/unread states and action links.',                              project: 0, status: 'backlog',     priority: 'medium',   assignee: 2, estHours: 6,  elapsed: 0,      tags: ['frontend']  },
+    { title: 'Set up project scaffolding',      description: 'Initialize the project repository, CI/CD pipeline, and base folder structure.',                      status: 'done',        priority: 'medium',   assignee: 0, estHours: 4,  elapsed: 14400,  tags: ['setup']     },
+    { title: 'Design new colour system',        description: 'Define the primary, secondary, and neutral colour tokens to be used across the portal.',              status: 'done',        priority: 'high',     assignee: 1, estHours: 6,  elapsed: 21600,  tags: ['design']    },
+    { title: 'Implement authentication flow',   description: 'Build login, registration, password reset, and session management using JWT.',                        status: 'done',        priority: 'critical', assignee: 0, estHours: 10, elapsed: 36000,  tags: ['auth']      },
+    { title: 'Build dashboard layout',          description: 'Create the main dashboard with widget grid, summary cards, and quick-action bar.',                    status: 'in_review',   priority: 'high',     assignee: 1, estHours: 8,  elapsed: 25200,  tags: ['frontend']  },
+    { title: 'Responsive sidebar navigation',  description: 'Make the sidebar fully responsive and accessible on all screen sizes.',                               status: 'in_progress', priority: 'medium',   assignee: 2, estHours: 5,  elapsed: 10800,  tags: ['frontend']  },
+    { title: 'User avatar upload',              description: 'Allow users to upload and crop a profile picture, stored in S3.',                                     status: 'todo',        priority: 'low',      assignee: 0, estHours: 3,  elapsed: 0,      tags: ['frontend']  },
+    { title: 'Dark mode toggle',               description: 'Add system-preference-aware dark mode with manual override stored in user preferences.',               status: 'todo',        priority: 'low',      assignee: 1, estHours: 4,  elapsed: 0,      tags: ['frontend']  },
+    { title: 'Notifications panel',            description: 'Real-time notification drawer with read/unread states and action links.',                              status: 'backlog',     priority: 'medium',   assignee: 2, estHours: 6,  elapsed: 0,      tags: ['frontend']  },
 
-    { title: 'Database schema migration',      description: 'Run and verify all pending Mongoose migrations against the staging database.',                         project: 1, status: 'done',        priority: 'critical', assignee: 0, estHours: 5,  elapsed: 18000,  tags: ['backend']   },
-    { title: 'API endpoint documentation',     description: 'Write Swagger/OpenAPI 3.0 specs for every v2 endpoint.',                                              project: 1, status: 'done',        priority: 'high',     assignee: 2, estHours: 8,  elapsed: 28800,  tags: ['docs']      },
-    { title: 'Rate limiting middleware',       description: 'Implement per-user and per-IP rate limiting with Redis-backed counters.',                              project: 1, status: 'in_progress', priority: 'high',     assignee: 0, estHours: 6,  elapsed: 14400,  tags: ['backend']   },
-    { title: 'Error handling standardisation', description: 'Centralise all error responses into a consistent JSON format with error codes.',                      project: 1, status: 'in_review',   priority: 'medium',   assignee: 2, estHours: 4,  elapsed: 12600,  tags: ['backend']   },
-    { title: 'Write unit tests for auth',      description: 'Achieve ≥ 80 % code coverage for the authentication module.',                                         project: 1, status: 'todo',        priority: 'high',     assignee: 3, estHours: 10, elapsed: 0,      tags: ['testing']   },
-    { title: 'Performance profiling',          description: 'Profile slow queries and add indexes; target p95 < 200 ms.',                                          project: 1, status: 'todo',        priority: 'medium',   assignee: 0, estHours: 8,  elapsed: 0,      tags: ['backend']   },
-    { title: 'Security audit & fixes',         description: 'Run OWASP ZAP scan and resolve all high-severity findings.',                                          project: 1, status: 'backlog',     priority: 'critical', assignee: 3, estHours: 12, elapsed: 0,      tags: ['security']  },
+    { title: 'Database schema migration',      description: 'Run and verify all pending Mongoose migrations against the staging database.',                         status: 'done',        priority: 'critical', assignee: 0, estHours: 5,  elapsed: 18000,  tags: ['backend']   },
+    { title: 'API endpoint documentation',     description: 'Write Swagger/OpenAPI 3.0 specs for every v2 endpoint.',                                              status: 'done',        priority: 'high',     assignee: 2, estHours: 8,  elapsed: 28800,  tags: ['docs']      },
+    { title: 'Rate limiting middleware',       description: 'Implement per-user and per-IP rate limiting with Redis-backed counters.',                              status: 'in_progress', priority: 'high',     assignee: 0, estHours: 6,  elapsed: 14400,  tags: ['backend']   },
+    { title: 'Error handling standardisation', description: 'Centralise all error responses into a consistent JSON format with error codes.',                      status: 'in_review',   priority: 'medium',   assignee: 2, estHours: 4,  elapsed: 12600,  tags: ['backend']   },
+    { title: 'Write unit tests for auth',      description: 'Achieve ≥ 80 % code coverage for the authentication module.',                                         status: 'todo',        priority: 'high',     assignee: 3, estHours: 10, elapsed: 0,      tags: ['testing']   },
+    { title: 'Performance profiling',          description: 'Profile slow queries and add indexes; target p95 < 200 ms.',                                          status: 'todo',        priority: 'medium',   assignee: 0, estHours: 8,  elapsed: 0,      tags: ['backend']   },
+    { title: 'Security audit & fixes',         description: 'Run OWASP ZAP scan and resolve all high-severity findings.',                                          status: 'backlog',     priority: 'critical', assignee: 3, estHours: 12, elapsed: 0,      tags: ['security']  },
 
-    { title: 'React Native project setup',     description: 'Initialise Expo project, ESLint, Prettier, and CI pipeline for mobile.',                             project: 2, status: 'in_progress', priority: 'high',     assignee: 1, estHours: 5,  elapsed: 9000,   tags: ['mobile']    },
-    { title: 'Push notification integration', description: 'Integrate Firebase Cloud Messaging for iOS and Android.',                                              project: 2, status: 'todo',        priority: 'high',     assignee: 4, estHours: 8,  elapsed: 0,      tags: ['mobile']    },
-    { title: 'Offline data sync',             description: 'Implement optimistic UI updates and conflict-resolution sync when connectivity resumes.',               project: 2, status: 'backlog',     priority: 'medium',   assignee: 1, estHours: 16, elapsed: 0,      tags: ['mobile']    },
-    { title: 'App store submission checklist',description: 'Prepare screenshots, descriptions, privacy policy, and age rating for App Store & Play Store.',        project: 2, status: 'backlog',     priority: 'low',      assignee: 4, estHours: 6,  elapsed: 0,      tags: ['mobile']    },
-    { title: 'Biometric authentication',      description: 'Add Face ID / fingerprint login as an optional security layer.',                                       project: 2, status: 'backlog',     priority: 'medium',   assignee: 1, estHours: 10, elapsed: 0,      tags: ['mobile', 'auth'] },
+    { title: 'React Native project setup',     description: 'Initialise Expo project, ESLint, Prettier, and CI pipeline for mobile.',                             status: 'in_progress', priority: 'high',     assignee: 1, estHours: 5,  elapsed: 9000,   tags: ['mobile']    },
+    { title: 'Push notification integration', description: 'Integrate Firebase Cloud Messaging for iOS and Android.',                                              status: 'todo',        priority: 'high',     assignee: 4, estHours: 8,  elapsed: 0,      tags: ['mobile']    },
+    { title: 'Offline data sync',             description: 'Implement optimistic UI updates and conflict-resolution sync when connectivity resumes.',               status: 'backlog',     priority: 'medium',   assignee: 1, estHours: 16, elapsed: 0,      tags: ['mobile']    },
+    { title: 'App store submission checklist',description: 'Prepare screenshots, descriptions, privacy policy, and age rating for App Store & Play Store.',        status: 'backlog',     priority: 'low',      assignee: 4, estHours: 6,  elapsed: 0,      tags: ['mobile']    },
+    { title: 'Biometric authentication',      description: 'Add Face ID / fingerprint login as an optional security layer.',                                       status: 'backlog',     priority: 'medium',   assignee: 1, estHours: 10, elapsed: 0,      tags: ['mobile', 'auth'] },
   ];
 
   const createdTasks = await Promise.all(
@@ -144,7 +86,6 @@ const seed = async () => {
       Task.create({
         title:              t.title,
         description:        t.description,
-        project:            projects[t.project]._id,
         status:             t.status,
         priority:           t.priority,
         assignees:          [members[t.assignee]._id],
@@ -159,19 +100,6 @@ const seed = async () => {
     )
   );
   console.log(`Created ${createdTasks.length} tasks`);
-
-  // Update project progress counts
-  for (const project of projects) {
-    const counts = await Task.aggregate([
-      { $match: { project: project._id } },
-      { $group: { _id: '$status', count: { $sum: 1 } } },
-    ]);
-    const total = counts.reduce((s, c) => s + c.count, 0);
-    const done  = counts.find((c) => c._id === 'done')?.count ?? 0;
-    await Project.findByIdAndUpdate(project._id, {
-      progress: total > 0 ? Math.round((done / total) * 100) : 0,
-    });
-  }
 
   // ── Attendance — last 30 weekdays ────────────────────────────────────
   const statusPool = ['present', 'present', 'present', 'present', 'remote', 'remote', 'half_day', 'absent'] as const;

@@ -44,7 +44,6 @@ export const getMemberWorkload = async (req: Request, res: Response): Promise<vo
       assignees: req.params.id,
       status: { $ne: 'done' },
     })
-      .populate('project', 'title')
       .sort({ priority: -1, dueDate: 1 });
 
     res.json(tasks);

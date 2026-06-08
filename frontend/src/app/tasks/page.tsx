@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import AppShell from '@/components/layout/AppShell/AppShell';
 import Button from '@/components/ui/Button/Button';
 import Badge from '@/components/ui/Badge/Badge';
@@ -8,10 +8,9 @@ import Modal from '@/components/ui/Modal/Modal';
 import Avatar from '@/components/ui/Avatar/Avatar';
 import Spinner from '@/components/ui/Spinner/Spinner';
 import TaskTimer from '@/components/tasks/TaskTimer';
-import TaskModal from '@/components/projects/TaskModal/TaskModal';
+import TaskModal from '@/components/tasks/TaskModal/TaskModal';
 import SuccessPopup from '@/components/ui/SuccessPopup/SuccessPopup';
 import { useTasks } from '@/hooks/useTasks';
-import { useProjects } from '@/hooks/useProjects';
 import { useTeam } from '@/hooks/useTeam';
 import { useDepartments } from '@/hooks/useDepartments';
 import { useAuthStore } from '@/store/authStore';
@@ -41,7 +40,6 @@ const statusAccent: Record<string, string> = {
 
 export default function TasksPage() {
   const { tasks, loading, error, fetchTasks, fetchPersonalTasks, createTask, updateTaskStatus, deleteTask, patchTimer, delegateTask } = useTasks();
-  const { projects } = useProjects();
   const { members } = useTeam();
   const { departments } = useDepartments();
   const user = useAuthStore((s) => s.user);
@@ -119,7 +117,6 @@ export default function TasksPage() {
   const [filterStatus, setFilterStatus] = useState('');
   const [filterPriority, setFilterPriority] = useState('');
   const [filterAssignee, setFilterAssignee] = useState('');
-  const [filterProject, setFilterProject] = useState('');
   const [filterDateFrom, setFilterDateFrom] = useState('');
   const [filterDateTo, setFilterDateTo] = useState('');
 
@@ -131,7 +128,6 @@ export default function TasksPage() {
     status: 'todo',
     dueDate: '',
     estimatedHours: '',
-    project: '',
     isPersonal: false,
     assignees: [] as string[],
   });
@@ -154,7 +150,7 @@ export default function TasksPage() {
   useEffect(() => { setLocalTasks(tasks); }, [tasks]);
 
   const resetCreateForm = () => {
-    setForm({ title: '', description: '', remark: '', priority: 'medium', status: 'todo', dueDate: '', estimatedHours: '', project: '', isPersonal: tab === 'personal', assignees: [] });
+    setForm({ title: '', description: '', remark: '', priority: 'medium', status: 'todo', dueDate: '', estimatedHours: '', isPersonal: tab === 'personal', assignees: [] });
     setNotes('');
     setLinks([]);
     setLinkInput('');
@@ -164,7 +160,7 @@ export default function TasksPage() {
   };
 
   const openCreate = () => {
-    setForm((f) => ({ ...f, isPersonal: tab === 'personal', project: '', assignees: [] }));
+    setForm((f) => ({ ...f, isPersonal: tab === 'personal', assignees: [] }));
     setCreateTab('details');
     setShowCreate(true);
   };
@@ -185,9 +181,7 @@ export default function TasksPage() {
     };
     if (form.dueDate) payload.dueDate = form.dueDate;
     if (form.estimatedHours) payload.estimatedHours = parseFloat(form.estimatedHours);
-    if (form.project) payload.project = form.project;
     if (form.assignees.length) payload.assignees = form.assignees;
-
     await createTask(payload as Partial<Task>);
     setSaving(false);
     setShowCreate(false);
@@ -256,10 +250,6 @@ export default function TasksPage() {
   const matchesNonStatusFilters = (t: (typeof localTasks)[0]) => {
     if (filterPriority && t.priority !== filterPriority) return false;
     if (filterAssignee && !t.assignees.filter(Boolean).some((a) => ((a as any)._id?.toString() || a.id) === filterAssignee)) return false;
-    if (filterProject) {
-      const projId = typeof t.project === 'object' ? t.project?._id : t.project;
-      if (projId !== filterProject) return false;
-    }
     if (filterDateFrom && new Date(t.createdAt) < new Date(filterDateFrom)) return false;
     if (filterDateTo && new Date(t.createdAt) > new Date(filterDateTo + 'T23:59:59')) return false;
     return true;
@@ -272,7 +262,7 @@ export default function TasksPage() {
       if (filterStatus && t.status !== filterStatus) return false;
       return matchesNonStatusFilters(t);
     });
-  }, [localTasks, filterStatus, filterPriority, filterAssignee, filterProject, filterDateFrom, filterDateTo]);
+  }, [localTasks, filterStatus, filterPriority, filterAssignee, filterDateFrom, filterDateTo]);
 
   // Completed tasks — filtered, sorted by createdAt, then paginated
   const completedTasks = useMemo(() => {
@@ -282,7 +272,7 @@ export default function TasksPage() {
       return completedSort === 'desc' ? diff : -diff;
     });
     return filtered;
-  }, [localTasks, filterPriority, filterAssignee, filterProject, filterDateFrom, filterDateTo, completedSort]);
+  }, [localTasks, filterPriority, filterAssignee, filterDateFrom, filterDateTo, completedSort]);
 
   const completedTotalPages = Math.ceil(completedTasks.length / COMPLETED_PAGE_SIZE);
   const completedPagedTasks = completedTasks.slice(
@@ -290,13 +280,12 @@ export default function TasksPage() {
     completedPage * COMPLETED_PAGE_SIZE,
   );
 
-  const hasFilters = filterStatus || filterPriority || filterAssignee || filterProject || filterDateFrom || filterDateTo;
+  const hasFilters = filterStatus || filterPriority || filterAssignee || filterDateFrom || filterDateTo;
 
   const clearFilters = () => {
     setFilterStatus('');
     setFilterPriority('');
     setFilterAssignee('');
-    setFilterProject('');
     setFilterDateFrom('');
     setFilterDateTo('');
     setCompletedPage(1);
@@ -304,7 +293,7 @@ export default function TasksPage() {
 
   // Reset page when filters or sort changes
   useEffect(() => { setCompletedPage(1); }, [
-    filterPriority, filterAssignee, filterProject, filterDateFrom, filterDateTo, completedSort,
+    filterPriority, filterAssignee, filterDateFrom, filterDateTo, completedSort,
   ]);
 
   const emptyMessage = hasFilters
@@ -378,15 +367,7 @@ export default function TasksPage() {
 
           <span className={styles.filterDivider} />
 
-          {/* Project + Assignee selects */}
-          {projects.length > 0 && (
-            <select className={styles.filterSelect} value={filterProject} onChange={(e) => setFilterProject(e.target.value)}>
-              <option value="">All Projects</option>
-              {projects.map((p) => (
-                <option key={p._id} value={p._id}>{p.title}</option>
-              ))}
-            </select>
-          )}
+          {/* Assignee select */}
           {tab === 'assigned' && members.length > 0 && (
             <select className={styles.filterSelect} value={filterAssignee} onChange={(e) => setFilterAssignee(e.target.value)}>
               <option value="">All Assignees</option>
@@ -554,6 +535,7 @@ export default function TasksPage() {
           {/* ── Details tab ── */}
           {createTab === 'details' && (
             <div className={styles.modalTabContent}>
+
               <div className={styles.field}>
                 <label>Title <span className={styles.req}>*</span></label>
                 <input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} placeholder="What needs to be done?" autoFocus />
@@ -565,7 +547,7 @@ export default function TasksPage() {
                   <span className={styles.toggleSub}>{form.isPersonal ? 'Only visible to you' : 'Can be assigned to members'}</span>
                 </span>
                 <label className={styles.toggle}>
-                  <input type="checkbox" checked={form.isPersonal} onChange={(e) => setForm((f) => ({ ...f, isPersonal: e.target.checked, project: '', assignees: [] }))} />
+                  <input type="checkbox" checked={form.isPersonal} onChange={(e) => setForm((f) => ({ ...f, isPersonal: e.target.checked, assignees: [] }))} />
                   <span className={styles.toggleSlider} />
                 </label>
               </div>
@@ -612,18 +594,6 @@ export default function TasksPage() {
                   <input type="number" min="0" step="0.5" value={form.estimatedHours} onChange={(e) => setForm({ ...form, estimatedHours: e.target.value })} placeholder="0" />
                 </div>
               </div>
-
-              {!form.isPersonal && (
-                <div className={styles.field}>
-                  <label>Project (optional)</label>
-                  <select value={form.project} onChange={(e) => setForm({ ...form, project: e.target.value })}>
-                    <option value="">No project</option>
-                    {projects.map((p) => (
-                      <option key={p._id} value={p._id}>{p.title}</option>
-                    ))}
-                  </select>
-                </div>
-              )}
 
               {!form.isPersonal && (
                 <div className={styles.field}>
@@ -838,7 +808,6 @@ export default function TasksPage() {
         onDelete={(t) => { setShowTaskModal(false); setSelectedTask(null); setDeleteConfirm(t); }}
         onSaved={() => { setShowTaskModal(false); setSelectedTask(null); showSuccess('Task Updated!', 'All changes have been saved.'); }}
         members={members}
-        projects={projects}
         patchTimer={patchTimer}
       />
 
@@ -942,7 +911,6 @@ function TaskRow({
 }) {
   const isOverdue = task.dueDate && task.status !== 'done' && new Date(task.dueDate) < new Date();
 
-  // Visually escalate to critical when overdue
   const effectivePriority: keyof typeof priorityVariant =
     isOverdue ? 'critical' : task.priority;
 
@@ -999,9 +967,6 @@ function TaskRow({
           {task.remark && <span className={styles.remarkBadge}>{task.remark}</span>}
         </div>
         <div className={styles.taskMeta}>
-          {task.project && typeof task.project === 'object' && (
-            <span className={styles.projectName}>{task.project.title}</span>
-          )}
           {task.dueDate && (
             <span className={`${styles.dueDate} ${isOverdue ? styles.dueDateOverdue : ''}`}>
               {isOverdue ? '⚠ ' : ''}{formatDate(task.dueDate)}
@@ -1040,17 +1005,12 @@ function TaskRow({
           </div>
         )}
 
-
         <div className={styles.statusActions}>
           {renderWorkflowBtn()}
           {task.status !== 'backlog' && (
             <TaskTimer task={task} onUpdate={onTimerUpdate} overrideAct={act} />
           )}
         </div>
-
-        {/*<span className={styles.hours}>
-          {Math.floor(task.totalElapsedSeconds / 60)}m
-        </span>*/}
 
         <span className={styles.hours}>
           {Math.floor(task.totalElapsedSeconds / 60)}m

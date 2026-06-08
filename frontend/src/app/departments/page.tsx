@@ -51,19 +51,18 @@ function DeptFormModal({
   isOpen, onClose, onSave, initial,
 }: {
   isOpen: boolean; onClose: () => void;
-  onSave: (v: { name: string; description: string; color: string; canSocialMedia: boolean }) => Promise<void>;
-  initial?: { name: string; description: string; color: string; canSocialMedia: boolean };
+  onSave: (v: { name: string; description: string; color: string }) => Promise<void>;
+  initial?: { name: string; description: string; color: string };
 }) {
   const [name, setName] = useState(initial?.name ?? '');
   const [desc, setDesc] = useState(initial?.description ?? '');
   const [color, setColor] = useState(initial?.color ?? PALETTE[0]);
-  const [canSocialMedia, setCanSocialMedia] = useState(initial?.canSocialMedia ?? false);
   const [saving, setSaving] = useState(false);
 
   const handleSave = async () => {
     if (!name.trim()) return;
     setSaving(true);
-    await onSave({ name: name.trim(), description: desc.trim(), color, canSocialMedia });
+    await onSave({ name: name.trim(), description: desc.trim(), color });
     setSaving(false);
     onClose();
   };
@@ -111,25 +110,6 @@ function DeptFormModal({
                 title={c}
               />
             ))}
-          </div>
-        </div>
-
-        <div className={styles.formField}>
-          <div className={styles.toggleRow}>
-            <div>
-              <label className={styles.formLabel}>Social Media Access</label>
-              <p className={styles.toggleHint}>
-                Allow this department's heads to see the Social Media tab inside projects.
-              </p>
-            </div>
-            <label className={styles.toggleSwitch}>
-              <input
-                type="checkbox"
-                checked={canSocialMedia}
-                onChange={(e) => setCanSocialMedia(e.target.checked)}
-              />
-              <span className={styles.toggleSlider} />
-            </label>
           </div>
         </div>
 
@@ -236,12 +216,12 @@ export default function DepartmentsPage() {
     ? departments.find((d) => d._id === selected._id) ?? selected
     : null;
 
-  const handleCreate = async (v: { name: string; description: string; color: string; canSocialMedia: boolean }) => {
+  const handleCreate = async (v: { name: string; description: string; color: string }) => {
     const dept = await createDepartment(v);
     if (dept) setSelected(dept);
   };
 
-  const handleUpdate = async (v: { name: string; description: string; color: string; canSocialMedia: boolean }) => {
+  const handleUpdate = async (v: { name: string; description: string; color: string }) => {
     if (!selectedDept) return;
     await updateDepartment(selectedDept._id, v);
   };
@@ -508,7 +488,6 @@ export default function DepartmentsPage() {
             name: selectedDept.name,
             description: selectedDept.description || '',
             color: selectedDept.color,
-            canSocialMedia: selectedDept.canSocialMedia ?? false,
           }}
         />
       )}

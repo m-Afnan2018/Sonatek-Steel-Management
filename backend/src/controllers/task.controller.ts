@@ -2,7 +2,6 @@ import { Request, Response } from "express";
 import { validationResult } from "express-validator";
 import Task from "../models/Task";
 import Comment from "../models/Comment";
-import Project from "../models/Project";
 import Department from "../models/Department";
 import Notification from "../models/Notification";
 import mongoose from "mongoose";
@@ -11,8 +10,7 @@ import { createNotifications } from "../utils/createNotification";
 
 export const getTasks = async (req: Request, res: Response): Promise<void> => {
     try {
-        const { projectId, status, assignee, priority, search, personal } =
-            req.query;
+        const { status, assignee, priority, search, personal } = req.query;
         const userId = req.user?.id;
         const role = req.user?.role;
         const isAdminOrManager = role === "admin" || role === "manager";
@@ -22,13 +20,6 @@ export const getTasks = async (req: Request, res: Response): Promise<void> => {
             // Personal tasks: always scoped to the requesting user
             filter.reporter = userId;
             filter.isPersonal = true;
-        } else if (projectId) {
-            // Project board view: scope to the project
-            filter.project = projectId;
-            // Members only see tasks they are assigned to within the project
-            if (!isAdminOrManager) {
-                filter.assignees = userId;
-            }
         } else {
             // "My Tasks" view for members: tasks assigned to them OR created by them (non-personal)
             if (!isAdminOrManager) {
@@ -46,7 +37,6 @@ export const getTasks = async (req: Request, res: Response): Promise<void> => {
         const tasks = await Task.find(filter)
             .populate("assignees", "name email avatar")
             .populate("reporter", "name email avatar")
-            .populate("project", "title")
             .sort({ order: 1, createdAt: -1 });
 
 
@@ -66,7 +56,6 @@ export const getAllUserTasks = async (
         const tasks = await Task.find({ status: { $ne: "done" } })
             .populate("assignees", "name email avatar")
             .populate("reporter", "name email avatar")
-            .populate("project", "title")
             .populate("activeTimerUser", "name avatar")
             .sort({ updatedAt: -1 });
 
@@ -82,7 +71,7 @@ export const getTask = async (req: Request, res: Response): Promise<void> => {
             .populate("assignees", "name email avatar")
             .populate("reporter", "name email avatar")
             .populate("dependencies", "title status")
-            .populate("project", "title");
+            .populate("contributions.user", "name email avatar");
 
         if (!task) {
             res.status(404).json({ message: "Task not found." });
@@ -114,7 +103,6 @@ export const createTask = async (
             title,
             description,
             remark,
-            project,
             isPersonal,
             status,
             priority,
@@ -124,10 +112,10 @@ export const createTask = async (
             tags,
             links,
             thumbnail,
+            isGroupTask,
         } = req.body;
 
         const lastTask = await Task.findOne({
-            ...(project ? { project } : {}),
             status: status || "backlog",
         }).sort({ order: -1 });
         const order = lastTask ? lastTask.order + 1 : 0;
@@ -136,7 +124,6 @@ export const createTask = async (
             title,
             description,
             remark,
-            project: project || undefined,
             isPersonal: Boolean(isPersonal),
             status: status || "backlog",
             priority: priority || "medium",
@@ -148,6 +135,7 @@ export const createTask = async (
             links: links || [],
             thumbnail: thumbnail || "",
             order,
+            isGroupTask: Boolean(isGroupTask),
         });
 
         await task.save();
@@ -163,7 +151,7 @@ export const createTask = async (
                     type: "task_assigned" as const,
                     title: "New Task Assigned",
                     message: `You have been assigned to "${title}"`,
-                    link: project ? `/projects/${project}` : "/tasks",
+                    link: "/tasks",
                 }));
             if (notifications.length > 0)
                 await createNotifications(notifications);
@@ -214,24 +202,11 @@ export const updateTask = async (
         )
             .populate("assignees", "name email avatar")
             .populate("reporter", "name email avatar")
-            .populate("project", "title");
+            .populate("contributions.user", "name email avatar");
 
         if (!task) {
             res.status(404).json({ message: "Task not found." });
             return;
-        }
-
-        if (task.project) {
-            const taskCounts = await Task.aggregate([
-                { $match: { project: task.project } },
-                { $group: { _id: "$status", count: { $sum: 1 } } },
-            ]);
-            const totalTasks = taskCounts.reduce((sum, t) => sum + t.count, 0);
-            const doneTasks =
-                taskCounts.find((t) => t._id === "done")?.count || 0;
-            const progress =
-                totalTasks > 0 ? Math.round((doneTasks / totalTasks) * 100) : 0;
-            await Project.findByIdAndUpdate(task.project, { progress });
         }
 
         res.json(task);
@@ -274,27 +249,6 @@ export const updateTaskStatus = async (
         await task.save();
         await task.populate("assignees", "name email avatar");
         await task.populate("reporter", "name email avatar");
-        await task.populate("project", "title");
-
-        if (task.project) {
-            const projectId =
-                typeof task.project === "object"
-                    ? (task.project as { _id: unknown })._id
-                    : task.project;
-            const taskCounts = await Task.aggregate([
-                { $match: { project: projectId } },
-                { $group: { _id: "$status", count: { $sum: 1 } } },
-            ]);
-            const totalTasks = taskCounts.reduce((sum, t) => sum + t.count, 0);
-            const doneTasks =
-                taskCounts.find((t) => t._id === "done")?.count || 0;
-            await Project.findByIdAndUpdate(projectId, {
-                progress:
-                    totalTasks > 0
-                        ? Math.round((doneTasks / totalTasks) * 100)
-                        : 0,
-            });
-        }
 
         res.json(task);
     } catch (error) {
@@ -471,24 +425,6 @@ export const patchTimer = async (
         await task.save();
         await task.populate("assignees", "name email avatar");
         await task.populate("reporter", "name email avatar");
-        await task.populate("project", "title");
-
-        // Update project progress when task finishes
-        if (action === "finish" && task.project) {
-            const projectId =
-                typeof task.project === "object"
-                    ? (task.project as { _id: unknown })._id
-                    : task.project;
-            const taskCounts = await Task.aggregate([
-                { $match: { project: projectId } },
-                { $group: { _id: "$status", count: { $sum: 1 } } },
-            ]);
-            const total = taskCounts.reduce((s, t) => s + t.count, 0);
-            const done = taskCounts.find((t) => t._id === "done")?.count ?? 0;
-            await Project.findByIdAndUpdate(projectId, {
-                progress: total > 0 ? Math.round((done / total) * 100) : 0,
-            });
-        }
 
         res.json(task);
     } catch (error) {
@@ -560,7 +496,6 @@ export const delegateTask = async (
         await task.populate("reporter", "name email avatar");
         await task.populate("delegations.delegatedBy", "name email avatar");
         await task.populate("delegations.delegatedTo", "name email avatar");
-        await task.populate("project", "title");
 
         await createNotifications({
             recipient: delegateTo,
@@ -568,14 +503,273 @@ export const delegateTask = async (
             type:      "task_delegated",
             title:     "Task Delegated to You",
             message:   `${req.user?.name} delegated "${task.title}" to you`,
-            link:      task.project
-                ? `/projects/${(task.project as any)._id ?? task.project}/tasks/${task._id}`
-                : "/tasks",
+            link:      "/tasks",
         });
 
         res.json(task);
     } catch (error) {
         console.error("DelegateTask error:", error);
+        res.status(500).json({ message: "Server error." });
+    }
+};
+
+export const addContribution = async (
+    req: Request,
+    res: Response,
+): Promise<void> => {
+    try {
+        const { content, attachments, links, isDone } = req.body;
+        const userId = req.user?.id;
+
+        const task = await Task.findById(req.params.id);
+        if (!task) {
+            res.status(404).json({ message: "Task not found." });
+            return;
+        }
+
+        const isAssignee = task.assignees.some((a) => a.toString() === userId);
+        const isReporter = task.reporter.toString() === userId;
+
+        if (!isAssignee && !isReporter) {
+            res.status(403).json({ message: "Only assignees or the reporter can contribute to this task." });
+            return;
+        }
+
+        const now = new Date();
+        const existingIdx = (task.contributions as any[]).findIndex(
+            (c) => c.user.toString() === userId,
+        );
+
+        if (existingIdx !== -1) {
+            const prev = (task.contributions as any[])[existingIdx].toObject
+                ? (task.contributions as any[])[existingIdx].toObject()
+                : (task.contributions as any[])[existingIdx];
+            (task.contributions as any[])[existingIdx] = {
+                ...prev,
+                content:     content ?? "",
+                attachments: attachments ?? [],
+                links:       links ?? [],
+                updatedAt:   now,
+                ...(isDone !== undefined ? { isDone: Boolean(isDone) } : {}),
+            };
+        } else {
+            (task.contributions as any[]).push({
+                user:        new mongoose.Types.ObjectId(userId),
+                content:     content ?? "",
+                attachments: attachments ?? [],
+                links:       links ?? [],
+                submittedAt: now,
+                updatedAt:   now,
+                timerStatus: "idle",
+                timerEvents: [],
+                totalElapsedSeconds: 0,
+                isDone:      isDone !== undefined ? Boolean(isDone) : false,
+            });
+        }
+
+        await task.save();
+        await task.populate("assignees", "name email avatar");
+        await task.populate("reporter", "name email avatar");
+        await task.populate("contributions.user", "name email avatar");
+
+        res.json(task);
+    } catch (error) {
+        console.error("AddContribution error:", error);
+        res.status(500).json({ message: "Server error." });
+    }
+};
+
+export const patchContributionTimer = async (
+    req: Request,
+    res: Response,
+): Promise<void> => {
+    try {
+        const { action } = req.body as { action: 'start' | 'pause' | 'resume' | 'finish' };
+        const userId = req.user?.id;
+
+        if (!['start', 'pause', 'resume', 'finish'].includes(action)) {
+            res.status(400).json({ message: "Invalid timer action." });
+            return;
+        }
+
+        const task = await Task.findById(req.params.id);
+        if (!task) {
+            res.status(404).json({ message: "Task not found." });
+            return;
+        }
+
+        const isAssignee = task.assignees.some((a) => a.toString() === userId);
+        const isReporter = task.reporter.toString() === userId;
+
+        if (!isAssignee && !isReporter) {
+            res.status(403).json({ message: "Only assignees or the reporter can manage this timer." });
+            return;
+        }
+
+        const contributions = task.contributions as any[];
+        let contribIdx = contributions.findIndex((c) => c.user.toString() === userId);
+
+        // Auto-create contribution entry if it doesn't exist yet
+        if (contribIdx === -1) {
+            const now2 = new Date();
+            contributions.push({
+                user:        new mongoose.Types.ObjectId(userId),
+                content:     "",
+                attachments: [],
+                links:       [],
+                submittedAt: now2,
+                updatedAt:   now2,
+                timerStatus: "idle",
+                timerEvents: [],
+                totalElapsedSeconds: 0,
+                isDone:      false,
+            });
+            contribIdx = contributions.length - 1;
+        }
+
+        const contrib = contributions[contribIdx];
+        const now = new Date();
+
+        // Guard invalid transitions — timer can only be started once (from idle)
+        if (contrib.timerStatus === 'finished') {
+            res.status(400).json({ message: "Timer is already finished and cannot be changed." });
+            return;
+        }
+        if (action === 'start' && contrib.timerStatus !== 'idle') {
+            res.status(400).json({ message: "Timer can only be started once." });
+            return;
+        }
+        if (action === 'pause' && contrib.timerStatus !== 'running') {
+            res.status(400).json({ message: "Timer is not running." });
+            return;
+        }
+        if (action === 'resume' && contrib.timerStatus !== 'paused') {
+            res.status(400).json({ message: "Timer is not paused." });
+            return;
+        }
+        if (action === 'finish' && contrib.timerStatus === 'idle') {
+            res.status(400).json({ message: "Timer has not been started yet." });
+            return;
+        }
+
+        switch (action) {
+            case 'start':
+                contrib.timerStatus = 'running';
+                contrib.timerEvents.push({ action: 'start', timestamp: now });
+                break;
+            case 'pause':
+                contrib.totalElapsedSeconds = getElapsedSeconds(contrib.timerEvents);
+                contrib.timerEvents.push({ action: 'pause', timestamp: now });
+                contrib.timerStatus = 'paused';
+                break;
+            case 'resume':
+                contrib.timerStatus = 'running';
+                contrib.timerEvents.push({ action: 'resume', timestamp: now });
+                break;
+            case 'finish':
+                contrib.totalElapsedSeconds = getElapsedSeconds(contrib.timerEvents);
+                contrib.timerEvents.push({ action: 'finish', timestamp: now });
+                contrib.timerStatus = 'finished';
+                break;
+        }
+
+        contrib.updatedAt = now;
+
+        await task.save();
+        await task.populate("assignees", "name email avatar");
+        await task.populate("reporter", "name email avatar");
+        await task.populate("contributions.user", "name email avatar");
+
+        res.json(task);
+    } catch (error) {
+        console.error("PatchContributionTimer error:", error);
+        res.status(500).json({ message: "Server error." });
+    }
+};
+
+export const toggleContributionDone = async (
+    req: Request,
+    res: Response,
+): Promise<void> => {
+    try {
+        const userId = req.user?.id;
+
+        const task = await Task.findById(req.params.id);
+        if (!task) {
+            res.status(404).json({ message: "Task not found." });
+            return;
+        }
+
+        const isAssignee = task.assignees.some((a) => a.toString() === userId);
+        if (!isAssignee) {
+            res.status(403).json({ message: "Only assignees can mark their contribution as done." });
+            return;
+        }
+
+        const contributions = task.contributions as any[];
+        let contribIdx = contributions.findIndex((c) => c.user.toString() === userId);
+
+        // Auto-create contribution entry if it doesn't exist yet
+        if (contribIdx === -1) {
+            const now2 = new Date();
+            contributions.push({
+                user:        new mongoose.Types.ObjectId(userId),
+                content:     "",
+                attachments: [],
+                links:       [],
+                submittedAt: now2,
+                updatedAt:   now2,
+                timerStatus: "idle",
+                timerEvents: [],
+                totalElapsedSeconds: 0,
+                isDone:      false,
+            });
+            contribIdx = contributions.length - 1;
+        }
+
+        const contrib = contributions[contribIdx];
+        contrib.isDone = !contrib.isDone;
+        contrib.updatedAt = new Date();
+
+        await task.save();
+        await task.populate("assignees", "name email avatar");
+        await task.populate("reporter", "name email avatar");
+        await task.populate("contributions.user", "name email avatar");
+
+        res.json(task);
+    } catch (error) {
+        console.error("ToggleContributionDone error:", error);
+        res.status(500).json({ message: "Server error." });
+    }
+};
+
+export const getContributions = async (
+    req: Request,
+    res: Response,
+): Promise<void> => {
+    try {
+        const userId = req.user?.id;
+
+        const task = await Task.findById(req.params.id)
+            .populate("contributions.user", "name email avatar");
+
+        if (!task) {
+            res.status(404).json({ message: "Task not found." });
+            return;
+        }
+
+        const isAssignee = task.assignees.some((a) => a.toString() === userId);
+        const isReporter = task.reporter.toString() === userId;
+        const isAdminOrManager = req.user?.role === "admin" || req.user?.role === "manager";
+
+        if (!isAssignee && !isReporter && !isAdminOrManager) {
+            res.status(403).json({ message: "Access denied." });
+            return;
+        }
+
+        res.json(task.contributions);
+    } catch (error) {
+        console.error("GetContributions error:", error);
         res.status(500).json({ message: "Server error." });
     }
 };

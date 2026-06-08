@@ -4,22 +4,20 @@ import { useEffect, useState } from 'react';
 import AppShell from '@/components/layout/AppShell/AppShell';
 import StatsCard from '@/components/dashboard/StatsCard/StatsCard';
 import ActivityFeed from '@/components/dashboard/ActivityFeed/ActivityFeed';
-import ProjectProgress from '@/components/dashboard/ProjectProgress/ProjectProgress';
 import TeamWorkload from '@/components/dashboard/TeamWorkload/TeamWorkload';
 import CheckInButton from '@/components/attendance/CheckInButton/CheckInButton';
 import Spinner from '@/components/ui/Spinner/Spinner';
-import { useProjects } from '@/hooks/useProjects';
 import { useTeam } from '@/hooks/useTeam';
 import api from '@/lib/api';
 import type { Notification } from '@/types';
 import styles from './dashboard.module.css';
-import { FolderOpen, CheckSquare, Users, Bell } from 'lucide-react';
+import { ListTodo, CheckSquare, Users, Bell } from 'lucide-react';
 
 export default function DashboardPage() {
-  const { projects, loading: projectsLoading } = useProjects();
   const { members, loading: teamLoading } = useTeam();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [taskCount, setTaskCount] = useState(0);
+  const [totalTaskCount, setTotalTaskCount] = useState(0);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -29,6 +27,7 @@ export default function DashboardPage() {
           api.get('/tasks'),
         ]);
         setNotifications(notifRes.data);
+        setTotalTaskCount(taskRes.data.length);
         setTaskCount(taskRes.data.filter((t: { status: string }) =>
           ['todo', 'in_progress', 'in_review'].includes(t.status)
         ).length);
@@ -39,8 +38,7 @@ export default function DashboardPage() {
     fetchData();
   }, []);
 
-  const activeProjects = projects.filter((p) => p.status === 'active');
-  const loading = projectsLoading || teamLoading;
+  const loading = teamLoading;
 
   return (
     <AppShell title="Dashboard">
@@ -52,10 +50,10 @@ export default function DashboardPage() {
         <div className={styles.page}>
           <div className={styles.stats}>
             <StatsCard
-              title="Total Projects"
-              value={projects.length}
+              title="Total Tasks"
+              value={totalTaskCount}
               color="var(--primary)"
-              icon={<FolderOpen size={22} />}
+              icon={<ListTodo size={22} />}
             />
             <StatsCard
               title="Active Tasks"
@@ -79,7 +77,6 @@ export default function DashboardPage() {
 
           <div className={styles.grid}>
             <div className={styles.main}>
-              <ProjectProgress projects={activeProjects} />
               <ActivityFeed notifications={notifications} />
             </div>
             <div className={styles.sidebar}>

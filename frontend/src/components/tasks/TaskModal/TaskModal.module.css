@@ -68,6 +68,18 @@
   padding-top: 0.125rem;
 }
 
+.groupTaskBadge {
+  font-size: 0.625rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  color: #8b5cf6;
+  background: rgba(139, 92, 246, 0.12);
+  border: 1px solid rgba(139, 92, 246, 0.3);
+  border-radius: var(--radius-sm);
+  padding: 0.125rem 0.5rem;
+  white-space: nowrap;
+}
+
 /* ─── Tabs ───────────────────────────────────────────────────────── */
 .tabs {
   display: flex;
