@@ -9,6 +9,7 @@ import Avatar from '@/components/ui/Avatar/Avatar';
 import Spinner from '@/components/ui/Spinner/Spinner';
 import TaskTimer from '@/components/tasks/TaskTimer';
 import TaskModal from '@/components/tasks/TaskModal/TaskModal';
+import KanbanBoard from '@/components/tasks/KanbanBoard/KanbanBoard';
 import SuccessPopup from '@/components/ui/SuccessPopup/SuccessPopup';
 import { useTasks } from '@/hooks/useTasks';
 import { useTeam } from '@/hooks/useTeam';
@@ -18,7 +19,7 @@ import { formatDate } from '@/lib/utils';
 import api, { uploadFile } from '@/lib/api';
 import type { Task, Attachment } from '@/types';
 import styles from './tasks.module.css';
-import { Calendar, ChevronLeft, ChevronRight, ArrowUpDown, CheckSquare, Check, CornerUpRight } from 'lucide-react';
+import { Calendar, ChevronLeft, ChevronRight, ArrowUpDown, CheckSquare, Check, CornerUpRight, List, LayoutGrid } from 'lucide-react';
 
 const API_BASE = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api').replace(/\/api$/, '');
 type CreateTab = 'details' | 'notes' | 'links' | 'files';
@@ -97,6 +98,7 @@ export default function TasksPage() {
   };
 
   const [tab, setTab] = useState<'personal' | 'assigned'>('assigned');
+  const [view, setView] = useState<'list' | 'board'>('list');
   const [showCreate, setShowCreate] = useState(false);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [showTaskModal, setShowTaskModal] = useState(false);
@@ -280,6 +282,17 @@ export default function TasksPage() {
     completedPage * COMPLETED_PAGE_SIZE,
   );
 
+  // Board view is always scoped to the current user's own tasks (user-wise, not team-wide)
+  const boardTasks = useMemo(() => {
+    return localTasks.filter((t) => {
+      if (!matchesNonStatusFilters(t)) return false;
+      if (tab === 'assigned' && isAdminOrManager) {
+        return t.assignees.some((a) => (((a as any)._id?.toString() || a.id) === user?.id));
+      }
+      return true;
+    });
+  }, [localTasks, tab, isAdminOrManager, user?.id, filterPriority, filterAssignee, filterDateFrom, filterDateTo]);
+
   const hasFilters = filterStatus || filterPriority || filterAssignee || filterDateFrom || filterDateTo;
 
   const clearFilters = () => {
@@ -318,7 +331,27 @@ export default function TasksPage() {
               Personal
             </button>
           </div>
-          <Button onClick={openCreate}>+ New Task</Button>
+          <div className={styles.headerActions}>
+            <div className={styles.viewToggle}>
+              <button
+                className={`${styles.viewToggleBtn} ${view === 'list' ? styles.viewToggleActive : ''}`}
+                onClick={() => setView('list')}
+                title="List view"
+              >
+                <List size={14} strokeWidth={2.5} />
+                List
+              </button>
+              <button
+                className={`${styles.viewToggleBtn} ${view === 'board' ? styles.viewToggleActive : ''}`}
+                onClick={() => setView('board')}
+                title="Board view — drag your tasks between statuses"
+              >
+                <LayoutGrid size={14} strokeWidth={2.5} />
+                Board
+              </button>
+            </div>
+            <Button onClick={openCreate}>+ New Task</Button>
+          </div>
         </div>
 
         {/* Filters */}
@@ -413,6 +446,14 @@ export default function TasksPage() {
             <p className={styles.emptyTitle}>Something went wrong</p>
             <p className={styles.emptyText}>{error}</p>
           </div>
+        ) : view === 'board' ? (
+          <KanbanBoard
+            tasks={boardTasks}
+            onTaskClick={handleTaskClick}
+            onStatusChange={handleStatusChange}
+            onTaskUpdate={handleTimerUpdate}
+            patchTimer={patchTimer}
+          />
         ) : activeTasks.length === 0 && completedTasks.length === 0 ? (
           <div className={styles.empty}>
             <span className={styles.emptyIcon}>{emptyMessage.icon}</span>
