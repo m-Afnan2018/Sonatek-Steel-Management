@@ -582,17 +582,6 @@ export default function TasksPage() {
                 <input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} placeholder="What needs to be done?" autoFocus />
               </div>
 
-              <div className={styles.toggleRow}>
-                <span className={styles.toggleLabel}>
-                  {form.isPersonal ? 'Personal Task' : 'Team Task'}
-                  <span className={styles.toggleSub}>{form.isPersonal ? 'Only visible to you' : 'Can be assigned to members'}</span>
-                </span>
-                <label className={styles.toggle}>
-                  <input type="checkbox" checked={form.isPersonal} onChange={(e) => setForm((f) => ({ ...f, isPersonal: e.target.checked, assignees: [] }))} />
-                  <span className={styles.toggleSlider} />
-                </label>
-              </div>
-
               <div className={styles.field}>
                 <label>Description</label>
                 <textarea rows={3} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="Add more details…" />
