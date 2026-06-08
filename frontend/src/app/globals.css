@@ -39,9 +39,9 @@
   --card: #FFFFFF;
   --card-hover: #F5F7FF;
   --border: #DDE0EE;
-  --primary: #6C63FF;
-  --primary-hover: #5A52E0;
-  --primary-light: rgba(108, 99, 255, 0.12);
+  --primary: #03134D;
+  --primary-hover: #021040;
+  --primary-light: rgba(3, 19, 77, 0.12);
   --success: #00B894;
   --success-light: rgba(0, 184, 148, 0.12);
   --danger: #E84057;
