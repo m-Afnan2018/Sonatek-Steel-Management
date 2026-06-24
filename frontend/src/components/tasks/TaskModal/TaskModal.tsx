@@ -6,6 +6,7 @@ import Button from '@/components/ui/Button/Button';
 import Badge from '@/components/ui/Badge/Badge';
 import Avatar from '@/components/ui/Avatar/Avatar';
 import TaskTimer from '@/components/tasks/TaskTimer';
+import AudioRecorder from '@/components/tasks/AudioRecorder/AudioRecorder';
 import { formatDate, timeAgo } from '@/lib/utils';
 import { useTasks } from '@/hooks/useTasks';
 import { useDepartments } from '@/hooks/useDepartments';
@@ -260,6 +261,20 @@ export default function TaskModal({ task, isOpen, onClose, onUpdate, onDelete, o
     setAssigneeIds((prev) => prev.includes(id) ? [] : [id]);
   };
 
+  const handleAudioSaved = async (attachment: Attachment) => {
+    const updated = await updateTask(task._id, {
+      attachments: [...attachments, attachment],
+    } as Partial<Task>);
+    if (updated) { setAttachments(updated.attachments || []); onUpdate(updated); }
+  };
+
+  const handleAudioDelete = async (idx: number) => {
+    const updated = await updateTask(task._id, {
+      attachments: attachments.filter((_, i) => i !== idx),
+    } as Partial<Task>);
+    if (updated) { setAttachments(updated.attachments || []); onUpdate(updated); }
+  };
+
   const handleDelegate = async () => {
     if (!task || !delegateTo) return;
     setDelegating(true);
@@ -486,6 +501,7 @@ export default function TaskModal({ task, isOpen, onClose, onUpdate, onDelete, o
             </div>
           </div>
 
+          {/* tabs hidden — only details view shown
           <div className={styles.tabs}>
             {TABS.map(({ key, label }) => {
               const count = tabCount(key);
@@ -501,6 +517,7 @@ export default function TaskModal({ task, isOpen, onClose, onUpdate, onDelete, o
               );
             })}
           </div>
+          */}
         </div>
 
         {/* ── Body ─────────────────────────────────────────────── */}
@@ -541,6 +558,7 @@ export default function TaskModal({ task, isOpen, onClose, onUpdate, onDelete, o
                   </p>
                 )}
 
+                {/* tags hidden
                 {task.tags.length > 0 && (
                   <div className={styles.tags}>
                     {task.tags.map((tag) => (
@@ -548,6 +566,7 @@ export default function TaskModal({ task, isOpen, onClose, onUpdate, onDelete, o
                     ))}
                   </div>
                 )}
+                */}
 
                 <div className={styles.sectionHeader} style={{ marginTop: '1rem' }}>
                   <span className={styles.sectionLabel}>Assignees</span>
@@ -603,7 +622,7 @@ export default function TaskModal({ task, isOpen, onClose, onUpdate, onDelete, o
                         ))
                     }
 
-                    {/* Delegate button — visible to assignees who are dept heads */}
+                    {/* Delegate button — hidden
                     {(() => {
                       const isAssignee = task.assignees.filter(Boolean).some(
                         (a) => uid(a) === uid(currentUser)
@@ -620,65 +639,28 @@ export default function TaskModal({ task, isOpen, onClose, onUpdate, onDelete, o
                         </button>
                       );
                     })()}
+                    */}
                   </div>
                 )}
 
-                {/* Delegate panel */}
-                {showDelegate && (
-                  <div className={styles.delegatePanel}>
-                    <p className={styles.delegatePanelTitle}>Delegate to</p>
-                    <select
-                      className={styles.delegateSelect}
-                      value={delegateTo}
-                      onChange={(e) => setDelegateTo(e.target.value)}
-                    >
-                      <option value="">Select a team member…</option>
-                      {delegatableMembers.map((m) => (
-                        <option key={m.id} value={m.id}>{m.name}</option>
-                      ))}
-                    </select>
-                    <textarea
-                      className={styles.delegateNote}
-                      rows={2}
-                      placeholder="Note (optional)"
-                      value={delegateNote}
-                      onChange={(e) => setDelegateNote(e.target.value)}
-                    />
-                    {delegateError && (
-                      <p className={styles.delegateError}>{delegateError}</p>
-                    )}
-                    <div className={styles.delegateActions}>
-                      <Button variant="ghost" size="sm" onClick={() => { setShowDelegate(false); setDelegateError(''); }}>
-                        Cancel
-                      </Button>
-                      <Button size="sm" onClick={handleDelegate} loading={delegating} disabled={!delegateTo}>
-                        Confirm
-                      </Button>
-                    </div>
-                  </div>
-                )}
+                {/* Delegate panel — hidden
+                {showDelegate && ( ... )}
+                */}
 
-                {/* Delegation history */}
-                {(task.delegations ?? []).length > 0 && (
-                  <div className={styles.delegationHistory}>
-                    <span className={styles.sectionLabel} style={{ marginTop: '0.75rem', display: 'block' }}>Delegation history</span>
-                    {task.delegations.map((d) => (
-                      <div key={d._id} className={styles.delegationEntry}>
-                        <span className={styles.delegationLine}>
-                          <strong>{d.delegatedBy?.name}</strong>
-                          <ArrowRight size={10} strokeWidth={2.5} style={{ margin: '0 4px', flexShrink: 0 }} />
-                          <strong>{d.delegatedTo?.name}</strong>
-                        </span>
-                        {d.note && <span className={styles.delegationNote}>"{d.note}"</span>}
-                        <span className={styles.delegationTime}>{timeAgo(d.delegatedAt)}</span>
-                      </div>
-                    ))}
-                  </div>
-                )}
+                {/* Delegation history — hidden
+                {(task.delegations ?? []).length > 0 && ( ... )}
+                */}
+
+                <AudioRecorder
+                  attachments={attachments}
+                  canEdit={canEdit}
+                  onSaved={handleAudioSaved}
+                  onDelete={handleAudioDelete}
+                />
               </div>
             )}
 
-            {/* NOTES */}
+            {/* NOTES — hidden
             {tab === 'notes' && (
               <div className={styles.section}>
                 <div className={styles.sectionHeader}>
@@ -695,209 +677,33 @@ export default function TaskModal({ task, isOpen, onClose, onUpdate, onDelete, o
                 />
               </div>
             )}
+            */}
 
-            {/* LINKS */}
-            {tab === 'links' && (
-              <div className={styles.section}>
-                <div className={styles.sectionLabel}>Links</div>
-                <div className={styles.addRow}>
-                  <input
-                    value={newLink}
-                    onChange={(e) => setNewLink(e.target.value)}
-                    placeholder="https://..."
-                    onKeyDown={(e) => e.key === 'Enter' && addLink()}
-                  />
-                  <Button size="sm" onClick={addLink} loading={savingLinks}>Add</Button>
-                </div>
-                {links.length === 0 ? (
-                  <p className={styles.placeholder}>No links added yet.</p>
-                ) : (
-                  <div className={styles.linkList}>
-                    {links.map((url, i) => (
-                      <div key={i} className={styles.linkItem}>
-                        <a href={url} target="_blank" rel="noopener noreferrer" className={styles.linkUrl}>
-                          <span className={styles.linkIcon}>🔗</span>
-                          <span className={styles.linkText}>{url}</span>
-                        </a>
-                        <button className={styles.removeBtn} onClick={() => removeLink(i)}>✕</button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
+            {/* LINKS — hidden
+            {tab === 'links' && ( ... )}
+            */}
 
-            {/* FILES */}
-            {tab === 'files' && (
-              <div className={styles.section}>
-                <div className={styles.sectionLabel}>Files & Attachments</div>
+            {/* FILES — hidden
+            {tab === 'files' && ( ... )}
+            */}
 
-                <div
-                  className={`${styles.dropZone} ${dragOver ? styles.dropZoneActive : ''} ${uploading ? styles.dropZoneUploading : ''}`}
-                  onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
-                  onDragLeave={() => setDragOver(false)}
-                  onDrop={(e) => { e.preventDefault(); setDragOver(false); if (e.dataTransfer.files.length) uploadFiles(e.dataTransfer.files); }}
-                  onClick={() => !uploading && fileInputRef.current?.click()}
-                >
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    multiple
-                    className={styles.fileInputHidden}
-                    onChange={(e) => e.target.files && uploadFiles(e.target.files)}
-                    accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.md,.zip"
-                  />
-                  {uploading ? (
-                    <span className={styles.dropZoneText}>Uploading…</span>
-                  ) : (
-                    <>
-                      <span className={styles.dropZoneIcon}>📁</span>
-                      <span className={styles.dropZoneText}>Drop files here or <u>browse</u></span>
-                      <span className={styles.dropZoneSub}>Images, PDFs, Docs, Spreadsheets — max 1 GB each</span>
-                    </>
-                  )}
-                </div>
+            {/* TIMELINE — hidden
+            {tab === 'timeline' && ( ... )}
+            */}
 
-                {uploadError && <p className={styles.uploadError}>{uploadError}</p>}
-
-                <details className={styles.urlFallback}>
-                  <summary>Or attach by URL</summary>
-                  <div className={styles.addAttach}>
-                    <input value={newAttachName} onChange={(e) => setNewAttachName(e.target.value)} placeholder="Display name (optional)" />
-                    <input value={newAttachUrl} onChange={(e) => setNewAttachUrl(e.target.value)} placeholder="https://..." onKeyDown={(e) => e.key === 'Enter' && addAttachment()} />
-                    <Button size="sm" onClick={addAttachment} loading={savingAttach}>Attach</Button>
-                  </div>
-                </details>
-
-                {attachments.length === 0 ? (
-                  <p className={styles.placeholder}>No files attached yet.</p>
-                ) : (
-                  <div className={styles.attachList}>
-                    {attachments.map((a, i) => (
-                      <div key={i} className={styles.attachItem}>
-                        <span className={styles.attachIcon}>{a.type === 'image' ? '🖼' : '📄'}</span>
-                        <div className={styles.attachInfo}>
-                          <a href={a.url} target="_blank" rel="noopener noreferrer" className={styles.attachName}>{a.name}</a>
-                          <span className={styles.attachMeta}>{a.type} · {formatDate(a.uploadedAt)}</span>
-                        </div>
-                        {a.type === 'image' && (
-                          <a href={a.url} target="_blank" rel="noopener noreferrer" className={styles.previewThumb}>
-                            <img src={a.url} alt={a.name} />
-                          </a>
-                        )}
-                        <button className={styles.removeBtn} onClick={() => removeAttachment(i)}>✕</button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* TIMELINE */}
-            {tab === 'timeline' && (
-              <div className={styles.section}>
-                <div className={styles.sectionLabel}>Timer Activity</div>
-
-                {timelineEntries.length === 0 ? (
-                  <p className={styles.placeholder}>No timer activity yet. Start the timer to begin tracking.</p>
-                ) : (
-                  <div className={styles.timeline}>
-                    {timelineEntries.map((ev, i) => {
-                      const meta = ACTION_META[ev.action] ?? { label: ev.action, color: '#6366f1', bg: '#eef2ff' };
-                      const isLast = i === timelineEntries.length - 1;
-                      return (
-                        <div key={i} className={styles.timelineItem}>
-                          {/* Spine */}
-                          <div className={styles.timelineSpine}>
-                            <span
-                              className={styles.timelineDot}
-                              style={{ background: meta.color, boxShadow: `0 0 0 3px ${meta.bg}` }}
-                            />
-                            {!isLast && <div className={styles.timelineLine} />}
-                          </div>
-
-                          {/* Content */}
-                          <div className={styles.timelineContent}>
-                            <div className={styles.timelineHeader}>
-                              <span className={styles.timelineAction} style={{ color: meta.color, background: meta.bg }}>
-                                {meta.label}
-                              </span>
-                              <span className={styles.timelineTime}>{fmtDateTime(ev.timestamp)}</span>
-                            </div>
-                            {ev.durationLabel && (
-                              <span className={styles.timelineDuration}>{ev.durationLabel}</span>
-                            )}
-                          </div>
-                        </div>
-                      );
-                    })}
-
-                    {/* Total elapsed summary */}
-                    <div className={styles.timelineSummary}>
-                      <Clock size={13} />
-                      Total time logged:&nbsp;
-                      <strong>{fmtDuration(task.totalElapsedSeconds * 1000)}</strong>
-                      {task.estimatedHours != null && task.estimatedHours > 0 && (
-                        <> &nbsp;/&nbsp; {task.estimatedHours}h estimated</>
-                      )}
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* COMMENTS */}
-            {tab === 'comments' && (
-              <div className={styles.section}>
-                <div className={styles.sectionLabel}>Comments</div>
-                <div className={styles.commentInput}>
-                  <div className={styles.mentionWrapper}>
-                    <textarea
-                      rows={3}
-                      placeholder="Add a comment… Use @name to mention"
-                      value={newComment}
-                      onChange={(e) => handleCommentChange(e.target.value)}
-                    />
-                    {showMentions && filteredMembers.length > 0 && (
-                      <div className={styles.mentionDropdown}>
-                        {filteredMembers.slice(0, 5).map((m) => (
-                          <button key={m.id} className={styles.mentionItem} onClick={() => insertMention(m.name.split(' ')[0])}>
-                            <Avatar name={m.name} size="sm" />
-                            <span>{m.name}</span>
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                  <Button size="sm" onClick={handleComment}>Post</Button>
-                </div>
-                <div className={styles.commentList}>
-                  {comments.length === 0
-                    ? <p className={styles.placeholder}>No comments yet.</p>
-                    : comments.map((c) => (
-                        <div key={c._id} className={styles.comment}>
-                          <Avatar name={c.author?.name || 'U'} size="sm" />
-                          <div className={styles.commentBody}>
-                            <div className={styles.commentHeader}>
-                              <span className={styles.commentAuthor}>{c.author?.name}</span>
-                              <span className={styles.commentTime}>{timeAgo(c.createdAt)}</span>
-                            </div>
-                            <p className={styles.commentText}>{c.content}</p>
-                          </div>
-                        </div>
-                      ))
-                  }
-                </div>
-              </div>
-            )}
+            {/* COMMENTS — hidden
+            {tab === 'comments' && ( ... )}
+            */}
           </div>
 
           {/* ── Sidebar ───────────────────────────────────────── */}
           <aside className={styles.sidebar}>
+            {/* Timer — hidden
             <div className={styles.sideCard}>
               <p className={styles.sideLabel}>Timer</p>
               <TaskTimer task={task} onUpdate={onUpdate} overrideAct={handleTimerAct} />
             </div>
+            */}
 
             <div className={styles.sideCard}>
               <div className={styles.metaRow}>
@@ -912,52 +718,30 @@ export default function TaskModal({ task, isOpen, onClose, onUpdate, onDelete, o
                   <option value="done">Done</option>
                 </select>
               </div>
+              {/* priority, due date, due time, reporter, created — hidden
               <div className={styles.metaRow}>
                 <span className={styles.sideLabel}>Priority</span>
-                <select className={styles.metaSelect} value={editPriority}
-                  onChange={(e) => setEditPriority(e.target.value)}
-                  disabled={!canEdit}>
-                  <option value="low">Low</option>
-                  <option value="medium">Medium</option>
-                  <option value="high">High</option>
-                  <option value="critical">Critical</option>
-                </select>
+                ...
               </div>
               <div className={styles.metaRow}>
                 <span className={styles.sideLabel}>Due Date</span>
-                <input type="date" className={styles.metaDate} value={editDue}
-                  onChange={(e) => setEditDue(e.target.value)}
-                  disabled={!canEdit} />
+                ...
               </div>
               <div className={styles.metaRow}>
                 <span className={styles.sideLabel}>Due Time</span>
-                <div className={styles.dueTimeWrap}>
-                  <input type="time" className={styles.metaDate} value={editDueTime}
-                    onChange={(e) => setEditDueTime(e.target.value)}
-                    disabled={!canEdit} />
-                  {canEdit && editDueTime && (
-                    <button
-                      type="button"
-                      className={styles.clearTimeBtn}
-                      onClick={() => setEditDueTime('')}
-                      title="Clear due time"
-                    >✕</button>
-                  )}
-                </div>
+                ...
               </div>
               <div className={styles.metaRow}>
                 <span className={styles.sideLabel}>Reporter</span>
-                <div className={styles.person}>
-                  <Avatar name={task.reporter?.name || 'U'} size="sm" />
-                  <span className={styles.personName}>{task.reporter?.name}</span>
-                </div>
+                ...
               </div>
               {task.createdAt && (
                 <div className={styles.metaRow}>
                   <span className={styles.sideLabel}>Created</span>
-                  <span className={styles.metaValue}>{formatDate(task.createdAt)}</span>
+                  ...
                 </div>
               )}
+              */}
             </div>
 
           </aside>

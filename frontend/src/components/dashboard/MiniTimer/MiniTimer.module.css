@@ -1,0 +1,96 @@
+.root {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  flex-shrink: 0;
+}
+
+.time {
+  font-family: monospace;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.time.ticking {
+  color: var(--success);
+  animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.55; }
+}
+
+.controls {
+  display: flex;
+  align-items: center;
+  gap: 0.2rem;
+}
+
+.btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  cursor: pointer;
+  transition: background var(--transition), border-color var(--transition), color var(--transition);
+  padding: 0;
+  color: var(--text-secondary);
+}
+
+.btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* Play / Resume */
+.play {
+  border-color: var(--success);
+  color: var(--success);
+}
+.play:hover:not(:disabled) {
+  background: var(--success);
+  color: #fff;
+}
+
+/* Pause */
+.pause {
+  border-color: var(--warning);
+  color: var(--warning);
+}
+.pause:hover:not(:disabled) {
+  background: var(--warning);
+  color: #fff;
+}
+
+/* Stop / Finish */
+.stop {
+  border-color: var(--danger);
+  color: var(--danger);
+}
+.stop:hover:not(:disabled) {
+  background: var(--danger);
+  color: #fff;
+}
+
+.done {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--success);
+}
+
+.spin {
+  color: var(--text-muted);
+  animation: spin 0.7s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}

@@ -556,15 +556,12 @@ export default function TasksPage() {
       <Modal isOpen={showCreate} onClose={() => { setShowCreate(false); resetCreateForm(); }} title="New Task" size="lg">
         <div className={styles.form}>
 
-          {/* ── Tab bar ── */}
+          {/* tab bar hidden — only details shown
           <div className={styles.modalTabBar}>
             {(['details', 'notes', 'links', 'files'] as CreateTab[]).map((t) => (
-              <button
-                key={t}
-                type="button"
+              <button key={t} type="button"
                 className={`${styles.modalTabBtn} ${createTab === t ? styles.modalTabBtnActive : ''}`}
-                onClick={() => setCreateTab(t)}
-              >
+                onClick={() => setCreateTab(t)}>
                 {t === 'details' && 'Details'}
                 {t === 'notes' && 'Notes'}
                 {t === 'links' && (<>Links{links.length > 0 && <span className={styles.modalTabCount}>{links.length}</span>}</>)}
@@ -572,6 +569,7 @@ export default function TasksPage() {
               </button>
             ))}
           </div>
+          */}
 
           {/* ── Details tab ── */}
           {createTab === 'details' && (
@@ -587,43 +585,42 @@ export default function TasksPage() {
                 <textarea rows={3} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="Add more details…" />
               </div>
 
+              {/* remark — hidden
               <div className={styles.field}>
                 <label>Remark</label>
                 <input value={form.remark} onChange={(e) => setForm({ ...form, remark: e.target.value })} placeholder="Short remark visible on the task card" />
               </div>
+              */}
 
+              <div className={styles.field}>
+                <label>Status</label>
+                <select value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })}>
+                  <option value="backlog">Backlog</option>
+                  <option value="todo">To Do</option>
+                  <option value="in_progress">In Progress</option>
+                  <option value="in_review">In Review</option>
+                  <option value="done">Done</option>
+                </select>
+              </div>
+
+              {/* priority, due date, est. hours — hidden
               <div className={styles.row}>
                 <div className={styles.field}>
                   <label>Priority</label>
-                  <select value={form.priority} onChange={(e) => setForm({ ...form, priority: e.target.value })}>
-                    <option value="low">Low</option>
-                    <option value="medium">Medium</option>
-                    <option value="high">High</option>
-                    <option value="critical">Critical</option>
-                  </select>
-                </div>
-                <div className={styles.field}>
-                  <label>Status</label>
-                  <select value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })}>
-                    <option value="backlog">Backlog</option>
-                    <option value="todo">To Do</option>
-                    <option value="in_progress">In Progress</option>
-                    <option value="in_review">In Review</option>
-                    <option value="done">Done</option>
-                  </select>
+                  ...
                 </div>
               </div>
-
               <div className={styles.row}>
                 <div className={styles.field}>
                   <label>Due Date</label>
-                  <input type="date" value={form.dueDate} onChange={(e) => setForm({ ...form, dueDate: e.target.value })} />
+                  ...
                 </div>
                 <div className={styles.field}>
                   <label>Est. Hours</label>
-                  <input type="number" min="0" step="0.5" value={form.estimatedHours} onChange={(e) => setForm({ ...form, estimatedHours: e.target.value })} placeholder="0" />
+                  ...
                 </div>
               </div>
+              */}
 
               {!form.isPersonal && (
                 <div className={styles.field}>
@@ -708,116 +705,17 @@ export default function TasksPage() {
             </div>
           )}
 
-          {/* ── Notes tab ── */}
-          {createTab === 'notes' && (
-            <div className={styles.modalTabContent}>
-              <div className={styles.field}>
-                <label>Notes</label>
-                <textarea
-                  className={styles.notesArea}
-                  rows={12}
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                  placeholder="Add internal notes, checklists, or any context for this task…"
-                  autoFocus
-                />
-              </div>
-            </div>
-          )}
+          {/* Notes tab — hidden
+          {createTab === 'notes' && ( ... )}
+          */}
 
-          {/* ── Links tab ── */}
-          {createTab === 'links' && (
-            <div className={styles.modalTabContent}>
-              <div className={styles.field}>
-                <label>Add Link</label>
-                <div className={styles.linkRow}>
-                  <input
-                    value={linkInput}
-                    onChange={(e) => setLinkInput(e.target.value)}
-                    placeholder="https://..."
-                    onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addLink(); } }}
-                    autoFocus
-                  />
-                  <Button size="sm" onClick={addLink} disabled={!linkInput.trim()}>Add</Button>
-                </div>
-              </div>
-              {links.length > 0 ? (
-                <div className={styles.linkItemList}>
-                  {links.map((url, i) => (
-                    <div key={i} className={styles.linkItem}>
-                      <span className={styles.linkItemIcon}>🔗</span>
-                      <a href={url} target="_blank" rel="noopener noreferrer" className={styles.linkItemUrl}>{url}</a>
-                      <button
-                        type="button"
-                        className={styles.removeBtn}
-                        onClick={() => setLinks((prev) => prev.filter((_, j) => j !== i))}
-                      >✕</button>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className={styles.tabEmpty}>No links added yet. Paste a URL above and press Add.</p>
-              )}
-            </div>
-          )}
+          {/* Links tab — hidden
+          {createTab === 'links' && ( ... )}
+          */}
 
-          {/* ── Files tab ── */}
-          {createTab === 'files' && (
-            <div className={styles.modalTabContent}>
-              <input
-                ref={fileInputRef}
-                type="file"
-                multiple
-                className={styles.fileInputHidden}
-                onChange={(e) => { if (e.target.files) uploadFiles(e.target.files); e.target.value = ''; }}
-                accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.zip"
-              />
-
-              {/* Uploaded file list — shown FIRST so it's always visible */}
-              {attachments.length > 0 && (
-                <div className={styles.attachList}>
-                  {attachments.map((a, i) => (
-                    <div key={a.url} className={styles.attachItem}>
-                      {a.type === 'image' ? (
-                        <div className={styles.previewThumb}>
-                          <img src={`${API_BASE}${a.url}`} alt={a.name} />
-                        </div>
-                      ) : (
-                        <span className={styles.attachIcon}>📄</span>
-                      )}
-                      <div className={styles.attachInfo}>
-                        <a href={`${API_BASE}${a.url}`} target="_blank" rel="noopener noreferrer" className={styles.attachName}>{a.name}</a>
-                      </div>
-                      <button
-                        type="button"
-                        className={styles.removeBtn}
-                        onClick={() => setAttachments((prev) => prev.filter((_, j) => j !== i))}
-                      >✕</button>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {/* Drop zone — compact when files already uploaded */}
-              <div
-                className={`${styles.dropZone} ${attachments.length > 0 ? styles.dropZoneCompact : ''} ${isDragging ? styles.dropZoneActive : ''} ${fileUploading ? styles.dropZoneUploading : ''}`}
-                onClick={() => !fileUploading && fileInputRef.current?.click()}
-                onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
-                onDragLeave={() => setIsDragging(false)}
-                onDrop={(e) => { e.preventDefault(); setIsDragging(false); if (e.dataTransfer.files.length) uploadFiles(e.dataTransfer.files); }}
-              >
-                <span className={styles.dropZoneIcon}>{fileUploading ? '⏳' : '📎'}</span>
-                <span className={styles.dropZoneText}>
-                  {fileUploading ? 'Uploading…' : <><u>Click to browse</u> or drag &amp; drop</>}
-                </span>
-                {!attachments.length && <span className={styles.dropZoneSub}>Images, PDFs, docs — max 1 GB each</span>}
-              </div>
-              {fileUploadError && <p className={styles.uploadError}>{fileUploadError}</p>}
-              {attachments.length === 0 && !fileUploading && (
-                <p className={styles.tabEmpty}>No files attached yet.</p>
-              )}
-            </div>
-          )}
+          {/* Files tab — hidden
+          {createTab === 'files' && ( ... )}
+          */}
 
           {/* ── Always-visible actions ── */}
           <div className={styles.actions}>
