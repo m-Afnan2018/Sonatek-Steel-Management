@@ -4,12 +4,12 @@ dotenv.config();
 import mongoose from 'mongoose';
 import User from '../models/User';
 
-const MONGO_URI = process.env.MONGO_URI || 'mongodb://localhost:27017/ganesyx_pm';
+const MONGO_URI = process.env.MONGO_URI || 'mongodb://localhost:27016/sonatek_management_pm';
 
 const [name, email, password] = process.argv.slice(2);
 
 if (!name || !email || !password) {
-  console.log('Usage: npm run create-admin -- "Full Name" "email@example.com" "Password123"');
+  console.log('Usage: npm run create-admin -- "Admin" "admin@sonatek.com" "Password123"');
   process.exit(1);
 }
 
